@@ -43,7 +43,7 @@ GitHub のリポジトリで **Settings → Secrets and variables → Actions �
 | --- | --- |
 | `CRON_SECRET` | 手順1で Vercel に入れたものと**同じ値** |
 
-収集先のサイト URL（`https://zenbu-navi.vercel.app`）はワークフローに設定済みです。独自ドメインへ移行した場合は、`SITE_URL` という名前のシークレットで新しい URL を登録してください。
+収集先のサイト URL（`https://zenbunavi.com`）はワークフローに設定済みです。ドメインを変更した場合は、`.github/workflows/crawl.yml` の既定値を変えるか、`SITE_URL` という名前のシークレットで新しい URL を登録してください。
 
 登録したら、すぐに1回目の収集を実行します。
 
