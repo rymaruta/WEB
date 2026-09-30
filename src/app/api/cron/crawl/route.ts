@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     inserted: summary.inserted,
     assigned: summary.assigned,
     topicsCreated: summary.topicsCreated,
+    ai: summary.ai,
     errors: summary.sources.filter((s) => s.status === "error").map((s) => ({ name: s.name, error: s.error })),
     durationMs: summary.durationMs,
   });

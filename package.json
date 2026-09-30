@@ -17,6 +17,7 @@
     "vercel-build": "prisma migrate deploy && prisma db seed && next build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.130.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "fast-xml-parser": "^5.11.2",

@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AiArticleView } from "@/components/ai-article";
 import { GenreBadge } from "@/components/genre-badge";
 import { GenreIcon } from "@/components/genre-icon";
 import { OutboundLink } from "@/components/outbound-link";
 import { PublisherAvatars } from "@/components/publisher-avatars";
+import { Thumbnail } from "@/components/thumbnail";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
+import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 
@@ -26,9 +29,10 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
   const id = parseId((await params).id);
   const topic = id ? await getTopic(id) : null;
   if (!topic) return {};
-  const summary = topic.articles.find((a) => a.summary)?.summary ?? undefined;
+  const ai = readAiArticle(topic);
+  const summary = ai?.lead || (topic.articles.find((a) => a.summary)?.summary ?? undefined);
   return {
-    title: topic.title,
+    title: ai?.title ?? topic.title,
     description: summary,
     alternates: { canonical: `/topic/${topic.id}` },
     openGraph: { title: topic.title, description: summary, type: "article" },
@@ -43,6 +47,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   if (!topic) notFound();
 
   const related = await getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] });
+  const ai = readAiArticle(topic);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -83,26 +88,38 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         </header>
 
         <div className="px-5 pb-5 sm:px-6">
+          {ai && (
+            <div className="mb-6">
+              <AiArticleView article={ai} sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))} />
+            </div>
+          )}
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">各媒体の報道（古い順）</h2>
         <ol className="relative border-l-2 border-border pl-5">
           {topic.articles.map((a) => (
-            <li key={a.id} className="relative my-3 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
+            <li key={a.id} className="relative my-3 flex gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
               <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
-              <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
-                <span className="font-bold text-fg">{a.publisher}</span>
-                <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
-                {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
-                  <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
-                )}
-                {a.source.kind === "PRESS" && <span className="rounded border border-border px-1">プレスリリース</span>}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
+                  <span className="font-bold text-fg">{a.publisher}</span>
+                  <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
+                  {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
+                    <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
+                  )}
+                  {a.source.kind === "PRESS" && <span className="rounded border border-border px-1">プレスリリース</span>}
+                </div>
+                <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
+                  {a.title}
+                </OutboundLink>
+                {a.summary && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
+                <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
+                  {a.publisher}で続きを読む ↗
+                </OutboundLink>
               </div>
-              <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
-                {a.title}
-              </OutboundLink>
-              {a.summary && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
-              <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
-                {a.publisher}で続きを読む ↗
-              </OutboundLink>
+              {a.imageUrl && (
+                <OutboundLink articleId={a.id} className="relative hidden w-36 shrink-0 self-start overflow-hidden rounded-lg sm:block">
+                  <Thumbnail src={a.imageUrl} genreSlug={topic.genre.slug} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
+                </OutboundLink>
+              )}
             </li>
           ))}
         </ol>

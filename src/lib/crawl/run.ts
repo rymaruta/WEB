@@ -1,4 +1,5 @@
 import { Prisma } from "@/generated/prisma/client";
+import { summarizeTopics, type SummarizeResult } from "@/lib/ai/summarize";
 import { prisma } from "@/lib/db";
 import { parseFeed, type ParsedItem } from "@/lib/feed/parse";
 import { cleanTitle, displayHost, splitSiteSuffix } from "@/lib/feed/text";
@@ -16,6 +17,8 @@ const RETENTION_DAYS = 90;
 const HOST_CONCURRENCY = 6;
 /** 同一ホストへの連続アクセスの間隔 */
 const SAME_HOST_DELAY_MS = 1_000;
+/** 収集開始からこの時間を過ぎたら、新しいまとめ記事の作成を始めない */
+const AI_DEADLINE_MS = 200_000;
 /** SOCIAL フィード経由でも取り込まないリンク先（匿名投稿など、発信者と品質を確認できないもの） */
 const EXCLUDED_HOSTS = new Set(["anond.hatelabo.jp"]);
 
@@ -37,6 +40,7 @@ export type CrawlSummary = {
   topicsCreated: number;
   topicsScored: number;
   pruned: number;
+  ai: SummarizeResult;
   durationMs: number;
 };
 
@@ -116,12 +120,15 @@ async function crawlSource(source: SourceRow, hostPublishers: Map<string, string
 
     const { count: inserted } = await prisma.article.createMany({ data: unique, skipDuplicates: true });
 
-    // 既存記事の話題シグナル（ブックマーク数）を一括で更新
-    for (const rows of chunk(unique.filter((r) => r.socialCount > 0), 5_000)) {
+    // 既存記事の話題シグナル（ブックマーク数）の増加と、未取得だったサムネイルを一括で反映
+    const refreshable = unique.filter((r) => r.socialCount > 0 || r.imageUrl);
+    for (const rows of chunk(refreshable, 5_000)) {
       await prisma.$executeRaw`
-        UPDATE "Article" a SET "socialCount" = v.cnt
-        FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.url}::text, ${r.socialCount}::int)`))}) AS v(url, cnt)
-        WHERE a.url = v.url AND a."socialCount" < v.cnt`;
+        UPDATE "Article" a
+        SET "socialCount" = GREATEST(a."socialCount", v.cnt),
+            "imageUrl" = COALESCE(a."imageUrl", v.img)
+        FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.url}::text, ${r.socialCount}::int, ${r.imageUrl}::text)`))}) AS v(url, cnt, img)
+        WHERE a.url = v.url AND (a."socialCount" < v.cnt OR (a."imageUrl" IS NULL AND v.img IS NOT NULL))`;
     }
 
     await prisma.source.update({
@@ -176,6 +183,9 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
   const { count: pruned } = await prisma.article.deleteMany({ where: { publishedAt: { lt: cutoff } } });
   if (pruned > 0) await prisma.topic.deleteMany({ where: { articles: { none: {} } } });
 
+  // 残り時間でまとめ記事を作成する（関数の実行時間上限 300 秒に余裕を残す）
+  const ai = await summarizeTopics(started + AI_DEADLINE_MS);
+
   return {
     sources: results.sort((a, b) => a.sourceId - b.sourceId),
     inserted: results.reduce((n, r) => n + r.inserted, 0),
@@ -183,6 +193,7 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
     topicsCreated: created,
     topicsScored,
     pruned,
+    ai,
     durationMs: Date.now() - started,
   };
 }
