@@ -96,6 +96,7 @@ describe("title cleanup", () => {
   it("先頭の配信元表記と末尾の定型語を除く", () => {
     expect(cleanTitle("[ITmedia News] 新機能を発表")).toBe("新機能を発表");
     expect(cleanTitle("望月ヘンリー海輝が合流 | 記事")).toBe("望月ヘンリー海輝が合流");
+    expect(cleanTitle("決勝の日韓戦へ | 記事 | 東スポWEB", ["東スポWEB"])).toBe("決勝の日韓戦へ");
   });
 
   it("splitSiteSuffix は空白で区切られた末尾のサイト名だけを分離する", () => {

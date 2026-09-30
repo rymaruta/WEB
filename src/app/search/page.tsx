@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const { items, total } = q ? await searchTopics(q, (page - 1) * PER_PAGE, PER_PAGE) : { items: [], total: 0 };
 
   return (
-    <section className="mx-auto max-w-3xl rounded-lg border border-border bg-surface p-4 sm:p-6">
+    <section className="mx-auto max-w-3xl card p-4 sm:p-6">
       <h1 className="mb-4 text-xl font-extrabold">ニュース検索</h1>
       <SearchForm defaultValue={q} />
       {q && (

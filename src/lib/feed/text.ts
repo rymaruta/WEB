@@ -80,13 +80,14 @@ const GENERIC_SUFFIXES = new Set(["記事", "ニュース", "news"]);
  * - 末尾の「 - 媒体名」「｜媒体名」を、媒体名（または定型語）と一致する場合に限り取り除く
  */
 export function cleanTitle(raw: string, publisherNames: string[] = []): string {
-  const title = toPlainText(raw).replace(/^\[[^\]]{1,40}\]\s*/, "");
-  const m = title.match(/^(.*\S)\s*[|｜\-–—:：]\s*([^|｜\-–—]{1,40})$/);
-  if (m) {
+  let title = toPlainText(raw).replace(/^\[[^\]]{1,40}\]\s*/, "");
+  // 「見出し | 記事 | 東スポWEB」のように末尾が重なる場合があるため、一致する限り繰り返す
+  for (let i = 0; i < 3; i++) {
+    const m = title.match(/^(.*\S)\s*[|｜\-–—:：]\s*([^|｜\-–—]{1,40})$/);
+    if (!m) break;
     const tail = m[2].trim().toLowerCase();
-    if (GENERIC_SUFFIXES.has(tail) || publisherNames.some((p) => p && tail.includes(p.toLowerCase()))) {
-      return m[1].trim();
-    }
+    if (!GENERIC_SUFFIXES.has(tail) && !publisherNames.some((p) => p && tail.includes(p.toLowerCase()))) break;
+    title = m[1].trim();
   }
   return title;
 }

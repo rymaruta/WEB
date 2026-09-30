@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GenreBadge } from "@/components/genre-badge";
+import { GenreIcon } from "@/components/genre-icon";
 import { OutboundLink } from "@/components/outbound-link";
+import { PublisherAvatars } from "@/components/publisher-avatars";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
@@ -44,35 +46,48 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <article className="min-w-0 rounded-lg border border-border bg-surface p-4 sm:p-6">
-        <nav aria-label="パンくず" className="mb-3 flex items-center gap-1.5 text-xs text-fg-subtle">
-          <Link href="/" className="hover:text-fg">トップ</Link>
-          <span>›</span>
-          <Link href={`/genre/${topic.genre.slug}`} className="hover:text-fg">{topic.genre.name}</Link>
-        </nav>
-        <h1 className="text-xl leading-snug font-extrabold sm:text-2xl">{topic.title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
-          <GenreBadge genre={topic.genre} link />
-          {topic.publisherCount > 1 && (
-            <span className="rounded bg-accent-soft px-1.5 py-px text-xs font-semibold text-accent">
-              {topic.publisherCount}媒体・{topic.articleCount}本の記事
+      <article className="card min-w-0 overflow-hidden">
+        <header
+          className="px-5 pt-4 pb-5 sm:px-6"
+          style={{ background: `linear-gradient(180deg, color-mix(in oklab, var(--g-${topic.genre.slug}) 14%, var(--surface)), var(--surface))` }}
+        >
+          <nav aria-label="パンくず" className="mb-3 flex items-center gap-1.5 text-xs text-fg-subtle">
+            <Link href="/" className="hover:text-fg">トップ</Link>
+            <span>›</span>
+            <Link href={`/genre/${topic.genre.slug}`} className="flex items-center gap-1 hover:text-fg">
+              <GenreIcon slug={topic.genre.slug} className="h-3.5 w-3.5" />
+              {topic.genre.name}
+            </Link>
+          </nav>
+          <h1 className="text-xl leading-snug font-black sm:text-[26px]">{topic.title}</h1>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
+            <GenreBadge genre={topic.genre} link />
+            {topic.publisherCount > 1 && (
+              <span className="flex items-center gap-2">
+                <PublisherAvatars names={[...new Set(topic.articles.map((a) => a.publisher))]} max={6} size="md" />
+                <span>
+                  <strong className="text-lg font-black text-accent tabular-nums">{topic.publisherCount}</strong>媒体・
+                  {topic.articleCount}本の記事
+                </span>
+              </span>
+            )}
+            <span className="text-xs">
+              最初の報道 <time dateTime={topic.firstSeenAt.toISOString()}>{formatDateTime(topic.firstSeenAt)}</time>
+              {topic.lastSeenAt > topic.firstSeenAt && (
+                <>
+                  {" "}／ 最新 <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
+                </>
+              )}
             </span>
-          )}
-          <span>
-            最初の報道 <time dateTime={topic.firstSeenAt.toISOString()}>{formatDateTime(topic.firstSeenAt)}</time>
-          </span>
-          {topic.lastSeenAt > topic.firstSeenAt && (
-            <span>
-              最新 <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
-            </span>
-          )}
-        </div>
+          </div>
+        </header>
 
-        <h2 className="mt-6 mb-1 text-sm font-bold text-fg-muted">各媒体の報道（古い順）</h2>
+        <div className="px-5 pb-5 sm:px-6">
+        <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">各媒体の報道（古い順）</h2>
         <ol className="relative border-l-2 border-border pl-5">
           {topic.articles.map((a) => (
-            <li key={a.id} className="relative py-3">
-              <span aria-hidden className="absolute top-[18px] -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
+            <li key={a.id} className="relative my-3 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
+              <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
               <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
                 <span className="font-bold text-fg">{a.publisher}</span>
                 <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
@@ -91,11 +106,12 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             </li>
           ))}
         </ol>
+        </div>
       </article>
 
       <aside className="min-w-0">
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <SectionHeading title={`${topic.genre.name}の話題`} href={`/genre/${topic.genre.slug}`} />
+        <section className="card p-4">
+          <SectionHeading title={`${topic.genre.name}の話題`} href={`/genre/${topic.genre.slug}`} genreSlug={topic.genre.slug} />
           <TopicList topics={related} variant="compact" showGenre={false} />
         </section>
       </aside>

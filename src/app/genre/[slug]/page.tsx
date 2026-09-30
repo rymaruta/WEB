@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleRanking } from "@/components/article-ranking";
+import { GenreIcon } from "@/components/genre-icon";
 import { Pagination, parsePage } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
@@ -9,6 +10,7 @@ import {
   countTopics,
   countTrendingTopics,
   getGenre,
+  getLatestArticles,
   getLatestTopics,
   getSocialBuzz,
   getTrendingTopics,
@@ -44,6 +46,8 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
     sort === "latest" ? countTopics(genre.id) : countTrendingTopics(genre.id),
     getSocialBuzz(8, genre.id),
   ]);
+  // SNS の話題シグナルがないジャンルは、代わりに新着記事を表示する
+  const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
   const totalPages = Math.min(50, Math.ceil(total / PER_PAGE));
   if (page > 1 && topics.length === 0) notFound();
 
@@ -59,36 +63,60 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
     <Link
       href={href(1, value)}
       aria-current={sort === value ? "page" : undefined}
-      className={`rounded-full px-3 py-1 text-sm font-medium ${
-        sort === value ? "bg-fg text-bg" : "bg-surface-muted text-fg-muted hover:text-fg"
+      className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
+        sort === value ? "bg-white text-black" : "text-white/85 hover:text-white"
       }`}
     >
       {label}
     </Link>
   );
 
+  const color = `var(--g-${genre.slug})`;
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="min-w-0 rounded-lg border border-border bg-surface p-4 sm:p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="flex items-center gap-2 text-xl font-extrabold">
-            <span aria-hidden className="h-5 w-1.5 rounded-full" style={{ backgroundColor: `var(--g-${genre.slug})` }} />
-            {genre.name}
-          </h1>
-          <div className="flex gap-2">
-            {tab("trending", "話題順")}
-            {tab("latest", "新着順")}
+    <div className="space-y-6">
+      <header
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5 text-white sm:p-6"
+        style={{ background: `linear-gradient(120deg, ${color}, color-mix(in oklab, ${color} 50%, #000))` }}
+      >
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
+            <GenreIcon slug={genre.slug} className="h-8 w-8" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{genre.name}</h1>
+            <p className="text-sm opacity-90">直近の話題 {total}件</p>
           </div>
         </div>
-        <TopicList topics={topics} showGenre={false} />
-        <Pagination page={page} totalPages={totalPages} href={(p) => href(p)} />
-      </section>
-      <aside className="min-w-0">
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <SectionHeading title={`SNSで話題の${genre.name}`} />
-          <ArticleRanking items={buzz} metric="social" />
+        <div className="flex gap-1 rounded-full bg-black/15 p-1">
+          {tab("trending", "話題順")}
+          {tab("latest", "新着順")}
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="card min-w-0 px-4 sm:px-5">
+          <TopicList topics={topics} showGenre={false} />
+          <div className="pb-5">
+            <Pagination page={page} totalPages={totalPages} href={(p) => href(p)} />
+          </div>
         </section>
-      </aside>
+        <aside className="min-w-0">
+          <section className="card p-4">
+            {sidebar ? (
+              <>
+                <SectionHeading title={`${genre.name}の新着`} />
+                <ArticleRanking items={sidebar} />
+              </>
+            ) : (
+              <>
+                <SectionHeading title={`SNSで話題の${genre.name}`} note="はてなブックマーク数" />
+                <ArticleRanking items={buzz} metric="social" />
+              </>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

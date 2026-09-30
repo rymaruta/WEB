@@ -109,8 +109,9 @@ export function getSocialBuzz(take: number, genreId?: number) {
   });
 }
 
-export function getLatestArticles(take: number) {
+export function getLatestArticles(take: number, genreId?: number) {
   return prisma.article.findMany({
+    where: genreId ? { genreId } : {},
     orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
     take,
     include: { genre: true },

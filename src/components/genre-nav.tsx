@@ -2,25 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GenreIcon } from "./genre-icon";
 
 type Props = { genres: { slug: string; name: string }[] };
 
 export function GenreNav({ genres }: Props) {
   const pathname = usePathname();
-  const items = [{ href: "/", label: "トップ" }, ...genres.map((g) => ({ href: `/genre/${g.slug}`, label: g.name })), { href: "/ranking", label: "ランキング" }];
+  const items = [
+    { href: "/", label: "トップ", slug: null },
+    ...genres.map((g) => ({ href: `/genre/${g.slug}`, label: g.name, slug: g.slug })),
+    { href: "/ranking", label: "ランキング", slug: null },
+  ];
   return (
-    <nav aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-1 overflow-x-auto">
+    <nav aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
       {items.map((item) => {
         const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const color = item.slug ? `var(--g-${item.slug})` : "var(--accent)";
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
-              active ? "border-accent text-fg" : "border-transparent text-fg-muted hover:text-fg"
+            className={`flex shrink-0 items-center gap-1.5 border-b-[3px] px-3 py-2.5 text-sm whitespace-nowrap transition-colors ${
+              active ? "font-bold text-fg" : "border-transparent font-medium text-fg-muted hover:text-fg"
             }`}
+            style={active ? { borderColor: color } : undefined}
           >
+            {item.slug && <GenreIcon slug={item.slug} className="h-4 w-4" />}
             {item.label}
           </Link>
         );

@@ -19,7 +19,7 @@ export default async function SourcesPage() {
   const inactive = sources.filter((s) => !s.active);
 
   return (
-    <section className="rounded-lg border border-border bg-surface p-4 sm:p-6">
+    <section className="card p-4 sm:p-6">
       <h1 className="text-xl font-extrabold">掲載メディア一覧</h1>
       <p className="mt-2 text-sm text-fg-muted">
         各媒体が公開している RSS 等の配信情報から、見出し・短い要約・リンクのみを掲載しています。本文は掲載していません。

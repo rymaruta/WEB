@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <article className="mx-auto max-w-3xl space-y-6 rounded-lg border border-border bg-surface p-5 text-[15px] leading-relaxed sm:p-8">
+    <article className="mx-auto max-w-3xl space-y-6 card p-5 text-[15px] leading-relaxed sm:p-8">
       <h1 className="text-2xl font-extrabold">運営方針・お問い合わせ</h1>
 
       <section>
