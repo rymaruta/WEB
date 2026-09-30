@@ -12,7 +12,7 @@ runCrawl({ force })
     }
     const errors = s.sources.filter((r) => r.status === "error").length;
     console.log(
-      `\nフィード ${s.sources.length}（失敗 ${errors}）/ 新規記事 ${s.inserted} / 割当 ${s.assigned} / 新規トピック ${s.topicsCreated} / スコア更新 ${s.topicsScored} / 削除 ${s.pruned} / ${(s.durationMs / 1000).toFixed(1)}s`,
+      `\nフィード ${s.sources.length}（失敗 ${errors}）/ 新規記事 ${s.inserted} / 割当 ${s.assigned} / 新規トピック ${s.topicsCreated} / スコア更新 ${s.topicsScored} / 削除 ${s.pruned} / まとめ記事 作成${s.ai.generated}・見送り${s.ai.skipped}・失敗${s.ai.failed} / ${(s.durationMs / 1000).toFixed(1)}s`,
     );
   })
   .catch((e) => {

@@ -88,11 +88,14 @@ export async function refreshTopics(topicIds: number[]) {
         "lastSeenAt" = a.last,
         "updatedAt" = now()
     FROM (
-      SELECT "topicId", count(*)::int AS cnt, count(DISTINCT publisher)::int AS pubs,
-             min("publishedAt") AS first, max("publishedAt") AS last
-      FROM "Article"
-      WHERE "topicId" = ANY(${topicIds})
-      GROUP BY "topicId"
+      -- 「報じた媒体数」には企業のプレスリリースを数えない（報道ではないため）
+      SELECT ar."topicId", count(*)::int AS cnt,
+             GREATEST(count(DISTINCT ar.publisher) FILTER (WHERE s.kind <> 'PRESS'), 1)::int AS pubs,
+             min(ar."publishedAt") AS first, max(ar."publishedAt") AS last
+      FROM "Article" ar
+      JOIN "Source" s ON s.id = ar."sourceId"
+      WHERE ar."topicId" = ANY(${topicIds})
+      GROUP BY ar."topicId"
     ) a
     WHERE t.id = a."topicId"`;
 

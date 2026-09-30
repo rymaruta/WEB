@@ -53,6 +53,26 @@ GitHub のリポジトリで **Settings → Secrets and variables → Actions �
 
 以降は15分ごとに自動で収集します（GitHub の混雑状況によっては数分遅れることがあります）。
 
+## 4. AI まとめ記事を有効にする（任意）
+
+大きな話題（3媒体以上が報道）について、AI が出典付きのまとめ記事を自動で書くようになります。
+
+1. https://console.anthropic.com/ に登録し、**Billing** で支払い方法を登録してクレジットを購入します。
+2. **API Keys** で **Create Key** を押し、表示されたキー（`sk-ant-` で始まる文字列）をコピーします。
+3. Vercel のプロジェクトで **Settings → Environment Variables** を開き、`ANTHROPIC_API_KEY` という名前でキーを登録します。
+4. **Deployments** から最新のデプロイを **Redeploy** します。
+
+以降は15分ごとの収集のたびに、最大5本ずつまとめ記事が作成されます。
+
+**費用の目安**（2026年9月時点の料金、1日あたり約60本の作成を想定）
+
+| モデル | 1本あたり | 1か月 |
+| --- | --- | --- |
+| Claude Opus 5.5（既定） | 約5円 | 約9,000円 |
+| Claude Sonnet 5.5 | 約2.5円 | 約4,500円 |
+
+費用を抑える場合は、Vercel の環境変数 `AI_MODEL` に `claude-sonnet-5-5` を設定してください。Anthropic Console の **Limits** で月の上限額を設定しておくと、想定外の請求を防げます。
+
 ## 公開後に確認すること
 
 - [ ] トップページにニュースが表示される

@@ -87,6 +87,20 @@ model Topic {
   score          Float     @default(0)
   firstSeenAt    DateTime
   lastSeenAt     DateTime
+  /// AI が各媒体の見出し・要約から作成したまとめ記事（src/lib/ai/summarize.ts）
+  aiTitle        String?
+  aiLead         String?
+  aiBody         String?
+  /// 要点と出典番号の配列: [{ text: string, sources: number[] }]。出典番号は aiSources の添字（1始まり）
+  aiPoints       Json?
+  /// 生成時に参照した記事 ID の配列（出典番号の対応表）
+  aiSources      Json?
+  aiModel        String?
+  aiGeneratedAt  DateTime?
+  /// 生成を最後に試みた時刻（失敗時の再試行間隔の管理に使う）
+  aiAttemptedAt  DateTime?
+  /// 生成時点の報道媒体数。媒体が増えたら作り直す
+  aiSourceCount  Int       @default(0)
   articles       Article[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -94,4 +108,5 @@ model Topic {
   @@index([score(sort: Desc)])
   @@index([genreId, score(sort: Desc)])
   @@index([lastSeenAt(sort: Desc)])
+  @@index([aiGeneratedAt(sort: Desc)])
 }

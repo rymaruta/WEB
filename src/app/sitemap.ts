@@ -18,6 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   return [
     { url: base, changeFrequency: "always", priority: 1 },
+    { url: `${base}/articles`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${base}/ranking`, changeFrequency: "hourly", priority: 0.8 },
     ...genres.map((g) => ({ url: `${base}/genre/${g.slug}`, changeFrequency: "hourly" as const, priority: 0.8 })),
     ...topics.map((t) => ({ url: `${base}/topic/${t.id}`, lastModified: t.lastSeenAt, priority: 0.6 })),

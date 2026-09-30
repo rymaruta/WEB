@@ -11,6 +11,7 @@ const articlePreview = {
     id: true,
     title: true,
     summary: true,
+    imageUrl: true,
     publisher: true,
     publishedAt: true,
     source: { select: { kind: true } },
@@ -158,4 +159,20 @@ export async function getSiteStats() {
     prisma.source.findMany({ where: { active: true, kind: { not: "SOCIAL" } }, distinct: ["publisher"], select: { publisher: true } }),
   ]);
   return { articles24h, publishers: publishers.length };
+}
+
+/** AI まとめ記事のあるトピック（新しい順） */
+export async function getAiArticles(skip: number, take: number) {
+  const where: Prisma.TopicWhereInput = { aiGeneratedAt: { not: null } };
+  const [items, total] = await Promise.all([
+    prisma.topic.findMany({
+      where,
+      orderBy: [{ aiGeneratedAt: "desc" }, { id: "desc" }],
+      skip,
+      take,
+      include: topicCardInclude,
+    }),
+    prisma.topic.count({ where }),
+  ]);
+  return { items, total };
 }

@@ -54,6 +54,22 @@ function parseDate(...candidates: unknown[]): Date | null {
   return null;
 }
 
+/** 本文 HTML に埋め込まれた最初の画像。1x1 の計測用画像は除く */
+function imageInHtml(html: string): string | null {
+  const decoded = decodeEntities(html);
+  for (const m of decoded.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    if (/\b(width|height)=["']?1["'\s>]/i.test(tag)) continue;
+    const src = tag.match(/\ssrc=["']([^"']+)["']/i)?.[1];
+    if (src) return src;
+  }
+  return null;
+}
+
+/**
+ * 記事のサムネイル画像。media:thumbnail / enclosure などの専用要素を優先し、
+ * なければ本文 HTML 内の最初の画像を使う。混在コンテンツを避けるため https のみ採用する。
+ */
 function firstImage(item: Node, base: string): string | null {
   const candidates: unknown[] = [];
   for (const key of ["media:thumbnail", "media:content"]) {
@@ -66,9 +82,12 @@ function firstImage(item: Node, base: string): string | null {
     if (!type || type.startsWith("image/")) candidates.push(e?.["@_url"]);
   }
   candidates.push(item["hatena:imageurl"]);
+  for (const key of ["content:encoded", "description", "content", "summary"]) {
+    candidates.push(imageInHtml(text(item[key])));
+  }
   for (const c of candidates) {
     const url = normalizeUrl(decodeEntities(text(c)), base);
-    if (url) return url;
+    if (url?.startsWith("https://")) return url;
   }
   return null;
 }

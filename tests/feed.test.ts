@@ -107,3 +107,21 @@ describe("title cleanup", () => {
     expect(splitSiteSuffix("GPT-6.1 Solが登場")).toEqual({ title: "GPT-6.1 Solが登場", site: null });
   });
 });
+
+describe("thumbnail extraction", () => {
+  const rss = (item: string) =>
+    `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><item><title>見出し</title><link>https://example.com/a</link>${item}</item></channel></rss>`;
+
+  it("本文 HTML 内の画像を使い、1x1 の計測画像は除く", () => {
+    const feed = parseFeed(
+      rss(`<description><![CDATA[<img src="https://t.example/p.gif" width="1" height="1"><p><img width="560" src="https://img.example/a.jpg"></p>]]></description>`),
+      "https://example.com/rss",
+    );
+    expect(feed.items[0].imageUrl).toBe("https://img.example/a.jpg");
+  });
+
+  it("http の画像は採用しない", () => {
+    const feed = parseFeed(rss(`<enclosure url="http://img.example/a.jpg" type="image/jpeg"/>`), "https://example.com/rss");
+    expect(feed.items[0].imageUrl).toBeNull();
+  });
+});
