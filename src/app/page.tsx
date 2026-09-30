@@ -81,7 +81,7 @@ export default async function HomePage() {
             </aside>
           </div>
         ) : (
-          <p className="card p-6 text-sm text-fg-subtle">まだニュースを収集していません。`npm run crawl` を実行してください。</p>
+          <p className="card p-6 text-sm text-fg-subtle">ニュースを準備しています。しばらくしてから再度お越しください。</p>
         )}
       </section>
 

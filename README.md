@@ -63,10 +63,15 @@ npm run dev                   # http://localhost:3000
 | `npm test` / `npm run lint` / `npm run typecheck` | テスト・静的検査 |
 | `npm run build` | 本番ビルド（ビルド時に DB へ接続します） |
 
+## 公開（デプロイ）
+
+Vercel ＋ Neon での公開手順は [docs/DEPLOY.md](docs/DEPLOY.md) にまとめています。
+Vercel は `package.json` の `vercel-build`（マイグレーション → マスタ登録 → ビルド）を実行し、`vercel.json` で東京リージョン（`hnd1`）に配置します。
+
 ## 定期収集
 
 収集は `GET /api/cron/crawl` を `Authorization: Bearer $CRON_SECRET` 付きで呼び出して実行します。`CRON_SECRET` が未設定の場合は常に 401 を返します。
-10〜15分間隔での実行を想定しています（例: Vercel Cron、GitHub Actions の schedule、サーバーの cron から `curl`）。サーバー上で直接 `npm run crawl` を cron 実行しても構いません。
+`.github/workflows/crawl.yml` が15分ごとにこのエンドポイントを呼び出します（リポジトリの Actions シークレット `SITE_URL` と `CRON_SECRET` を登録すると有効になります）。サーバーで運用する場合は `npm run crawl` を cron で実行しても構いません。
 
 収集処理の方針:
 - 同一ホストのフィードは直列・1秒間隔、ホスト間は最大6並列
