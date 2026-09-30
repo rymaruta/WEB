@@ -1,7 +1,9 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { parseFeed, type ParsedItem } from "@/lib/feed/parse";
 import { cleanTitle, displayHost, splitSiteSuffix } from "@/lib/feed/text";
 import { clusterArticles, rescoreTopics } from "@/lib/topics/cluster";
+import { chunk } from "@/lib/sql";
 import { fetchFeed } from "./fetch-feed";
 
 /** 同じフィードを取得する最短間隔（分） */
@@ -114,12 +116,12 @@ async function crawlSource(source: SourceRow, hostPublishers: Map<string, string
 
     const { count: inserted } = await prisma.article.createMany({ data: unique, skipDuplicates: true });
 
-    // 既存記事の話題シグナル（ブックマーク数）を更新
-    for (const r of unique.filter((r) => r.socialCount > 0)) {
-      await prisma.article.updateMany({
-        where: { url: r.url, socialCount: { lt: r.socialCount } },
-        data: { socialCount: r.socialCount },
-      });
+    // 既存記事の話題シグナル（ブックマーク数）を一括で更新
+    for (const rows of chunk(unique.filter((r) => r.socialCount > 0), 5_000)) {
+      await prisma.$executeRaw`
+        UPDATE "Article" a SET "socialCount" = v.cnt
+        FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.url}::text, ${r.socialCount}::int)`))}) AS v(url, cnt)
+        WHERE a.url = v.url AND a."socialCount" < v.cnt`;
     }
 
     await prisma.source.update({

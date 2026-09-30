@@ -37,12 +37,13 @@ GitHub のプルリクエスト「Add all-genre news portal」を開き、**Merg
 
 ## 3. ニュースの自動収集を設定する
 
-GitHub のリポジトリで **Settings → Secrets and variables → Actions → New repository secret** を開き、次の2つを登録します。
+GitHub のリポジトリで **Settings → Secrets and variables → Actions → New repository secret** を開き、次の1つを登録します。
 
 | Name | Value |
 | --- | --- |
-| `SITE_URL` | 公開されたサイトの URL（例: `https://zenbu-navi.vercel.app`） |
 | `CRON_SECRET` | 手順1で Vercel に入れたものと**同じ値** |
+
+収集先のサイト URL（`https://zenbu-navi.vercel.app`）はワークフローに設定済みです。独自ドメインへ移行した場合は、`SITE_URL` という名前のシークレットで新しい URL を登録してください。
 
 登録したら、すぐに1回目の収集を実行します。
 
