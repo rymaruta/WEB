@@ -26,7 +26,8 @@
 
 3媒体以上が報じた直近24時間のトピックについて、各媒体の見出しと要約だけを材料に Claude がまとめ記事（見出し・リード・出典番号付きの要点・本文）を作成します（`src/lib/ai/`）。
 構造化出力で形式を固定し、出典番号が資料の範囲外なら取り除き、資料不足と判断した場合は作成しません。報じる媒体が増えたら作り直します。
-`ANTHROPIC_API_KEY` が未設定なら無効です。モデル・対象・本数は `AI_MODEL` / `AI_MIN_PUBLISHERS` / `AI_MAX_PER_RUN` で変更できます（費用の目安は [docs/DEPLOY.md](docs/DEPLOY.md)）。
+API キーを使わない運用として、書くべき話題を返す `GET /api/admin/articles/pending` と、書いた記事を検証・保存する `POST /api/admin/articles/{id}`（いずれも `CRON_SECRET` 認証）があり、Claude Code の定期実行から記事を投稿できます。
+自動作成は `ANTHROPIC_API_KEY` が未設定なら無効です。モデル・対象・本数は `AI_MODEL` / `AI_MIN_PUBLISHERS` / `AI_MAX_PER_RUN` で変更できます（費用の目安は [docs/DEPLOY.md](docs/DEPLOY.md)）。
 
 ## 技術構成
 

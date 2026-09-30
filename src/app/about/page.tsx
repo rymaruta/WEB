@@ -51,6 +51,14 @@ export default function AboutPage() {
       </section>
 
       <section>
+        <h2 className="mb-2 text-lg font-bold">アクセス解析について</h2>
+        <p>
+          サイト改善のため、Vercel Web Analytics でページの閲覧数や参照元などを集計しています。Cookie は使用せず、個人を特定できる情報は収集しません。
+          また、記事の閲覧数ランキングのため、元記事へのリンクが開かれた回数を記録しています。
+        </p>
+      </section>
+
+      <section>
         <h2 className="mb-2 text-lg font-bold">免責事項</h2>
         <p>
           掲載情報は各媒体の配信内容に基づくもので、その正確性・完全性を当サイトが保証するものではありません。

@@ -55,6 +55,17 @@ GitHub のリポジトリで **Settings → Secrets and variables → Actions �
 
 ## 4. AI まとめ記事を有効にする（任意）
 
+方法は2つあります。**追加料金をかけたくない場合は A** を使います。
+
+### A. Claude Code の定期実行で書く（Claude の有料プランの範囲内・追加料金なし）
+
+Claude Code のルーティン（定期実行）が、`GET /api/admin/articles/pending` で書くべき話題と材料・執筆ルールを受け取り、記事を書いて `POST /api/admin/articles/{id}` に投稿します。
+どちらの窓口も `Authorization: Bearer $CRON_SECRET` が必要です。投稿された記事は、自動作成と同じ検証（出典番号の範囲チェックなど）を通ってから保存されます。
+ルーティンは Claude Code から作成・停止できます（claude.ai/code のルーティン一覧）。Claude の利用上限の範囲で動作します。
+
+### B. Anthropic API で自動作成する（API 利用料がかかる）
+
+
 大きな話題（3媒体以上が報道）について、AI が出典付きのまとめ記事を自動で書くようになります。
 
 1. https://console.anthropic.com/ に登録し、**Billing** で支払い方法を登録してクレジットを購入します。
