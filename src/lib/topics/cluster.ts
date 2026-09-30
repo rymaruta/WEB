@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { chunk } from "@/lib/sql";
 import { assignTopics, type TopicKey } from "./assign";
 import { topicScore } from "./score";
 
@@ -34,38 +35,45 @@ export async function clusterArticles(now = new Date()): Promise<{ assigned: num
   }
 
   const docById = new Map(docs.map((d) => [d.id, d]));
-  let created = 0;
-  const touched = new Set<number>();
 
-  await prisma.$transaction(
-    async (tx) => {
-      for (const [key, articleIds] of byKey) {
-        let topicId: number;
-        if (typeof key === "number") {
-          topicId = key;
-        } else {
-          const first = docById.get(articleIds[0])!;
-          const topic = await tx.topic.create({
-            data: {
-              title: first.title,
-              genreId: first.genreId,
-              firstSeenAt: first.publishedAt,
-              lastSeenAt: first.publishedAt,
-            },
-            select: { id: true },
-          });
-          topicId = topic.id;
-          created++;
-        }
-        await tx.article.updateMany({ where: { id: { in: articleIds } }, data: { topicId } });
-        touched.add(topicId);
-      }
-    },
-    { timeout: 60_000 },
-  );
+  // データベースとの往復回数が記事数に比例しないよう、すべて一括で処理する。
+  // 新規トピックの ID は先にシーケンスから確保し、明示的な ID で一括作成する。
+  const newKeys = [...byKey.keys()].filter((k): k is `new:${number}` => typeof k !== "number");
+  const ids = newKeys.length
+    ? await prisma.$queryRaw<{ id: number }[]>`
+        SELECT nextval(pg_get_serial_sequence('"Topic"', 'id'))::int AS id
+        FROM generate_series(1, ${newKeys.length}::int)`
+    : [];
+  const topicIdOf = new Map<TopicKey, number>(newKeys.map((k, i) => [k, ids[i].id]));
+  for (const key of byKey.keys()) {
+    if (typeof key === "number") topicIdOf.set(key, key);
+  }
 
-  await refreshTopics([...touched]);
-  return { assigned: assignment.size, created };
+  const newTopics = newKeys.map((key) => {
+    const first = docById.get(byKey.get(key)![0])!;
+    return {
+      id: topicIdOf.get(key)!,
+      title: first.title,
+      genreId: first.genreId,
+      firstSeenAt: first.publishedAt,
+      lastSeenAt: first.publishedAt,
+    };
+  });
+
+  const pairs = [...assignment].map(([articleId, key]) => [articleId, topicIdOf.get(key)!] as const);
+
+  await prisma.$transaction([
+    ...chunk(newTopics, 5_000).map((data) => prisma.topic.createMany({ data })),
+    ...chunk(pairs, 5_000).map(
+      (rows) => prisma.$executeRaw`
+        UPDATE "Article" a SET "topicId" = v.tid
+        FROM (VALUES ${Prisma.join(rows.map(([aid, tid]) => Prisma.sql`(${aid}::int, ${tid}::int)`))}) AS v(aid, tid)
+        WHERE a.id = v.aid`,
+    ),
+  ]);
+
+  await refreshTopics([...new Set(topicIdOf.values())]);
+  return { assigned: assignment.size, created: newKeys.length };
 }
 
 /** トピックの件数・媒体数・期間・代表見出し・ジャンルを記事から再計算する */
@@ -102,13 +110,19 @@ export async function refreshTopics(topicIds: number[]) {
     grouped.set(a.topicId!, list);
   }
 
-  for (const [topicId, list] of grouped) {
+  const updates = [...grouped].map(([topicId, list]) => {
     const primary = list.filter((a) => a.source.kind !== "SOCIAL");
     const pool = primary.length ? primary : list;
     const votes = new Map<number, number>();
     for (const a of pool) votes.set(a.genreId, (votes.get(a.genreId) ?? 0) + 1);
     const genreId = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    await prisma.topic.update({ where: { id: topicId }, data: { title: pool[0].title, genreId } });
+    return Prisma.sql`(${topicId}::int, ${pool[0].title}::text, ${genreId}::int)`;
+  });
+  for (const rows of chunk(updates, 5_000)) {
+    await prisma.$executeRaw`
+      UPDATE "Topic" t SET title = v.title, "genreId" = v.gid
+      FROM (VALUES ${Prisma.join(rows)}) AS v(id, title, gid)
+      WHERE t.id = v.id`;
   }
 }
 
@@ -126,8 +140,8 @@ export async function rescoreTopics(now = new Date()) {
     WHERE t."lastSeenAt" >= ${since}
     GROUP BY t.id`;
 
-  if (rows.length > 0) {
-    const values = rows.map(
+  for (const part of chunk(rows, 10_000)) {
+    const values = part.map(
       (r) =>
         Prisma.sql`(${r.id}::int, ${topicScore({
           publisherCount: r.publisherCount,
