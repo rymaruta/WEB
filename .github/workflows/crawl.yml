@@ -1,0 +1,35 @@
+# 公開中のサイトでニュースを定期収集する。
+# リポジトリの Settings → Secrets and variables → Actions に次の2つを登録すると動作する。
+#   SITE_URL     公開サイトの URL（例: https://zenbu-navi.vercel.app）
+#   CRON_SECRET  Vercel の環境変数 CRON_SECRET と同じ値
+# 未登録の間は何もせず正常終了する。
+name: Crawl news
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call crawl endpoint
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "SITE_URL / CRON_SECRET が未設定のためスキップします"
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 300 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${SITE_URL%/}/api/cron/crawl"

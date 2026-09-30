@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-muted: #f0efeb;
+  --fg: #1c1c1a;
+  --fg-muted: #5f5e5a;
+  --fg-subtle: #8a8983;
+  --border: #e3e2dd;
+  --accent: #d9381e;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdece8;
+  --link-visited: #6b4c9a;
+
+  --g-domestic: #2563eb;
+  --g-world: #0e7490;
+  --g-business: #047857;
+  --g-tech: #7c3aed;
+  --g-entertainment: #db2777;
+  --g-sports: #ea580c;
+  --g-game: #4f46e5;
+  --g-products: #b45309;
+  --g-life: #0d9488;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121211;
+    --surface: #1b1b19;
+    --surface-muted: #242422;
+    --fg: #ecebe6;
+    --fg-muted: #b3b1aa;
+    --fg-subtle: #85847e;
+    --border: #2f2f2c;
+    --accent: #ff6a4d;
+    --accent-fg: #1b0f0c;
+    --accent-soft: #3a1d17;
+    --link-visited: #b69ae0;
+
+    --g-domestic: #7aa5ff;
+    --g-world: #4cc3d9;
+    --g-business: #4fd1a1;
+    --g-tech: #b99bff;
+    --g-entertainment: #ff85bf;
+    --g-sports: #ff9e5e;
+    --g-game: #9ea2ff;
+    --g-products: #f0b35a;
+    --g-life: #4fd6c6;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-noto), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "palt";
+  line-height: 1.6;
+}
+
+a.headline:visited {
+  color: var(--link-visited);
+}
+
+/* 新着ティッカー: 同じ列を2回並べ、半分の幅だけ流してつなぎ目なく繰り返す */
+.ticker-track {
+  animation: ticker 90s linear infinite;
+}
+.ticker-mask:hover .ticker-track,
+.ticker-mask:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+.ticker-mask {
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+@keyframes ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+  .ticker-mask {
+    overflow-x: auto;
+  }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
