@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// ニュースのジャンル（国内・スポーツ・エンタメ など）
+model Genre {
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  name      String
+  sortOrder Int       @default(0)
+  sources   Source[]
+  articles  Article[]
+  topics    Topic[]
+}
+
+enum SourceKind {
+  /// 報道・専門メディア
+  NEWS
+  /// 企業プレスリリース（新商品情報など）
+  PRESS
+  /// ソーシャルブックマーク等の話題シグナル（リンク先は各サイト）
+  SOCIAL
+}
+
+/// 収集対象のフィード
+model Source {
+  id                  Int        @id @default(autoincrement())
+  name                String
+  /// 同一媒体の複数フィードを束ねる名前。トピックの「報じた媒体数」の集計単位。
+  publisher           String
+  siteUrl             String
+  feedUrl             String     @unique
+  kind                SourceKind @default(NEWS)
+  genreId             Int
+  genre               Genre      @relation(fields: [genreId], references: [id])
+  active              Boolean    @default(true)
+  etag                String?
+  lastModified        String?
+  lastFetchedAt       DateTime?
+  lastSuccessAt       DateTime?
+  lastError           String?
+  consecutiveFailures Int        @default(0)
+  articles            Article[]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+}
+
+/// 収集した記事（見出し・短い要約・元記事URLのみ保持し、本文は保持しない）
+model Article {
+  id          Int      @id @default(autoincrement())
+  url         String   @unique
+  title       String
+  summary     String?
+  imageUrl    String?
+  /// 掲載元サイトの表示名（SOCIAL 経由の記事ではリンク先ドメイン）
+  publisher   String
+  publishedAt DateTime
+  fetchedAt   DateTime @default(now())
+  /// はてなブックマーク数など外部の話題シグナル
+  socialCount Int      @default(0)
+  clicks      Int      @default(0)
+  sourceId    Int
+  source      Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  genreId     Int
+  genre       Genre    @relation(fields: [genreId], references: [id])
+  topicId     Int?
+  topic       Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([publishedAt(sort: Desc)])
+  @@index([genreId, publishedAt(sort: Desc)])
+  @@index([topicId])
+}
+
+/// 同じ出来事を報じた記事のまとまり
+model Topic {
+  id             Int       @id @default(autoincrement())
+  title          String
+  genreId        Int
+  genre          Genre     @relation(fields: [genreId], references: [id])
+  articleCount   Int       @default(0)
+  publisherCount Int       @default(0)
+  score          Float     @default(0)
+  firstSeenAt    DateTime
+  lastSeenAt     DateTime
+  articles       Article[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([score(sort: Desc)])
+  @@index([genreId, score(sort: Desc)])
+  @@index([lastSeenAt(sort: Desc)])
+}
