@@ -142,8 +142,15 @@ export async function setPostText(editionId: string, lines: string[] | null) {
     });
     return;
   }
-  const clean = lines.map((l) => l.trim()).filter(Boolean);
-  if (clean.length < 1 || clean.length > LIMITS.postLines) throw new AdminError(`投稿文は1〜${LIMITS.postLines}行です`);
+  // 空行は区切りとして残す（前後の空行と、続けて並んだ空行だけ詰める）
+  const clean = lines
+    .map((l) => l.trim())
+    .filter((l, i, all) => l !== "" || (i > 0 && all[i - 1] !== ""))
+    .join("\n")
+    .trim()
+    .split("\n");
+  const filled = clean.filter(Boolean);
+  if (filled.length < 1 || filled.length > LIMITS.postLines) throw new AdminError(`投稿文は1〜${LIMITS.postLines}行です`);
   const long = clean.filter((l) => textWidth(l) > LIMITS.postWidth);
   if (long.length) throw new AdminError(`1行は${LIMITS.postWidth}字までです`);
   if (textWidth(clean.join("\n")) > LIMITS.postTotalWidth) throw new AdminError(`投稿文は全体で${LIMITS.postTotalWidth}字までです`);

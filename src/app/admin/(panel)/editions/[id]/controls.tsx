@@ -80,7 +80,7 @@ export function PostTextForm({ action, initial }: { action: Action; initial: str
   const [state, run, pending] = useActionState(action, undefined);
   return (
     <form action={run} className="space-y-2">
-      <textarea name="postText" rows={2} defaultValue={initial} className={field} aria-label="投稿文（1行20字まで、2行まで）" />
+      <textarea name="postText" rows={8} defaultValue={initial} className={field} aria-label="投稿文（1行28字まで、全体で140字まで）" />
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className="min-h-11 rounded-lg border border-border px-3 py-2 text-sm font-bold hover:border-accent">
           保存

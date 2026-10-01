@@ -61,21 +61,35 @@ export function joinHeadline(lines: string[]): string {
   return lines.reduce((acc, l) => (acc && isAlnum(acc.at(-1)) && isAlnum(l[0]) ? `${acc} ${l}` : acc + l), "");
 }
 
+const CIRCLED = "①②③④⑤⑥⑦⑧⑨";
+
+/** 投稿文の最後に添える、画像を開いてもらうための一言 */
+export const POST_CTA = "画像をスワイプで詳しく👉";
+
 /**
- * 本投稿の本文。1行目は日付と回の名前、2行目以降は1本1行の見出し。
- * 例: 「10/2(金) 朝のニュース」「米Micronが過去最高の決算」「Googleが最新AI Gemini 4 Argon」
- * X の文字数上限を超える場合は、後ろの行から削る。
+ * 本投稿の本文。回の印と日付・回の名前、空行、番号付きで1本1行の見出し、空行、画像への案内。
+ * 番号は INDEX と2枚目以降のカードの順番に対応する。
+ * 例:
+ *   🌙 10/1(木) 夜のニュース
+ *
+ *   ① 米Micronが過去最高の決算
+ *   ② MI5が中国機関と関係断つよう警告
+ *
+ *   画像をスワイプで詳しく👉
+ * X の文字数上限を超える場合は、後ろの見出しから削る。
  */
 export function composePostText(slot: Slot, date: string, entries: EditionEntry[]): string[] {
-  const first = `${jstPostDate(date)} ${SLOTS[slot].title}`;
-  const lines = [first];
-  for (const e of entries) {
-    const line = `${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+  const cfg = SLOTS[slot];
+  const head = [`${cfg.emoji} ${jstPostDate(date)} ${cfg.title}`, ""];
+  const tail = ["", POST_CTA];
+  const items: string[] = [];
+  for (const [i, e] of entries.entries()) {
+    const line = `${CIRCLED[i] ?? `${i + 1}.`} ${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
     if (textWidth(line) > LIMITS.postWidth) continue;
-    if (textWidth([...lines, line].join("\n")) > LIMITS.postTotalWidth) break;
-    lines.push(line);
+    if (textWidth([...head, ...items, line, ...tail].join("\n")) > LIMITS.postTotalWidth) break;
+    items.push(line);
   }
-  return lines;
+  return items.length ? [...head, ...items, ...tail] : [head[0]];
 }
 
 // ---------------------------------------------------------------------------
