@@ -241,10 +241,12 @@ function BreakingCardView({ card }: { card: BreakingCard }) {
 function IndexCardView({ card }: { card: IndexCard }) {
   const long = card.title.length > 6;
   const compact = card.entries.length > 5;
+  // 要点の1行は3本までのときだけ（4本以上は入りきらない）
+  const showDetail = card.entries.length <= 3;
   const main = card.entries.filter((e) => e.role === "MAIN");
   const follow = card.entries.filter((e) => e.role === "FOLLOWUP");
-  const fontSize = px(compact ? 3.9 : 4.6);
-  const rowGap = px(compact ? 1.1 : 2.2);
+  const fontSize = px(compact ? 3.9 : showDetail ? 4.6 : 4.3);
+  const rowGap = px(compact ? 1.1 : showDetail ? 2.2 : 1.5);
   const list = (entries: IndexCard["entries"], offset: number) => (
     <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
       {entries.map((e, i) => (
@@ -268,7 +270,7 @@ function IndexCardView({ card }: { card: IndexCard }) {
               </div>
               <div style={{ display: "flex", color: e.role === "FOLLOWUP" ? FOLLOWUP_COLOR : INK }}>{e.text}</div>
             </div>
-            {e.detail && !compact && (
+            {e.detail && showDetail && (
               <div style={{ display: "flex", paddingLeft: px(15), fontFamily: BODY, fontSize: px(3.5), fontWeight: 700, lineHeight: 1.4, color: SUB }}>{e.detail}</div>
             )}
           </div>

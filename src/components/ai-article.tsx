@@ -18,7 +18,8 @@ function Cite({ n, source }: { n: number; source?: Source }) {
   );
 }
 
-export function AiArticleView({ article, sources }: { article: AiArticle; sources: Source[] }) {
+/** showTitle=false は、ページの見出しが同じ記事のタイトルのとき（見出しを2回並べない） */
+export function AiArticleView({ article, sources, showTitle = true }: { article: AiArticle; sources: Source[]; showTitle?: boolean }) {
   const byNumber = (n: number) => {
     const id = article.sourceIds[n - 1];
     return sources.find((s) => s.id === id);
@@ -33,7 +34,7 @@ export function AiArticleView({ article, sources }: { article: AiArticle; source
         <span className="rounded-full bg-accent px-2 py-0.5 text-accent-fg">AIまとめ記事</span>
         {cited.length}媒体の報道をもとに作成
       </p>
-      <h2 id="ai-article" className="text-lg leading-snug font-black sm:text-xl">
+      <h2 id="ai-article" className={showTitle ? "text-lg leading-snug font-black sm:text-xl" : "sr-only"}>
         {article.title}
       </h2>
       {article.lead && <p className="mt-2 font-medium">{article.lead}</p>}
