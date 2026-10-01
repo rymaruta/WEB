@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ArticleSchema, sanitizeArticle } from "@/lib/ai/prompt";
+import { ArticleSchema, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
 import { loadTopicSources, markAttempted, saveArticle } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
 
@@ -28,7 +28,8 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
   const { article, sourceIds, model } = parsed.data;
 
   // 出典はこのトピックに属する記事に限る（取得後に記事が増えても、執筆時の対応表をそのまま使う）
-  const belonging = new Set((await loadTopicSources(topicId)).map((s) => s.id));
+  const topicSources = await loadTopicSources(topicId);
+  const belonging = new Set(topicSources.map((s) => s.id));
   if (belonging.size === 0) {
     return Response.json({ error: "topic not found" }, { status: 404 });
   }
@@ -36,10 +37,14 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
     return Response.json({ error: "sourceIds must be articles of this topic" }, { status: 400 });
   }
 
-  const clean = sanitizeArticle(article, sourceIds.length);
+  const sanitized = sanitizeArticle(article, sourceIds.length);
+  // 資料との照合（数字・固有名詞などが資料にあるか）。通らなければ掲載しない
+  const byId = new Map(topicSources.map((s) => [s.id, s]));
+  const checked = sanitized ? checkArticleFacts(sanitized, sourceIds.map((id) => byId.get(id)!)) : null;
+  const clean = checked?.article ?? null;
   if (!clean) {
     await markAttempted(topicId);
-    return Response.json({ status: "skipped" });
+    return Response.json({ status: "skipped", missing: checked?.missing ?? [], banned: checked?.banned ?? [] });
   }
   await saveArticle(topicId, clean, sourceIds, model ?? "claude-code");
   revalidatePath(`/topic/${topicId}`);

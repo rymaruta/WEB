@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { ArticleSchema, buildPrompt, sanitizeArticle, SYSTEM, type GeneratedArticle } from "./prompt";
+import { ArticleSchema, buildPrompt, checkArticleFacts, sanitizeArticle, SYSTEM, type GeneratedArticle } from "./prompt";
 import { findDueTopics, loadTopicSources, markAttempted, saveArticle } from "./store";
 
 /**
@@ -56,7 +56,10 @@ export async function summarizeTopics(
     await markAttempted(topic.id);
     try {
       const { article, model } = await generate(buildPrompt(sources));
-      const clean = article && sanitizeArticle(article, sources.length);
+      const sanitized = article && sanitizeArticle(article, sources.length);
+      const checked = sanitized ? checkArticleFacts(sanitized, sources) : null;
+      const clean = checked?.article ?? null;
+      if (checked && !clean) console.warn(`AI まとめ記事を不採用 (topic ${topic.id}): 資料にない語 ${checked.missing.join("・")} ${checked.banned.join("・")}`);
       if (!clean) {
         result.skipped++;
         continue;
