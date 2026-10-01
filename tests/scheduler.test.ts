@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JOBS, resolveInterval } from "@/lib/scheduler/jobs";
+import { DAILY_JOBS, JOBS, resolveInterval } from "@/lib/scheduler/jobs";
 
 const crawl = JOBS.find((j) => j.name === "crawl")!;
 
@@ -21,4 +21,14 @@ describe("selfHost", () => {
     expect(selfHost("0.0.0.0")).toBe("127.0.0.1");
   });
   it("コンテナ名などはそのまま使う", () => expect(selfHost("ip-172-26-1-5")).toBe("ip-172-26-1-5"));
+});
+
+describe("DAILY_JOBS", () => {
+  it("朝・昼・夜の下書きを、投稿の50分前に作る", () => {
+    expect(DAILY_JOBS.map((j) => [j.path, j.at])).toEqual([
+      ["/api/cron/digest?slot=MORNING", "06:10"],
+      ["/api/cron/digest?slot=LUNCH", "11:10"],
+      ["/api/cron/digest?slot=EVENING", "19:10"],
+    ]);
+  });
 });

@@ -9,6 +9,7 @@ Vercel から AWS へ移行するための手順です。データベースは�
 | サイトの実行 | Amazon Lightsail のコンテナサービス（東京、1台） |
 | デプロイ | GitHub Actions（`.github/workflows/deploy-aws.yml`）。main への push で自動実行 |
 | 定期収集 | サーバー内のスケジューラー（`src/instrumentation.ts`、環境変数 `SCHEDULER_ENABLED=true` で有効）が15分ごとに `/api/cron/crawl` を呼び出す。GitHub Actions の定期実行は数時間遅れることがあるため予備として残す |
+| ダイジェストの下書き | 同じスケジューラーが毎日 06:10・11:10・19:10（日本時間）に `/api/cron/digest` を呼び、朝・昼・夜の配信回の下書きを作る（投稿はしない）。`DIGEST_ENABLED=false` で止められる |
 | アクセス解析 | Amazon CloudWatch RUM（ページビューとセッションのみ、Cookie 不使用） |
 | ドメイン・DNS | Amazon Route 53 |
 

@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, LIMITS, RISK_LABELS, type StoryAnalysis, type StoryMaterial } from "./schema";
+import { CATEGORY_LABELS, LIMITS, RISK_LABELS, type FollowupAnalysis, type PreviousCoverage, type Sourced, type StoryAnalysis, type StoryMaterial } from "./schema";
 import { normalize, textWidth } from "./text";
 
 /** 照合の結果。AI の出力をそのまま信用せず、機械的に確かめる */
@@ -6,16 +6,16 @@ export type VerifyResult = {
   status: "PENDING" | "REVIEW_REQUIRED" | "REJECTED_AUTO";
   /** 人に見せる理由（要確認・除外の説明） */
   notes: string[];
-  /** 整えた出力（空白の除去、範囲外の出典番号の削除、本文への【カテゴリー】付与） */
-  cleaned: StoryAnalysis & { postLines: string[] };
+  /** 整えた出力（空白の除去、範囲外の出典番号の削除） */
+  cleaned: StoryAnalysis;
   /** 資料に見つからなかった語 */
   missingFacts: string[];
 };
 
-/** 煽り表現。見出し・要点・本文に含まれていたら人の確認に回す */
+/** 煽り表現。見出し・要点などに含まれていたら人の確認に回す */
 export const BANNED_WORDS = ["衝撃", "ヤバ", "やば", "必見", "絶対見", "まさか", "炎上", "驚愕", "震撼", "大炎上", "神回", "閲覧注意", "拡散希望", "【悲報】", "【朗報】"];
 
-/** 写しすぎの判定に使う連続一致の長さ。見出し・要点・本文は上限が短く届かないため、要約だけを検査する */
+/** 写しすぎの判定に使う連続一致の長さ。見出し・要点は上限が短く届かないため、要約だけを検査する */
 const COPY_RUN = 30;
 const CONFIDENCE_MIN = 0.7;
 
@@ -58,22 +58,38 @@ export function longestCommonRun(a: string, b: string): number {
   return best;
 }
 
+/** 出典番号を整える（重複・範囲外を除き、昇順に） */
+function cleanSourced(p: Sourced, count: number): Sourced {
+  return { text: p.text.trim(), sources: [...new Set(p.sources)].filter((n) => n >= 1 && n <= count).sort((a, b) => a - b) };
+}
+
+function checkWidth(notes: string[], label: string, text: string, limit: number) {
+  if (textWidth(text) > limit) notes.push(`${label}が${textWidth(text)}字（上限${limit}字）`);
+}
+
+/** 煽り表現と、資料に見つからない事実の語を調べる */
+function checkWording(notes: string[], visible: string, sourceText: string): string[] {
+  const banned = BANNED_WORDS.filter((w) => visible.includes(w));
+  if (banned.length) notes.push(`使わない表現が含まれる: ${banned.join("、")}`);
+  const missing = extractFacts(visible).filter((f) => !factInSources(f, sourceText) && !Object.values(CATEGORY_LABELS).includes(f));
+  if (missing.length) notes.push(`資料に見つからない語: ${missing.join("、")}`);
+  return missing;
+}
+
 export function verifyAnalysis(raw: StoryAnalysis, materials: StoryMaterial[]): VerifyResult {
   const notes: string[] = [];
-  let review = false;
-
   const trimLines = (lines: string[]) => lines.map((l) => l.trim()).filter(Boolean);
-  const label = CATEGORY_LABELS[raw.category];
-  const postBody = trimLines(raw.postText);
-  const tag = raw.cardType === "BREAKING" ? "【速報】" : `【${label}】`;
-  const postLines = postBody.length ? [tag + postBody[0], ...postBody.slice(1)] : [];
-  const points = raw.points
-    .map((p) => ({
-      text: p.text.trim(),
-      sources: [...new Set(p.sources)].filter((n) => n >= 1 && n <= materials.length).sort((a, b) => a - b),
-    }))
-    .filter((p) => p.text);
-  const cleaned = { ...raw, headline: trimLines(raw.headline), summary: raw.summary.trim(), points, postText: postBody, postLines };
+  const points = raw.points.map((p) => cleanSourced(p, materials.length)).filter((p) => p.text);
+  const why = raw.why && raw.why.text.trim() ? cleanSourced(raw.why, materials.length) : null;
+  const cleaned: StoryAnalysis = {
+    ...raw,
+    headline: trimLines(raw.headline),
+    summary: raw.summary.trim(),
+    shortTitle: raw.shortTitle.trim(),
+    keyword: raw.keyword.trim(),
+    points,
+    why,
+  };
 
   if (!raw.sufficient) {
     return { status: "REJECTED_AUTO", notes: ["資料だけでは内容を確かめられない（AI の判定）"], cleaned, missingFacts: [] };
@@ -82,62 +98,82 @@ export function verifyAnalysis(raw: StoryAnalysis, materials: StoryMaterial[]): 
   // 文字数と構成
   const { headline } = cleaned;
   if (headline.length < 1 || headline.length > LIMITS.headlineLines) notes.push(`見出しは1〜${LIMITS.headlineLines}行（今は${headline.length}行）`);
-  headline.forEach((l, i) => {
-    if (textWidth(l) > LIMITS.headlineWidth) notes.push(`見出し${i + 1}行目が${textWidth(l)}字（上限${LIMITS.headlineWidth}字）`);
-  });
+  headline.forEach((l, i) => checkWidth(notes, `見出し${i + 1}行目`, l, LIMITS.headlineWidth));
   if (points.length < LIMITS.pointsMin || points.length > LIMITS.pointsMax) notes.push(`要点は${LIMITS.pointsMin}〜${LIMITS.pointsMax}個（今は${points.length}個）`);
   points.forEach((p, i) => {
-    if (textWidth(p.text) > LIMITS.pointWidth) notes.push(`要点${i + 1}が${textWidth(p.text)}字（上限${LIMITS.pointWidth}字）`);
+    checkWidth(notes, `要点${i + 1}`, p.text, LIMITS.pointWidth);
     if (p.sources.length === 0) notes.push(`要点${i + 1}に出典の番号がない`);
   });
-  if (postLines.length < 1 || postLines.length > LIMITS.postLines) notes.push(`投稿本文は1〜${LIMITS.postLines}行（今は${postLines.length}行）`);
-  postLines.forEach((l, i) => {
-    if (textWidth(l) > LIMITS.postWidth) notes.push(`投稿本文${i + 1}行目が${textWidth(l)}字（上限${LIMITS.postWidth}字）`);
-  });
-  if (notes.length) review = true;
-
-  // 煽り表現
-  const visible = [...headline, ...points.map((p) => p.text), ...postLines, cleaned.summary].join("\n");
-  const banned = BANNED_WORDS.filter((w) => visible.includes(w));
-  if (banned.length) {
-    review = true;
-    notes.push(`使わない表現が含まれる: ${banned.join("、")}`);
-  }
-  if (/[#＃]\S/.test(postLines.join(" "))) {
-    review = true;
-    notes.push("投稿本文にハッシュタグがある");
+  if (!cleaned.shortTitle) notes.push("一覧用の見出しがない");
+  checkWidth(notes, "一覧用の見出し", cleaned.shortTitle, LIMITS.shortTitleWidth);
+  if (!cleaned.keyword) notes.push("キーワードがない");
+  checkWidth(notes, "キーワード", cleaned.keyword, LIMITS.keywordWidth);
+  if (why) {
+    checkWidth(notes, "「なぜ重要」", why.text, LIMITS.whyWidth);
+    if (why.sources.length === 0) notes.push("「なぜ重要」に出典の番号がない");
   }
 
-  // 事実の照合（資料にない数字・固有名詞・カギかっこの語）
+  // 煽り表現と事実の照合（資料にない数字・固有名詞・カギかっこの語）
+  const visible = [...headline, cleaned.shortTitle, cleaned.keyword, ...points.map((p) => p.text), why?.text ?? "", cleaned.summary].join("\n");
   const sourceText = materials.map((m) => `${m.title}\n${m.summary ?? ""}`).join("\n");
-  const missingFacts = extractFacts(visible).filter((f) => !factInSources(f, sourceText) && !Object.values(CATEGORY_LABELS).includes(f));
-  if (missingFacts.length) {
-    review = true;
-    notes.push(`資料に見つからない語: ${missingFacts.join("、")}`);
-  }
+  const missingFacts = checkWording(notes, visible, sourceText);
 
   // 写しすぎ（要約）
   for (const m of materials) {
     if (longestCommonRun(cleaned.summary, `${m.title}\n${m.summary ?? ""}`) >= COPY_RUN) {
-      review = true;
       notes.push(`要約が${m.publisher}の文と${COPY_RUN}字以上一致`);
       break;
     }
   }
 
   // 慎重な扱いが必要な分野と確度
-  if (raw.riskFlags.length) {
-    review = true;
-    notes.push(`慎重に扱う分野: ${raw.riskFlags.map((f) => RISK_LABELS[f]).join("、")}`);
-  }
-  if (raw.confidence < CONFIDENCE_MIN) {
-    review = true;
-    notes.push(`確からしさが低い（${raw.confidence.toFixed(2)}）`);
-  }
-  if (raw.conflicts.length) {
-    review = true;
-    notes.push(`媒体間の食い違い: ${raw.conflicts.map((c) => c.about).join("、")}`);
-  }
+  if (raw.riskFlags.length) notes.push(`慎重に扱う分野: ${raw.riskFlags.map((f) => RISK_LABELS[f]).join("、")}`);
+  if (raw.confidence < CONFIDENCE_MIN) notes.push(`確からしさが低い（${raw.confidence.toFixed(2)}）`);
+  if (raw.conflicts.length) notes.push(`媒体間の食い違い: ${raw.conflicts.map((c) => c.about).join("、")}`);
 
-  return { status: review ? "REVIEW_REQUIRED" : "PENDING", notes, cleaned, missingFacts };
+  return { status: notes.length ? "REVIEW_REQUIRED" : "PENDING", notes, cleaned, missingFacts };
+}
+
+export type FollowupVerifyResult = {
+  status: "PENDING" | "REVIEW_REQUIRED" | "REJECTED_AUTO";
+  notes: string[];
+  cleaned: FollowupAnalysis;
+  missingFacts: string[];
+};
+
+/**
+ * 続報の差分を照合する。新しい事実がなければ除外する（同じニュースを繰り返し流さない）。
+ * 「現在」と新しい事実は新しい資料と、「前回の時点」は前回の配信の内容と突き合わせる
+ */
+export function verifyFollowup(raw: FollowupAnalysis, materials: StoryMaterial[], previous: PreviousCoverage): FollowupVerifyResult {
+  const notes: string[] = [];
+  const newFacts = raw.newFacts.map((f) => cleanSourced(f, materials.length)).filter((f) => f.text);
+  const cleaned: FollowupAnalysis = {
+    ...raw,
+    newFacts,
+    before: raw.before.trim(),
+    now: cleanSourced(raw.now, materials.length),
+    shortTitle: raw.shortTitle.trim(),
+  };
+  if (!raw.sufficient) return { status: "REJECTED_AUTO", notes: ["新しい資料では内容を確かめられない（AI の判定）"], cleaned, missingFacts: [] };
+  if (newFacts.length === 0) return { status: "REJECTED_AUTO", notes: ["前回の配信から新しい事実がない"], cleaned, missingFacts: [] };
+
+  checkWidth(notes, "「前回の時点」", cleaned.before, LIMITS.deltaWidth);
+  checkWidth(notes, "「現在」", cleaned.now.text, LIMITS.deltaWidth);
+  checkWidth(notes, "一覧用の見出し", cleaned.shortTitle, LIMITS.shortTitleWidth);
+  if (cleaned.now.sources.length === 0) notes.push("「現在」に出典の番号がない");
+  newFacts.forEach((f, i) => {
+    checkWidth(notes, `新しい事実${i + 1}`, f.text, LIMITS.deltaWidth);
+    if (f.sources.length === 0) notes.push(`新しい事実${i + 1}に出典の番号がない`);
+  });
+
+  const sourceText = materials.map((m) => `${m.title}\n${m.summary ?? ""}`).join("\n");
+  const previousText = [previous.keyword, ...previous.headline, previous.summary, ...previous.points].join("\n");
+  const missingFacts = [
+    ...checkWording(notes, [cleaned.now.text, cleaned.shortTitle, ...newFacts.map((f) => f.text)].join("\n"), `${sourceText}\n${previous.keyword}`),
+    ...checkWording(notes, cleaned.before, previousText),
+  ];
+  if (raw.confidence < CONFIDENCE_MIN) notes.push(`確からしさが低い（${raw.confidence.toFixed(2)}）`);
+
+  return { status: notes.length ? "REVIEW_REQUIRED" : "PENDING", notes, cleaned, missingFacts };
 }

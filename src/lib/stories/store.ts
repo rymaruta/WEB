@@ -2,25 +2,43 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { isSameEvent, type Entities } from "./dedup";
-import type { StoryAnalysis, StoryMaterial } from "./schema";
-import { verifyAnalysis } from "./verify";
+import { pickFollowupMaterials, pickMaterials, type ArticleRef } from "./materials";
+import type { FollowupAnalysis, PreviousCoverage, Sourced, StoryAnalysis, StoryMaterial } from "./schema";
+import { verifyAnalysis, verifyFollowup } from "./verify";
 
-/** この媒体数以上が報じたトピックを候補にする（1媒体だけのニュースは投稿しない） */
+/** この媒体数以上が報じたトピックを候補にする（1媒体だけのニュースは配信しない） */
 const MIN_PUBLISHERS = 2;
 /** 候補にするトピックの新しさ */
 const CANDIDATE_HOURS = 24;
-/** AI に渡す資料の最大数（同じ媒体は1本だけ） */
-const MAX_MATERIALS = 10;
-/** 重複の照合に使う過去の範囲 */
+/** 重複・続報の照合に使う過去の範囲 */
 const DEDUP_HOURS = 72;
+/** 配信済みのストーリーに新しい記事が届いたとき、続報の候補にする期間 */
+const FOLLOWUP_HOURS = 36;
 
-/** 新しく話題になったトピックをストーリーとして登録する（解析待ち QUEUED） */
-export async function enqueueCandidates(limit: number, now = Date.now()): Promise<number> {
+async function topicArticles(topicId: number): Promise<ArticleRef[]> {
+  const rows = await prisma.article.findMany({
+    where: { topicId },
+    orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
+    select: { id: true, publisher: true, publishedAt: true, source: { select: { kind: true } } },
+  });
+  return rows.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, isPrimary: a.source.kind === "PRESS" }));
+}
+
+function sourcesCreate(picked: ArticleRef[]) {
+  return { create: picked.map((a, i) => ({ position: i + 1, articleId: a.id, publisher: a.publisher, isPrimary: a.isPrimary })) };
+}
+
+/**
+ * 候補を登録する。
+ * - 新しく話題になったトピック → 通常のストーリー（解析待ち QUEUED）
+ * - 配信済みのトピックに新しい記事が届いた → 続報のストーリー（差分の解析待ち DELTA_QUEUED）
+ */
+export async function enqueueCandidates(limit: number, now = Date.now()): Promise<{ created: number; followups: number }> {
   const topics = await prisma.topic.findMany({
     where: {
       lastSeenAt: { gte: new Date(now - CANDIDATE_HOURS * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
-      story: null,
+      stories: { none: {} },
     },
     orderBy: { score: "desc" },
     take: limit,
@@ -28,26 +46,61 @@ export async function enqueueCandidates(limit: number, now = Date.now()): Promis
   });
   let created = 0;
   for (const t of topics) {
-    const articles = await prisma.article.findMany({
-      where: { topicId: t.id },
-      orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
-      select: { id: true, publisher: true, source: { select: { kind: true } } },
-    });
-    const seen = new Set<string>();
-    const picked = articles.filter((a) => (seen.has(a.publisher) ? false : (seen.add(a.publisher), true))).slice(0, MAX_MATERIALS);
+    const picked = pickMaterials(await topicArticles(t.id));
+    try {
+      await prisma.story.create({ data: { topicId: t.id, score: t.score, sources: sourcesCreate(picked) } });
+      created++;
+    } catch {
+      // 同時に登録された場合（topicId と revision の一意制約）は何もしない
+    }
+  }
+  return { created, followups: await enqueueTopicFollowups(now) };
+}
+
+/** 配信済みのストーリーのトピックに、配信後の記事が届いていれば続報の候補にする */
+async function enqueueTopicFollowups(now: number): Promise<number> {
+  const published = await prisma.story.findMany({
+    where: { status: "PUBLISHED", publishedAt: { gte: new Date(now - FOLLOWUP_HOURS * 3_600_000) } },
+    select: {
+      id: true,
+      topicId: true,
+      revision: true,
+      publishedAt: true,
+      eventThreadId: true,
+      category: true,
+      riskFlags: true,
+      keyword: true,
+      score: true,
+      sources: { select: { articleId: true } },
+    },
+  });
+  let created = 0;
+  for (const s of published) {
+    // 最新の回だけを対象にする（続報の続報は、続報が配信された後に作る）
+    const newer = await prisma.story.count({ where: { topicId: s.topicId, revision: { gt: s.revision } } });
+    if (newer > 0 || !s.publishedAt) continue;
+    const used = new Set(s.sources.map((x) => x.articleId));
+    const picked = pickFollowupMaterials(await topicArticles(s.topicId), s.publishedAt, used);
+    if (!picked) continue;
     try {
       await prisma.story.create({
         data: {
-          topicId: t.id,
-          score: t.score,
-          sources: {
-            create: picked.map((a, i) => ({ position: i + 1, articleId: a.id, publisher: a.publisher, isPrimary: a.source.kind === "PRESS" })),
-          },
+          topicId: s.topicId,
+          revision: s.revision + 1,
+          kind: "FOLLOWUP",
+          followupOf: s.id,
+          eventThreadId: s.eventThreadId,
+          status: "DELTA_QUEUED",
+          category: s.category,
+          riskFlags: s.riskFlags,
+          keyword: s.keyword,
+          score: s.score,
+          sources: sourcesCreate(picked),
         },
       });
       created++;
     } catch {
-      // 同時に登録された場合（topicId の一意制約）は何もしない
+      // 同時に登録された場合は何もしない
     }
   }
   return created;
@@ -56,6 +109,11 @@ export async function enqueueCandidates(limit: number, now = Date.now()): Promis
 /** 解析待ちのストーリー（話題度の高い順） */
 export function findQueued(limit: number) {
   return prisma.story.findMany({ where: { status: "QUEUED" }, orderBy: { score: "desc" }, take: limit, select: { id: true, topicId: true } });
+}
+
+/** 続報の差分の解析待ち */
+export function findDeltaQueued(limit: number) {
+  return prisma.story.findMany({ where: { status: "DELTA_QUEUED" }, orderBy: { createdAt: "asc" }, take: limit, select: { id: true, topicId: true } });
 }
 
 /** ストーリーの資料（番号付き） */
@@ -72,46 +130,79 @@ export async function loadMaterials(storyId: string): Promise<StoryMaterial[]> {
   });
 }
 
-/** 同じ出来事のストーリーが既にあるか（過去72時間、投稿候補として生きているもの） */
-async function findDuplicate(storyId: string, entities: Entities, at: Date): Promise<string | null> {
+/** 続報のストーリーについて、前回の配信の内容を読む */
+export async function loadPreviousCoverage(storyId: string): Promise<PreviousCoverage | null> {
+  const story = await prisma.story.findUnique({ where: { id: storyId }, select: { followupOf: true } });
+  if (!story?.followupOf) return null;
+  const prev = await prisma.story.findUnique({ where: { id: story.followupOf } });
+  if (!prev) return null;
+  return {
+    keyword: prev.keyword ?? prev.shortTitle ?? "",
+    headline: prev.headline,
+    summary: prev.summary ?? "",
+    points: ((prev.points as Sourced[] | null) ?? []).map((p) => p.text),
+    publishedAt: prev.publishedAt ?? prev.analyzedAt ?? prev.createdAt,
+  };
+}
+
+/** 同じ出来事のストーリーを探す（過去72時間、配信候補として生きているもの） */
+async function findSameEvent(storyId: string, entities: Entities, at: Date) {
   const others = await prisma.story.findMany({
     where: {
       id: { not: storyId },
       createdAt: { gte: new Date(at.getTime() - DEDUP_HOURS * 3_600_000) },
       status: { in: ["PENDING", "REVIEW_REQUIRED", "APPROVED", "PUBLISHED"] },
     },
-    select: { id: true, entities: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true, entities: true, createdAt: true, eventThreadId: true },
   });
-  for (const o of others) {
-    if (o.entities && isSameEvent(entities, o.entities as unknown as Entities, at, o.createdAt)) return o.id;
-  }
-  return null;
+  return others.find((o) => o.entities && isSameEvent(entities, o.entities as unknown as Entities, at, o.createdAt)) ?? null;
 }
 
-/** AI の解析結果を照合して保存する。状態（承認待ち・要確認・自動除外）もここで決まる */
+const json = (v: unknown) => v as Prisma.InputJsonValue;
+
+/**
+ * AI の解析結果を照合して保存する。状態もここで決まる。
+ * - 照合で問題なし → PENDING、要確認 → REVIEW_REQUIRED、資料不足 → REJECTED_AUTO
+ * - 同じ出来事の候補が既にある → 重複として除外
+ * - 同じ出来事が既に配信済み → 続報として差分の解析に回す（DELTA_QUEUED）
+ */
 export async function applyAnalysis(storyId: string, analysis: StoryAnalysis, provider: string, model: string) {
   const story = await prisma.story.findUniqueOrThrow({ where: { id: storyId }, select: { createdAt: true } });
   const materials = await loadMaterials(storyId);
   const result = verifyAnalysis(analysis, materials);
-  let { status } = result;
+  let status: "PENDING" | "REVIEW_REQUIRED" | "REJECTED_AUTO" | "DELTA_QUEUED" = result.status;
   const notes = [...result.notes];
+  const c = result.cleaned;
   let duplicateOf: string | null = null;
+  let followupOf: string | null = null;
+  let eventThreadId: string | null = null;
+
   if (status !== "REJECTED_AUTO") {
-    duplicateOf = await findDuplicate(storyId, result.cleaned.entities, story.createdAt);
-    if (duplicateOf) {
+    const same = await findSameEvent(storyId, c.entities, story.createdAt);
+    if (same?.status === "PUBLISHED") {
+      status = "DELTA_QUEUED";
+      followupOf = same.id;
+      eventThreadId = same.eventThreadId;
+      notes.unshift(`配信済みの出来事の続報（${same.id}）`);
+    } else if (same) {
       status = "REJECTED_AUTO";
-      notes.unshift(`同じ出来事のストーリーが既にある（${duplicateOf}）`);
+      duplicateOf = same.id;
+      notes.unshift(`同じ出来事の候補が既にある（${same.id}）`);
+    } else {
+      eventThreadId = (await prisma.eventThread.create({ data: { title: c.shortTitle || c.headline.join("") } })).id;
     }
   }
-  const c = result.cleaned;
+
   await prisma.$transaction([
     prisma.storyAnalysis.create({
       data: {
         storyId,
+        task: "story",
         provider,
         model,
-        output: analysis as unknown as Prisma.InputJsonValue,
-        checks: { status, notes, missingFacts: result.missingFacts } as Prisma.InputJsonValue,
+        output: json(analysis),
+        checks: json({ status, notes, missingFacts: result.missingFacts }),
         accepted: status !== "REJECTED_AUTO",
       },
     }),
@@ -120,23 +211,66 @@ export async function applyAnalysis(storyId: string, analysis: StoryAnalysis, pr
       data: {
         status,
         statusNote: notes.join("\n") || null,
+        kind: followupOf ? "FOLLOWUP" : "NEW",
+        followupOf,
+        eventThreadId,
         category: c.category,
         cardType: c.cardType,
         importance: c.importance,
         riskFlags: c.riskFlags,
         headline: c.headline,
+        shortTitle: c.shortTitle,
+        keyword: c.keyword,
         summary: c.summary,
-        points: c.points as unknown as Prisma.InputJsonValue,
-        entities: c.entities as unknown as Prisma.InputJsonValue,
+        points: json(c.points),
+        why: c.why ? json(c.why) : undefined,
+        assessment: json(c.assessment),
+        entities: json(c.entities),
         eventTime: c.eventTime,
-        conflicts: c.conflicts as unknown as Prisma.InputJsonValue,
-        postText: c.postLines,
+        conflicts: json(c.conflicts),
         confidence: c.confidence,
         duplicateOf,
         analyzedAt: new Date(),
       },
     }),
   ]);
-  await logEvent(status === "REJECTED_AUTO" ? "warn" : "info", "story.analyze", `${status}`, storyId, { provider, model, notes });
+  await logEvent(status === "REJECTED_AUTO" ? "warn" : "info", "story.analyze", status, storyId, { provider, model, notes });
   return { status, notes };
+}
+
+/** 続報の差分を照合して保存する。新しい事実がなければ除外する */
+export async function applyFollowup(storyId: string, analysis: FollowupAnalysis, provider: string, model: string) {
+  const previous = await loadPreviousCoverage(storyId);
+  if (!previous) throw new Error(`前回のストーリーが見つからない: ${storyId}`);
+  const result = verifyFollowup(analysis, await loadMaterials(storyId), previous);
+  const c = result.cleaned;
+  await prisma.$transaction([
+    prisma.storyAnalysis.create({
+      data: {
+        storyId,
+        task: "followup",
+        provider,
+        model,
+        output: json(analysis),
+        checks: json({ status: result.status, notes: result.notes, missingFacts: result.missingFacts }),
+        accepted: result.status !== "REJECTED_AUTO",
+      },
+    }),
+    prisma.story.update({
+      where: { id: storyId },
+      data: {
+        status: result.status,
+        statusNote: result.notes.join("\n") || null,
+        kind: "FOLLOWUP",
+        keyword: previous.keyword,
+        headline: [previous.keyword, "結局どうなった"],
+        shortTitle: c.shortTitle,
+        delta: json({ before: c.before, now: c.now, newFacts: c.newFacts }),
+        confidence: c.confidence,
+        analyzedAt: new Date(),
+      },
+    }),
+  ]);
+  await logEvent(result.status === "REJECTED_AUTO" ? "warn" : "info", "story.followup", result.status, storyId, { provider, model, notes: result.notes });
+  return { status: result.status, notes: result.notes };
 }

@@ -39,7 +39,10 @@ const base: StoryAnalysis = {
   entities: { people: [], orgs: ["Google"], places: [], eventType: "製品発表", eventDate: "2026-09-30" },
   eventTime: "9月30日",
   conflicts: [],
-  postText: ["Googleが新AIモデルを発表"],
+  shortTitle: "Google 新AIモデル発表",
+  keyword: "Gemini 4",
+  why: { text: "開発や法務など長く複雑な業務が対象", sources: [2] },
+  assessment: { impact: 2, longevity: 2, publicInterest: 1, actionable: false, gossip: false, promotional: false },
   confidence: 0.9,
 };
 
@@ -52,12 +55,11 @@ describe("textWidth", () => {
 });
 
 describe("verifyAnalysis", () => {
-  it("正しい出力は承認待ち（PENDING）。範囲外の出典番号は取り除き、本文に【カテゴリー】を付ける", () => {
+  it("正しい出力は配信の候補（PENDING）。範囲外の出典番号は取り除く", () => {
     const r = verifyAnalysis(base, materials);
     expect(r.notes).toEqual([]);
     expect(r.status).toBe("PENDING");
     expect(r.cleaned.points[2].sources).toEqual([2]);
-    expect(r.cleaned.postLines).toEqual(["【テック】Googleが新AIモデルを発表"]);
   });
 
   it("資料にない数字は見つけて要確認にする", () => {
@@ -77,18 +79,24 @@ describe("verifyAnalysis", () => {
     expect(r.notes.some((n) => n.includes("見出し1行目"))).toBe(true);
   });
 
-  it("投稿本文が3行以上なら要確認", () => {
-    const r = verifyAnalysis({ ...base, postText: ["a", "b", "c"] }, materials);
-    expect(r.notes.some((n) => n.includes("投稿本文は1〜2行"))).toBe(true);
+  it("一覧用の見出し・キーワードの文字数も確かめる", () => {
+    const r = verifyAnalysis({ ...base, shortTitle: "Googleが新しいAIモデルを発表した", keyword: "グーグルの新しいモデル" }, materials);
+    expect(r.notes.some((n) => n.includes("一覧用の見出し"))).toBe(true);
+    expect(r.notes.some((n) => n.includes("キーワード"))).toBe(true);
   });
 
-  it("速報は【速報】を付ける", () => {
-    const r = verifyAnalysis({ ...base, cardType: "BREAKING" }, materials);
-    expect(r.cleaned.postLines[0].startsWith("【速報】")).toBe(true);
+  it("「なぜ重要」は出典の番号が必要。資料にない数字があれば要確認", () => {
+    expect(verifyAnalysis({ ...base, why: { text: "業務の対象が広い", sources: [] } }, materials).notes.join()).toContain("「なぜ重要」に出典");
+    const r = verifyAnalysis({ ...base, why: { text: "市場規模は5兆円に達する", sources: [2] } }, materials);
+    expect(r.missingFacts).toContain("5");
+  });
+
+  it("「なぜ重要」がなくてもよい（null）", () => {
+    expect(verifyAnalysis({ ...base, why: null }, materials).status).toBe("PENDING");
   });
 
   it("煽り表現は要確認", () => {
-    const r = verifyAnalysis({ ...base, postText: ["衝撃の新AIモデル"] }, materials);
+    const r = verifyAnalysis({ ...base, shortTitle: "衝撃の新AIモデル" }, materials);
     expect(r.status).toBe("REVIEW_REQUIRED");
   });
 
