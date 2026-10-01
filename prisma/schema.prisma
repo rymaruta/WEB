@@ -170,6 +170,7 @@ enum Channel {
   X
   THREADS
   WEB
+  BLUESKY
 }
 
 enum EditionSlot {
@@ -356,6 +357,8 @@ model Publication {
   status      PostStatus        @default(SCHEDULED)
   costUsd     Decimal?          @db.Decimal(8, 4)
   lastError   String?
+  /// 投稿を試した回数（X 以外の配信先の再試行に使う）
+  attempts    Int               @default(0)
   publishedAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt

@@ -28,7 +28,7 @@ export async function publishEdition(editionId: string) {
 type Plan = { position: number; cards: number[]; text: string }[];
 
 /** 投稿するカードと、投稿の分け方。速報は1枚のカードを1件で投稿する */
-async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string }; cards: Card[]; plan: Plan } | null> {
+export async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string }; cards: Card[]; plan: Plan } | null> {
   const row = await prisma.edition.findUnique({
     where: { id: editionId },
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
