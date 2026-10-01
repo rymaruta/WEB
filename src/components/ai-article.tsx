@@ -18,6 +18,12 @@ export function bodyWithoutLead(article: Pick<AiArticle, "lead" | "body">): stri
   return head >= 10 && a.slice(0, head) === b.slice(0, head) ? rest.length ? rest : article.body : article.body;
 }
 
+/** 読むのにかかる時間（分）。日本語はおよそ1分に500字として数える */
+export function readingMinutes(article: Pick<AiArticle, "lead" | "points" | "angles" | "body">): number {
+  const chars = [article.lead, ...article.points.map((p) => p.text), ...article.angles.map((p) => p.text), ...article.body].join("").length;
+  return Math.max(1, Math.round(chars / 500));
+}
+
 /** 出典番号を元記事へのリンクにする */
 function Cite({ n, source }: { n: number; source?: Source }) {
   if (!source) return null;
@@ -58,6 +64,10 @@ export function AiArticleView({
       <p className="mb-2 flex items-center gap-2 text-xs font-bold text-accent">
         <span className="rounded-full bg-accent px-2 py-0.5 text-accent-fg">AIまとめ記事</span>
         {cited.length}媒体の報道をもとに作成
+        <span className="font-medium text-fg-subtle">
+          ・約{readingMinutes(article)}分で読めます・{formatDateTime(article.generatedAt)}
+          {article.history.length > 1 ? "更新" : "作成"}
+        </span>
       </p>
       <h2 id="ai-article" className={showTitle ? "text-lg leading-snug font-black sm:text-xl" : "sr-only"}>
         {article.title}
@@ -132,6 +142,23 @@ export function AiArticleView({
           この記事は、上記の媒体が配信した見出しと要約をもとに AI（Claude）が自動で作成しました（{formatDateTime(article.generatedAt)}）。
           誤りを含む可能性があります。正確な内容は各媒体の記事でご確認ください。
         </p>
+        {article.history.length > 1 && (
+          <div className="mt-3">
+            <p className="mb-1 font-bold">更新履歴</p>
+            <ol className="space-y-0.5">
+              {article.history.map((h, i) => (
+                <li key={h.at.toISOString()}>
+                  {formatDateTime(h.at)}　
+                  {i === 0
+                    ? `${h.sources}媒体の報道をもとに作成`
+                    : h.sources > article.history[i - 1].sources
+                      ? `報じる媒体が${h.sources}媒体に増えたため内容を更新`
+                      : "新しい報道をもとに内容を更新"}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
         {reportHref && (
           <p className="mt-2">
             <a href={reportHref} className="font-bold text-accent underline">

@@ -63,7 +63,10 @@ export function markAttempted(topicId: number) {
 
 /** 検証済みのまとめ記事を保存する。sourceIds は出典番号 1, 2, ... に対応する記事 ID */
 export async function saveArticle(topicId: number, article: GeneratedArticle, sourceIds: number[], model: string) {
-  const topic = await prisma.topic.findUniqueOrThrow({ where: { id: topicId }, select: { publisherCount: true } });
+  const topic = await prisma.topic.findUniqueOrThrow({ where: { id: topicId }, select: { publisherCount: true, aiHistory: true } });
+  const now = new Date();
+  // 作成・更新の記録を残す（記事を黙って書き換えず、いつ・なぜ更新したかを読者に示す）
+  const history = [...(Array.isArray(topic.aiHistory) ? topic.aiHistory : []), { at: now.toISOString(), sources: sourceIds.length }].slice(-20);
   // AI が内容から判定したジャンルがあれば、トピックのジャンルとして使う（媒体の欄による誤りを直す）
   const genre = article.genre ? await prisma.genre.findUnique({ where: { slug: article.genre }, select: { id: true } }) : null;
   await prisma.topic.update({
@@ -78,8 +81,9 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiMarketEvent: article.marketEvent ?? null,
       aiSources: sourceIds,
       aiModel: model,
-      aiGeneratedAt: new Date(),
-      aiAttemptedAt: new Date(),
+      aiHistory: history,
+      aiGeneratedAt: now,
+      aiAttemptedAt: now,
       aiSourceCount: topic.publisherCount,
       ...(genre ? { aiGenreId: genre.id, genreId: genre.id } : {}),
     },

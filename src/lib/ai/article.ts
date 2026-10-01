@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const PointsSchema = z.array(z.object({ text: z.string(), sources: z.array(z.number().int()) }));
 const SourcesSchema = z.array(z.number().int());
+const HistorySchema = z.array(z.object({ at: z.string(), sources: z.number().int() }));
 
 export type AiArticle = {
   title: string;
@@ -12,6 +13,8 @@ export type AiArticle = {
   angles: { text: string; sources: number[] }[];
   /** 取り上げた企業（企業ページへのリンクに使う） */
   companies: string[];
+  /** 作成・更新の記録（古い順）。記録が始まる前の記事は空 */
+  history: { at: Date; sources: number }[];
   /** 出典番号（1始まり）に対応する記事 ID */
   sourceIds: number[];
   model: string | null;
@@ -25,6 +28,7 @@ type TopicAiFields = {
   aiPoints: unknown;
   aiAngles?: unknown;
   aiCompanies?: string[];
+  aiHistory?: unknown;
   aiSources: unknown;
   aiModel: string | null;
   aiGeneratedAt: Date | null;
@@ -42,6 +46,7 @@ export function readAiArticle(t: TopicAiFields): AiArticle | null {
     body: t.aiBody.split(/\n{2,}/).filter(Boolean),
     points: points.data,
     companies: t.aiCompanies ?? [],
+    history: (HistorySchema.safeParse(t.aiHistory).data ?? []).map((h) => ({ at: new Date(h.at), sources: h.sources })),
     angles: (t.aiAngles == null ? null : PointsSchema.safeParse(t.aiAngles).data) ?? [],
     sourceIds: sources.data,
     model: t.aiModel,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readAiArticle } from "@/lib/ai/article";
-import { bodyWithoutLead } from "@/components/ai-article";
+import { bodyWithoutLead, readingMinutes } from "@/components/ai-article";
 import { buildPrompt, checkArticleFacts, normalizeCompany, sanitizeArticle } from "@/lib/ai/prompt";
 
 const base = {
@@ -118,5 +118,12 @@ describe("normalizeCompany", () => {
   it("法人格と全角を整える", () => {
     expect(normalizeCompany("トヨタ自動車株式会社")).toBe("トヨタ自動車");
     expect(normalizeCompany("（株）ＫＤＤＩ")).toBe("KDDI");
+  });
+});
+
+describe("readingMinutes", () => {
+  it("500字でおよそ1分。短くても1分", () => {
+    expect(readingMinutes({ lead: "あ".repeat(100), points: [], angles: [], body: [] })).toBe(1);
+    expect(readingMinutes({ lead: "", points: [{ text: "あ".repeat(500), sources: [1] }], angles: [], body: ["い".repeat(1000)] })).toBe(3);
   });
 });
