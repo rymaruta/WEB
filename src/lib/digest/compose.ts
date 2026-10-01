@@ -61,19 +61,17 @@ export function joinHeadline(lines: string[]): string {
   return lines.reduce((acc, l) => (acc && isAlnum(acc.at(-1)) && isAlnum(l[0]) ? `${acc} ${l}` : acc + l), "");
 }
 
-const CIRCLED = "①②③④⑤⑥⑦⑧⑨";
-
 /** 投稿文の最後に添える、画像を開いてもらうための一言 */
 export const POST_CTA = "画像をスワイプで詳しく👉";
 
 /**
- * 本投稿の本文。回の印と日付・回の名前、空行、番号付きで1本1行の見出し、空行、画像への案内。
- * 番号は INDEX と2枚目以降のカードの順番に対応する。
+ * 本投稿の本文。回の印と日付・回の名前、空行、「・」付きで1本1行の見出し、空行、画像への案内。
+ * 字下げはしない（X の狭い表示幅で長い見出しが折り返さないように）。
  * 例:
  *   🌙 10/1(木) 夜のニュース
  *
- *   ① 米Micronが過去最高の決算
- *   ② MI5が中国機関と関係断つよう警告
+ *   ・米Micronが過去最高の決算
+ *   ・MI5が中国機関と関係断つよう警告
  *
  *   画像をスワイプで詳しく👉
  * X の文字数上限を超える場合は、後ろの見出しから削る。
@@ -83,8 +81,8 @@ export function composePostText(slot: Slot, date: string, entries: EditionEntry[
   const head = [`${cfg.emoji} ${jstPostDate(date)} ${cfg.title}`, ""];
   const tail = ["", POST_CTA];
   const items: string[] = [];
-  for (const [i, e] of entries.entries()) {
-    const line = `${CIRCLED[i] ?? `${i + 1}.`} ${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+  for (const e of entries) {
+    const line = `・${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
     if (textWidth(line) > LIMITS.postWidth) continue;
     if (textWidth([...head, ...items, line, ...tail].join("\n")) > LIMITS.postTotalWidth) break;
     items.push(line);
