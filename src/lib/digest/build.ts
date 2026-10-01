@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import type { Assessment, Category, Sourced } from "@/lib/stories/schema";
 import { composePostText, type EditionEntry, type EditionView } from "./compose";
-import { selectForEdition, type Candidate } from "./select";
+import { isAutoReviewable, selectForEdition, type Candidate } from "./select";
 import { autoApproveEnabled, editionKey, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
 
 /** 前の配信回に載った出来事を、どこまでさかのぼって除外するか */
@@ -33,16 +33,19 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
       confidence: true,
       delta: true,
       topicId: true,
+      riskFlags: true,
+      statusNote: true,
       sources: { select: { isPrimary: true } },
     },
   });
   const topicIds = [...new Set(stories.map((s) => s.topicId))];
   const [topics, clicks] = await Promise.all([
     prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, publisherCount: true } }),
-    prisma.article.groupBy({ by: ["topicId"], where: { topicId: { in: topicIds } }, _sum: { clicks: true } }),
+    prisma.article.groupBy({ by: ["topicId"], where: { topicId: { in: topicIds } }, _sum: { clicks: true, socialCount: true } }),
   ]);
   const publishers = new Map(topics.map((t) => [t.id, t.publisherCount]));
   const clickSum = new Map(clicks.map((c) => [c.topicId, c._sum.clicks ?? 0]));
+  const socialSum = new Map(clicks.map((c) => [c.topicId, c._sum.socialCount ?? 0]));
   return stories.map((s) => ({
     id: s.id,
     kind: s.kind,
@@ -54,6 +57,15 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
     hasPrimary: s.sources.some((x) => x.isPrimary),
     confidence: s.confidence,
     clicks: clickSum.get(s.topicId) ?? 0,
+    social: socialSum.get(s.topicId) ?? 0,
+    autoOk: isAutoReviewable({
+      status: s.status,
+      statusNote: s.statusNote,
+      riskFlags: s.riskFlags,
+      confidence: s.confidence,
+      publisherCount: publishers.get(s.topicId) ?? 0,
+      assessment: s.assessment as Assessment | null,
+    }),
     newFacts: ((s.delta as { newFacts?: unknown[] } | null)?.newFacts ?? []).length,
   }));
 }
@@ -95,6 +107,7 @@ export async function buildEdition(slot: Slot, now = new Date()) {
     ...selection.main.map((s) => ({ ...s, role: "MAIN" as const })),
     ...selection.followups.map((s) => ({ ...s, role: "FOLLOWUP" as const })),
   ];
+  const autoOkIds = new Set(candidates.filter((c) => c.autoOk).map((c) => c.id));
   const scheduledAt = jstAt(date, cfg.publishAt);
   const view = await loadEditionView({ slot, date, scheduledAt, items: picked.map((p, i) => ({ position: i + 1, role: p.role, storyId: p.id, override: null })) });
 
@@ -110,7 +123,8 @@ export async function buildEdition(slot: Slot, now = new Date()) {
         deadlineAt: new Date(scheduledAt.getTime() - cfg.deadlineMinutes * 60_000),
         postText: composePostText(slot, date, view.entries),
         notes: { ...selection.notes, scores: picked.map((p) => ({ id: p.id, ...p.parts })) } as Prisma.InputJsonValue,
-        items: { create: picked.map((p, i) => ({ position: i + 1, storyId: p.id, role: p.role, score: p.score })) },
+        // 要確認でも自動で載せてよいもの（autoOk）は、確認済みとして入れる（おまかせ投稿で止まらないように）
+        items: { create: picked.map((p, i) => ({ position: i + 1, storyId: p.id, role: p.role, score: p.score, confirmed: autoOkIds.has(p.id) })) },
       },
       select: { id: true, status: true },
     });

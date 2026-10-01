@@ -106,12 +106,13 @@ async function enqueueTopicFollowups(now: number): Promise<number> {
   return created;
 }
 
-/** 先に解析するジャンル（朝・夜の配信は政治・経済・国際を1本以上載せるため、これらの解析が後回しにならないように） */
+/** 国内・国際・経済の話題は、解析の順番で話題度を1.5倍に見る（朝・夜の配信は政治・経済・国際を1本以上載せるため） */
 const HARD_NEWS_GENRES = new Set(["domestic", "world", "business"]);
+const HARD_NEWS_BOOST = 1.5;
 
 /**
- * 解析待ちのストーリー。国内・国際・経済の話題を先に、その中は話題度の高い順。
- * 夜のあいだに話題がたまったとき、試合の談話記事などで解析の枠が埋まり、朝の配信の候補が足りなくなるのを防ぐ。
+ * 解析待ちのストーリー。話題度（媒体数・SNS の反応・新しさ）の高い順で、国内・国際・経済を少し優先する。
+ * 完全に国内・国際・経済を先にすると、話題性の高い芸能・スポーツの出来事がいつまでも解析されないため、倍率で優先する。
  */
 export async function findQueued(limit: number) {
   const rows = await prisma.story.findMany({
@@ -120,9 +121,9 @@ export async function findQueued(limit: number) {
     take: limit * 5,
     select: { id: true, topicId: true, score: true, topic: { select: { genre: { select: { slug: true } } } } },
   });
-  const hard = (r: (typeof rows)[number]) => (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? 0 : 1);
+  const priority = (r: (typeof rows)[number]) => r.score * (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? HARD_NEWS_BOOST : 1);
   return rows
-    .sort((a, b) => hard(a) - hard(b) || b.score - a.score)
+    .sort((a, b) => priority(b) - priority(a))
     .slice(0, limit)
     .map(({ id, topicId }) => ({ id, topicId }));
 }

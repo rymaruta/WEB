@@ -11,7 +11,7 @@ import {
   splitParts,
   type EditionEntry,
 } from "@/lib/digest/compose";
-import { scoreCandidate, selectForEdition, type Candidate } from "@/lib/digest/select";
+import { isAutoReviewable, scoreCandidate, selectForEdition, type Candidate } from "@/lib/digest/select";
 import { editionKey, jstAt, jstDate, jstDateLabel, jstFullDateLabel, jstPostDate, jstTime, msUntilJst, SLOTS } from "@/lib/digest/slots";
 import { pickFollowupMaterials } from "@/lib/stories/materials";
 import { LIMITS, type Assessment, type FollowupAnalysis, type StoryMaterial } from "@/lib/stories/schema";
@@ -96,7 +96,7 @@ describe("selectForEdition", () => {
   });
 
   it("3本に足りないときは、基準点やカテゴリーの上限をゆるめて3本にする", () => {
-    const low = cand({ category: "LIFE", assessment: assess({ impact: 0, longevity: 0 }) });
+    const low = cand({ category: "LIFE", publisherCount: 2, assessment: assess({ impact: 0, longevity: 0 }) });
     const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), low];
     const r = selectForEdition(cs, SLOTS.LUNCH, new Set());
     expect(r.main).toHaveLength(3);
@@ -348,5 +348,37 @@ describe("続報", () => {
 describe("出典の媒体名", () => {
   it("ドメイン名は読者に分かる名前にする", () => {
     expect(sourcesLine(["yomiuri.co.jp", "www.cnn.co.jp", "BBCニュース"])).toBe("出典：読売新聞・CNN ほか1");
+  });
+});
+
+describe("話題性と、要確認の自動掲載", () => {
+  it("報じた媒体が多く、SNS の反応が大きいほど点数が高い", () => {
+    const quiet = scoreCandidate(cand({ publisherCount: 2, social: 0 }));
+    const buzzing = scoreCandidate(cand({ publisherCount: 8, social: 300 }));
+    expect(buzzing.parts.buzz).toBeGreaterThan(quiet.parts.buzz);
+    expect(buzzing.score).toBeGreaterThan(quiet.score + 10);
+  });
+
+  const base = { status: "REVIEW_REQUIRED", statusNote: "慎重に扱う分野: 事件", riskFlags: ["CRIME"], confidence: 0.9, publisherCount: 4, assessment: null };
+
+  it("公式の発表を多くの媒体が報じ、理由が分野だけなら自動で載せてよい（例: 所属事務所の契約解除）", () => {
+    expect(isAutoReviewable(base)).toBe(true);
+  });
+
+  it("食い違い・確からしさ・媒体数・訃報・ゴシップのどれかがあれば人が確かめる", () => {
+    expect(isAutoReviewable({ ...base, statusNote: "慎重に扱う分野: 事件\n媒体間の食い違い: 人数" })).toBe(false);
+    expect(isAutoReviewable({ ...base, confidence: 0.6 })).toBe(false);
+    expect(isAutoReviewable({ ...base, publisherCount: 2 })).toBe(false);
+    expect(isAutoReviewable({ ...base, riskFlags: ["DEATH"], statusNote: "慎重に扱う分野: 死亡" })).toBe(false);
+    expect(isAutoReviewable({ ...base, assessment: assess({ gossip: true }) })).toBe(false);
+    expect(isAutoReviewable({ ...base, status: "PENDING" })).toBe(false);
+  });
+
+  it("おまかせ投稿の回でも、自動で載せてよい要確認のものは選ぶ", () => {
+    const ok = cand({ status: "REVIEW_REQUIRED", autoOk: true, category: "ENTERTAINMENT" });
+    const ng = cand({ status: "REVIEW_REQUIRED", autoOk: false, category: "SOCIETY" });
+    const r = selectForEdition([ok, ng, cand({ category: "ECONOMY" }), cand({ category: "TECH" })], SLOTS.LUNCH, new Set(), { verifiedOnly: true });
+    expect(r.main.map((m) => m.id)).toContain(ok.id);
+    expect(r.main.map((m) => m.id)).not.toContain(ng.id);
   });
 });

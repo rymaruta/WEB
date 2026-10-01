@@ -17,11 +17,45 @@ export type Candidate = {
   hasPrimary: boolean;
   confidence: number | null;
   clicks: number;
+  /** SNS での反応（はてなブックマーク数の合計） */
+  social?: number;
+  /**
+   * 要確認（REVIEW_REQUIRED）でも、おまかせ投稿で載せてよいか。
+   * 理由が「慎重に扱う分野」だけで、媒体間の食い違いがなく、多くの媒体が報じた公式の発表など（build.ts で判定）
+   */
+  autoOk?: boolean;
   /** 続報の場合、新しい事実の数 */
   newFacts?: number;
 };
 
-export type ScoreParts = { impact: number; reliability: number; longevity: number; novelty: number; interest: number; penalty: number };
+/** 要確認でも、おまかせ投稿で載せてよい分野（事実の報道として扱えるもの）。訃報・戦争・医療は人が確かめる */
+export const AUTO_OK_RISKS = new Set(["POLITICS", "ELECTION", "MARKET", "CRIME", "ACCIDENT", "DISASTER"]);
+export const AUTO_OK_MIN_PUBLISHERS = 3;
+export const AUTO_OK_MIN_CONFIDENCE = 0.8;
+
+/**
+ * 要確認のストーリーを、おまかせ投稿で載せてよいか。
+ * - 要確認の理由が「慎重に扱う分野」だけ（文字数・出典・資料にない語・写しすぎ・確からしさ・媒体間の食い違いは含まない）
+ * - その分野が AUTO_OK_RISKS だけ
+ * - 3媒体以上が報じ、照合の確からしさが 0.8 以上、ゴシップでない
+ * 例: 所属事務所が契約解除を発表し、4媒体が報じた（事件の分野） → 載せてよい
+ */
+export function isAutoReviewable(s: {
+  status: string;
+  statusNote: string | null;
+  riskFlags: string[];
+  confidence: number | null;
+  publisherCount: number;
+  assessment: Assessment | null;
+}): boolean {
+  if (s.status !== "REVIEW_REQUIRED") return false;
+  const reasons = (s.statusNote ?? "").split("\n").filter(Boolean);
+  if (reasons.length === 0 || !reasons.every((r) => r.startsWith("慎重に扱う分野"))) return false;
+  if (s.riskFlags.length === 0 || !s.riskFlags.every((f) => AUTO_OK_RISKS.has(f))) return false;
+  return s.publisherCount >= AUTO_OK_MIN_PUBLISHERS && (s.confidence ?? 0) >= AUTO_OK_MIN_CONFIDENCE && !s.assessment?.gossip;
+}
+
+export type ScoreParts = { impact: number; reliability: number; longevity: number; novelty: number; interest: number; buzz: number; penalty: number };
 export type Scored = { id: string; score: number; parts: ScoreParts };
 
 /**
@@ -43,6 +77,9 @@ const PER_CATEGORY = 2;
 const SOFT_MAX = 1;
 /** 閲覧数はこの値で頭打ちにする（関心だけで上位にならないように） */
 const CLICKS_CAP = 300;
+/** 話題性：報じた媒体の数と SNS の反応。それぞれこの値で頭打ち */
+const BUZZ_PUBLISHERS_CAP = 10;
+const BUZZ_SOCIAL_CAP = 300;
 
 export function scoreCandidate(c: Candidate): Scored {
   const a = c.assessment;
@@ -51,12 +88,14 @@ export function scoreCandidate(c: Candidate): Scored {
   const longevity = ((a?.longevity ?? 1) / 3) * 20;
   const novelty = c.kind === "FOLLOWUP" ? Math.min(c.newFacts ?? 0, 2) * 5 : 10;
   const interest = (Math.min(c.clicks, CLICKS_CAP) / CLICKS_CAP) * 10;
+  // 話題性（多くの媒体が報じている・SNS で反応が多い）。重要度とは別に、世の中で話題になっていることも評価する
+  const buzz = (Math.min(c.publisherCount, BUZZ_PUBLISHERS_CAP) / BUZZ_PUBLISHERS_CAP) * 12 + (Math.min(c.social ?? 0, BUZZ_SOCIAL_CAP) / BUZZ_SOCIAL_CAP) * 8;
   let penalty = 0;
   if (a?.gossip) penalty += 40;
   if (a?.promotional) penalty += 20;
   if (a && a.publicInterest === 0) penalty += 10;
-  const parts = { impact, reliability, longevity, novelty, interest, penalty };
-  const score = Math.round((impact + reliability + longevity + novelty + interest - penalty) * 10) / 10;
+  const parts = { impact, reliability, longevity, novelty, interest, buzz, penalty };
+  const score = Math.round((impact + reliability + longevity + novelty + interest + buzz - penalty) * 10) / 10;
   return { id: c.id, score, parts };
 }
 
@@ -82,7 +121,9 @@ export type Selection = {
  */
 export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, excludeThreads: Set<string>, opts: { verifiedOnly?: boolean } = {}): Selection {
   const scored = candidates.map((c) => ({ ...scoreCandidate(c), candidate: c }));
-  const eligible = scored.filter((s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !(opts.verifiedOnly && s.candidate.status === "REVIEW_REQUIRED"));
+  const eligible = scored.filter(
+    (s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !(opts.verifiedOnly && s.candidate.status === "REVIEW_REQUIRED" && !s.candidate.autoOk),
+  );
   const strong = eligible.filter((s) => s.score >= MIN_SCORE).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   const excluded = strong.filter((s) => s.candidate.kind === "NEW" && s.candidate.threadId && excludeThreads.has(s.candidate.threadId));
 
