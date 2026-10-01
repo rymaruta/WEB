@@ -29,7 +29,7 @@ export default async function RankingPage() {
       <h1 className="text-xl font-extrabold">ランキング</h1>
       <section className="card p-4">
         <SectionHeading title={`急上昇（直近${RISING_HOURS}時間）`} />
-        <p className="mb-1 text-xs text-fg-subtle">いま報じる媒体が急に増えている話題。新しく報じた媒体の数と、それまでからの伸びで並べています</p>
+        <p className="mb-1 text-xs text-fg-subtle">いま報じる媒体が急に増えている話題。同じ出来事は1件にまとめ、1つのジャンルに偏らないように並べています</p>
         <RisingList items={rising} hours={RISING_HOURS} />
       </section>
       <p className="text-sm text-fg-muted">ここから下は、直近{TRENDING_HOURS}時間のニュースが対象です。</p>
