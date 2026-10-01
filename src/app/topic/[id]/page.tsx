@@ -8,6 +8,8 @@ import { OutboundLink } from "@/components/outbound-link";
 import { PublisherAvatars } from "@/components/publisher-avatars";
 import { Thumbnail } from "@/components/thumbnail";
 import { SectionHeading } from "@/components/section-heading";
+import { ShareButtons } from "@/components/share-buttons";
+import { siteConfig } from "@/config/site";
 import { TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
@@ -31,11 +33,13 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
   if (!topic) return {};
   const ai = readAiArticle(topic);
   const summary = ai?.lead || (topic.articles.find((a) => a.summary)?.summary ?? undefined);
+  const title = ai?.title ?? topic.title;
   return {
-    title: ai?.title ?? topic.title,
+    title,
     description: summary,
     alternates: { canonical: `/topic/${topic.id}` },
-    openGraph: { title: topic.title, description: summary, type: "article" },
+    // openGraph はレイアウトの値を丸ごと置き換えるため、サイト名と言語もここで指定する
+    openGraph: { title, description: summary, type: "article", siteName: siteConfig.name, locale: "ja_JP" },
     // 単独記事のトピックは独自の付加価値が小さいため検索エンジンに登録しない
     robots: topic.publisherCount < 2 ? { index: false, follow: true } : undefined,
   };
@@ -84,6 +88,9 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 </>
               )}
             </span>
+          </div>
+          <div className="mt-4">
+            <ShareButtons title={ai?.title ?? topic.title} url={`${siteConfig.url}/topic/${topic.id}`} />
           </div>
         </header>
 
