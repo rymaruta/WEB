@@ -1,7 +1,9 @@
 # 公開中のサイトでニュースを定期収集する。
 # リポジトリの Settings → Secrets and variables → Actions に CRON_SECRET
-# （Vercel の環境変数 CRON_SECRET と同じ値）を登録すると動作する。未登録の間は何もせず正常終了する。
-# 独自ドメインへ移行した場合は、シークレット SITE_URL に新しい URL を登録する。
+# （サイトの環境変数 CRON_SECRET と同じ値）を登録すると動作する。未登録の間は何もせず正常終了する。
+# 呼び出し先はシークレット SITE_URL で切り替える（未登録なら Vercel の URL）。
+# サイトは受け付けた時点で 202 を返し、収集は応答後にサーバー内で行う（結果はサーバーのログに出る）。
+# 前回の収集がまだ終わっていない場合は 409 が返るが、異常ではないので成功扱いにする。
 name: Crawl news
 
 on:
@@ -18,7 +20,7 @@ concurrency:
 jobs:
   crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Call crawl endpoint
         env:
@@ -29,6 +31,13 @@ jobs:
             echo "CRON_SECRET が未設定のためスキップします"
             exit 0
           fi
-          curl --fail-with-body --silent --show-error --max-time 300 \
+          status=$(curl --silent --show-error --max-time 300 --retry 2 --retry-all-errors \
+            -o response.json -w '%{http_code}' \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            "${SITE_URL%/}/api/cron/crawl"
+            "${SITE_URL%/}/api/cron/crawl")
+          cat response.json; echo
+          case "$status" in
+            200|202) echo "収集を開始しました" ;;
+            409) echo "前回の収集が実行中のため、今回は見送りました" ;;
+            *) echo "::error::収集の呼び出しに失敗しました（HTTP $status）"; exit 1 ;;
+          esac
