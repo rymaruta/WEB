@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
+import { autoApproveEnabled, jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
 import { buildAction } from "../actions";
 
 const STATUS: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "承認待ち", className: "border-amber-500 text-amber-700 dark:text-amber-400" },
+  // おまかせ投稿では、下書きは人が触らなくても時刻に投稿される
+  DRAFT: { label: autoApproveEnabled() ? "自動で投稿予定" : "承認待ち", className: "border-amber-500 text-amber-700 dark:text-amber-400" },
   APPROVED: { label: "承認済み", className: "border-emerald-600 text-emerald-700 dark:text-emerald-400" },
   PUBLISHED: { label: "投稿済み", className: "border-fg-subtle text-fg-muted" },
   SKIPPED: { label: "見送り", className: "border-fg-subtle text-fg-subtle" },

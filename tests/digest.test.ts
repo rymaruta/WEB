@@ -136,6 +136,13 @@ describe("selectForEdition", () => {
     expect(r.main.map((m) => m.id)).not.toContain(mainA.id);
   });
 
+  it("おまかせ投稿では、要確認のストーリーを選ばない", () => {
+    const review = cand({ status: "REVIEW_REQUIRED", category: "ECONOMY" });
+    const ok = cand({ category: "WORLD" });
+    expect(selectForEdition([review, ok], SLOTS.LUNCH, new Set(), { verifiedOnly: true }).main.map((m) => m.id)).toEqual([ok.id]);
+    expect(selectForEdition([review, ok], SLOTS.LUNCH, new Set()).main.map((m) => m.id).sort()).toEqual([review.id, ok.id].sort());
+  });
+
   it("夜は今日配信した出来事（PUBLISHED）も、まとめとして候補にできる", () => {
     const morning = cand({ status: "PUBLISHED", category: "ECONOMY" });
     expect(selectForEdition([morning], SLOTS.EVENING, new Set()).main.map((m) => m.id)).toEqual([morning.id]);

@@ -130,3 +130,11 @@ export function msUntilJst(hhmm: string, now: Date): number {
   if (target.getTime() <= now.getTime()) target = new Date(target.getTime() + 24 * 3_600_000);
   return target.getTime() - now.getTime();
 }
+
+/**
+ * おまかせ投稿（既定でオン）。下書きは自動の確認を通ったストーリーだけで作り、
+ * 投稿の時刻までに人が承認しなくても、そのまま投稿する。DIGEST_AUTO_APPROVE=false で、人の承認が必要な運用に戻す
+ */
+export function autoApproveEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.DIGEST_AUTO_APPROVE !== "false";
+}
