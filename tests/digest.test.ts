@@ -79,12 +79,12 @@ describe("選定の点数", () => {
 });
 
 describe("selectForEdition", () => {
-  it("朝は4本。同じカテゴリーは2本まで", () => {
+  it("朝は5本。同じカテゴリーは2本まで", () => {
     const cs = [...Array.from({ length: 4 }, () => cand({ category: "TECH" })), cand({ category: "ECONOMY" }), cand({ category: "WORLD" }), cand({ category: "SOCIETY" })];
     const r = selectForEdition(cs, SLOTS.MORNING, new Set());
-    expect(r.main).toHaveLength(4);
+    expect(r.main).toHaveLength(5);
     const byId = new Map(cs.map((c) => [c.id, c]));
-    expect(r.main.filter((m) => byId.get(m.id)!.category === "TECH").length).toBeLessThanOrEqual(2);
+    expect(r.main.filter((m) => byId.get(m.id)!.category === "TECH")).toHaveLength(2);
   });
 
   it("芸能とスポーツは合わせて1本まで", () => {
@@ -106,7 +106,7 @@ describe("selectForEdition", () => {
     const life = cand({ category: "LIFE", assessment: assess({ impact: 3, longevity: 3 }) });
     const econ = cand({ category: "ECONOMY", assessment: assess({ impact: 1, longevity: 1 }) });
     const r = selectForEdition([...tech, ...sci, life, econ], SLOTS.MORNING, new Set());
-    expect(r.main).toHaveLength(4);
+    expect(r.main).toHaveLength(5);
     expect(r.main.map((m) => m.id)).toContain(econ.id);
   });
 
@@ -126,14 +126,14 @@ describe("selectForEdition", () => {
     expect(r.main.map((m) => m.id)).toEqual([review.id]);
   });
 
-  it("夜は続報2本なら本編2本（合わせて4本）。続報の出来事は本編に重ねない", () => {
+  it("夜は本編4本＋続報2本。続報の出来事は本編に重ねない", () => {
     const followA = cand({ kind: "FOLLOWUP", threadId: "tx", newFacts: 1, category: "ECONOMY" });
     const mainA = cand({ threadId: "tx", category: "ECONOMY" });
     const followB = cand({ kind: "FOLLOWUP", newFacts: 2, category: "WORLD" });
     const others = [cand({ category: "WORLD" }), cand({ category: "TECH" }), cand({ category: "SCIENCE" }), cand({ category: "LIFE" }), cand({ category: "POLITICS" })];
     const r = selectForEdition([followA, mainA, followB, ...others], SLOTS.EVENING, new Set());
     expect(r.followups.map((f) => f.id).sort()).toEqual([followA.id, followB.id].sort());
-    expect(r.main).toHaveLength(2);
+    expect(r.main).toHaveLength(4);
     expect(r.main.map((m) => m.id)).not.toContain(mainA.id);
   });
 
@@ -142,9 +142,9 @@ describe("selectForEdition", () => {
     expect(selectForEdition([morning], SLOTS.EVENING, new Set()).main.map((m) => m.id)).toEqual([morning.id]);
   });
 
-  it("夜に続報がなければ、本編を4本まで増やす", () => {
+  it("夜に続報がなければ、本編を5本まで増やす", () => {
     const cs = [cand({ category: "WORLD" }), cand({ category: "TECH" }), cand({ category: "SCIENCE" }), cand({ category: "LIFE" }), cand({ category: "POLITICS" }), cand({ category: "ECONOMY" })];
-    expect(selectForEdition(cs, SLOTS.EVENING, new Set()).main).toHaveLength(4);
+    expect(selectForEdition(cs, SLOTS.EVENING, new Set()).main).toHaveLength(5);
   });
 });
 
@@ -195,10 +195,9 @@ describe("投稿文", () => {
 });
 
 describe("投稿の分け方", () => {
-  it("1投稿で完結。INDEX は添えず、ニュースのカードを最大4枚", () => {
-    expect(splitParts(3)).toEqual([[1, 2, 3]]);
-    expect(splitParts(4)).toEqual([[1, 2, 3, 4]]);
-    expect(splitParts(6)).toEqual([[1, 2, 3, 4]]);
+  it("1投稿で完結。INDEX＋上位3本のカード", () => {
+    expect(splitParts(5)).toEqual([[0, 1, 2, 3]]);
+    expect(splitParts(2)).toEqual([[0, 1, 2]]);
     expect(splitParts(0)).toEqual([]);
   });
   it("リプライの本文", () => {

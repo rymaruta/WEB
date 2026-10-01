@@ -33,8 +33,8 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     publishAt: "07:00",
     buildAt: "06:10",
     deadlineMinutes: 5,
-    mainCount: 4,
-    mainMax: 4,
+    mainCount: 5,
+    mainMax: 5,
     followupMax: 0,
     windowHours: 14,
     requireHardNews: true,
@@ -59,8 +59,8 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     publishAt: "20:00",
     buildAt: "19:10",
     deadlineMinutes: 5,
-    mainCount: 2,
-    mainMax: 4,
+    mainCount: 4,
+    mainMax: 5,
     followupMax: 2,
     windowHours: 16,
     requireHardNews: true,
@@ -70,8 +70,8 @@ export const SLOTS: Record<Slot, SlotConfig> = {
 
 export const SLOT_ORDER: Slot[] = ["MORNING", "LUNCH", "EVENING"];
 
-/** 1つの配信回に載せる本数の上限。X の1投稿は画像4枚までで、1投稿で完結させる */
-export const MAX_ITEMS = 4;
+/** 1つの配信回のカードの上限（INDEX＋ニュース）。X の1投稿は画像4枚まで、リプライ1件で続ける */
+export const MAX_ITEMS = 6;
 
 const JST_OFFSET_MS = 9 * 3_600_000;
 
