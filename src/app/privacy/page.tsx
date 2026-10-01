@@ -78,6 +78,9 @@ export default function PrivacyPage() {
         <p>
           サイトの改善のため、Amazon CloudWatch RUM で閲覧数や表示速度、閲覧環境を集計しています。この解析では Cookie を使用せず、個人を特定できる情報は収集しません。
         </p>
+        <p className="mt-2">
+          前回の訪問のあとに出たニュースに「NEW」の印を付けるため、最後に訪問した日時を利用者の端末（ブラウザーの保存領域）にだけ保存しています。この情報は当サイトのサーバーには送信されません。
+        </p>
       </section>
 
       <section>
