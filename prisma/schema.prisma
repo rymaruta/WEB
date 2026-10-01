@@ -99,6 +99,8 @@ model Topic {
   aiAngles       Json?
   /// 記事で取り上げた企業名（AI が資料から抜き出し、資料にあることを確かめたもの）。企業ページ（/company/[name]）に使う
   aiCompanies    String[]  @default([])
+  /// 企業の業績・資本に関わる出来事の種類（src/lib/market-event.ts）。該当しなければ null
+  aiMarketEvent  String?
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?

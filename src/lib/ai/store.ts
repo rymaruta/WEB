@@ -75,6 +75,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiPoints: article.points,
       aiAngles: article.angles ?? [],
       aiCompanies: article.companies ?? [],
+      aiMarketEvent: article.marketEvent ?? null,
       aiSources: sourceIds,
       aiModel: model,
       aiGeneratedAt: new Date(),

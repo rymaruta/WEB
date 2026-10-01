@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
+import { marketEventLabel } from "@/lib/market-event";
 import { NewBadge } from "./new-badge";
 import type { TopicCardData } from "@/lib/queries";
 import { GenreBadge } from "./genre-badge";
@@ -112,6 +113,13 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
   );
 }
 
+/** 決算・M&A などの目印（投資家が一覧で見分けられるように） */
+export function MarketEventBadge({ event }: { event: string | null | undefined }) {
+  const label = marketEventLabel(event);
+  if (!label) return null;
+  return <span className="rounded border border-fg-muted/40 bg-surface px-1.5 py-px text-[11px] font-bold text-fg">{label}</span>;
+}
+
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
   const { lead, title, summary, publishers, image, hasAi } = describe(topic);
@@ -127,6 +135,7 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
         <span className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
           <GenreBadge genre={topic.genre} />
           {hasAi && <AiBadge />}
+          <MarketEventBadge event={topic.aiMarketEvent} />
           {topic.publisherCount > 1 && (
             <span className="rounded-full bg-black/60 px-2 py-px text-[11px] font-bold text-white backdrop-blur">
               {topic.publisherCount}媒体が報道
@@ -172,6 +181,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-subtle">
           {showGenre && <GenreBadge genre={topic.genre} />}
           {hasAi && <AiBadge />}
+          <MarketEventBadge event={topic.aiMarketEvent} />
           <CoverageBadge count={topic.publisherCount} />
           {topic.publisherCount > 1 && !compact && <PublisherAvatars names={publishers} max={4} />}
           <PublisherLine publishers={publishers} max={compact ? 2 : 3} />
