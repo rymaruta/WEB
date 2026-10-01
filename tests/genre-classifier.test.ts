@@ -17,11 +17,17 @@ describe("genre classifier", () => {
   it("混ざったフィードの記事だけを、自信があるときに判定し直す", () => {
     const mynavi = "https://news.mynavi.jp/rss/index";
     expect(MIXED_FEEDS.has(mynavi)).toBe(true);
-    expect(reclassify(model, mynavi, "tech", "日本代表がPK戦で勝利 森保監督", 0.6)).toBe("sports");
+    expect(reclassify(model, mynavi, "tech", "日本代表がPK戦で勝利 森保監督", { minProb: 0.6 })).toBe("sports");
     // 特化したフィードは変えない
-    expect(reclassify(model, "https://web.gekisaka.jp/feed", "sports", "新型iPhoneを発表", 0.6)).toBe("sports");
+    expect(reclassify(model, "https://web.gekisaka.jp/feed", "sports", "新型iPhoneを発表", { minProb: 0.6 })).toBe("sports");
     // 学習した語がほとんどなければ変えない
-    expect(reclassify(model, mynavi, "tech", "ほげ", 0.6)).toBe("tech");
+    expect(reclassify(model, mynavi, "tech", "ほげ", { minProb: 0.6 })).toBe("tech");
+  });
+
+  it("正答率を確かめたジャンル（いまはスポーツ）にだけ移す", () => {
+    const tbs = "https://newsdig.tbs.co.jp/list/feed/rss";
+    expect(reclassify(model, tbs, "domestic", "新型iPhoneを発表 AIの新機能", { minProb: 0.6 })).toBe("domestic");
+    expect(reclassify(model, tbs, "domestic", "日本代表がPK戦で勝利 森保監督", { minProb: 0.6 })).toBe("sports");
   });
 
   it("国内は、混ざったフィードでも教材にする", () => {
