@@ -243,8 +243,8 @@ function IndexCardView({ card }: { card: IndexCard }) {
   const compact = card.entries.length > 5;
   const main = card.entries.filter((e) => e.role === "MAIN");
   const follow = card.entries.filter((e) => e.role === "FOLLOWUP");
-  const fontSize = px(compact ? 3.9 : 4.3);
-  const rowGap = px(compact ? 1.1 : 1.5);
+  const fontSize = px(compact ? 3.9 : 4.6);
+  const rowGap = px(compact ? 1.1 : 2.2);
   const list = (entries: IndexCard["entries"], offset: number) => (
     <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
       {entries.map((e, i) => (
@@ -252,22 +252,26 @@ function IndexCardView({ card }: { card: IndexCard }) {
           key={i}
           style={{
             display: "flex",
-            alignItems: "center",
-            fontSize,
-            fontWeight: 800,
-            lineHeight: 1.35,
+            alignItems: "flex-start",
             paddingBottom: i < entries.length - 1 ? rowGap : 0,
             borderBottom: i < entries.length - 1 ? `${px(0.2)}px solid ${RULE}` : "none",
           }}
         >
-          <div style={{ width: px(card.timed ? 10 : 5), display: "flex", fontFamily: card.timed ? BODY : DISPLAY, fontWeight: card.timed ? 700 : 900, fontSize: px(card.timed ? 3 : 4.1), color: SUB }}>
+          <div style={{ width: px(card.timed ? 10 : 5), display: "flex", fontFamily: card.timed ? BODY : DISPLAY, fontWeight: card.timed ? 700 : 900, fontSize: px(card.timed ? 3 : 4.4), lineHeight: 1.35, color: SUB }}>
             {card.timed ? e.time : String(offset + i + 1)}
           </div>
-          <div style={{ width: px(15), display: "flex", alignItems: "center", gap: px(0.8), fontSize: px(2.8), fontWeight: 800, color: e.color, whiteSpace: "nowrap" }}>
-            <div style={{ width: px(1.6), height: px(1.6), background: e.color, display: "flex" }} />
-            {e.label}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: px(0.8) }}>
+            <div style={{ display: "flex", alignItems: "center", fontSize, fontWeight: 800, lineHeight: 1.35, whiteSpace: "nowrap" }}>
+              <div style={{ width: px(15), display: "flex", alignItems: "center", gap: px(0.8), fontSize: px(2.8), fontWeight: 800, color: e.color }}>
+                <div style={{ width: px(1.6), height: px(1.6), background: e.color, display: "flex" }} />
+                {e.label}
+              </div>
+              <div style={{ display: "flex", color: e.role === "FOLLOWUP" ? FOLLOWUP_COLOR : INK }}>{e.text}</div>
+            </div>
+            {e.detail && !compact && (
+              <div style={{ display: "flex", paddingLeft: px(15), fontFamily: BODY, fontSize: px(3.5), fontWeight: 700, lineHeight: 1.4, color: SUB }}>{e.detail}</div>
+            )}
           </div>
-          <div style={{ flex: 1, display: "flex", whiteSpace: "nowrap", color: e.role === "FOLLOWUP" ? FOLLOWUP_COLOR : INK }}>{e.text}</div>
         </div>
       ))}
     </div>
