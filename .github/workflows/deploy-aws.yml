@@ -1,13 +1,10 @@
 # main への push で AWS（Lightsail のコンテナサービス、東京リージョン）へデプロイする。
-# シークレット DATABASE_URL が未登録の間は何もせず正常終了する。
-# 秘密でない設定（ロールの ARN・公開 URL・RUM の ID・問い合わせ先）は既定値をこのファイルに持つ。
-# 変える場合だけ、同じ名前の Variables（または Secrets）を登録する。
-# Variables の項目は Secrets に登録しても読み取る（登録先の取り違えでデプロイが止まらないように）。
 #
-# 設定（Settings → Secrets and variables → Actions）
-#   必須 Secrets: DATABASE_URL, CRON_SECRET
-#   任意 Secrets: DATABASE_URL_UNPOOLED（マイグレーション用の直接接続）, ANTHROPIC_API_KEY
-#   既定値を変えるときだけ登録する Variables:
+# 秘密の値（DATABASE_URL・CRON_SECRET、任意で DATABASE_URL_UNPOOLED・ANTHROPIC_API_KEY）は
+# AWS Systems Manager Parameter Store の /zenbu-navi/<名前>（SecureString）から読む。
+# 同じ名前の GitHub Secrets があれば、そちらを優先する。
+# 秘密でない設定（ロールの ARN・公開 URL・RUM の ID・問い合わせ先）は既定値をこのファイルに持つ。
+# 変える場合だけ、同じ名前の Variables（または Secrets）を登録する:
 #     AWS_DEPLOY_ROLE_ARN（GitHub OIDC で引き受ける IAM ロール）, NEXT_PUBLIC_SITE_URL（公開 URL。ビルド時に埋め込まれる）,
 #     CONTACT_EMAIL, NEXT_PUBLIC_RUM_APP_MONITOR_ID, LIGHTSAIL_SERVICE（既定: zenbu-navi）,
 #     AI_MODEL / AI_MIN_PUBLISHERS / AI_MAX_PER_RUN
@@ -35,52 +32,62 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check configuration
-        id: config
-        env:
-          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::463470976368:role/zenbu-navi-github-deploy' }}
-          HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
-          HAS_CRON_SECRET: ${{ secrets.CRON_SECRET != '' }}
-          HAS_SITE_URL: ${{ (vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL) != '' }}
-        run: |
-          # 値は出さず、登録の有無だけを表示する
-          echo "AWS_DEPLOY_ROLE_ARN: $([ -n "$ROLE" ] && echo 登録あり || echo 未登録)"
-          echo "DATABASE_URL: $HAS_DATABASE_URL / CRON_SECRET: $HAS_CRON_SECRET / NEXT_PUBLIC_SITE_URL: $HAS_SITE_URL"
-          if [ "$HAS_DATABASE_URL" != "true" ]; then
-            echo "シークレット DATABASE_URL が未登録のためスキップします"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v5
-        if: steps.config.outputs.enabled == 'true'
 
       - uses: actions/setup-node@v5
-        if: steps.config.outputs.enabled == 'true'
         with:
           node-version: 22
           cache: npm
 
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::463470976368:role/zenbu-navi-github-deploy' }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Load secrets
+        env:
+          GH_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GH_DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          GH_CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          GH_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # GitHub Secrets を優先し、なければ Parameter Store から読む。値はログに出さない
+          for name in DATABASE_URL DATABASE_URL_UNPOOLED CRON_SECRET ANTHROPIC_API_KEY; do
+            gh_var="GH_${name}"
+            value="${!gh_var}"
+            source="GitHub Secrets"
+            if [ -z "$value" ]; then
+              value=$(aws ssm get-parameter --name "/zenbu-navi/${name}" --with-decryption \
+                --query Parameter.Value --output text 2>/dev/null || true)
+              source="Parameter Store"
+            fi
+            if [ -z "$value" ] || [ "$value" = "None" ]; then
+              echo "${name}: 未登録"
+              continue
+            fi
+            echo "::add-mask::${value}"
+            { echo "${name}<<__ZENBU_EOF__"; echo "$value"; echo "__ZENBU_EOF__"; } >> "$GITHUB_ENV"
+            echo "${name}: ${source} から読み込みました"
+          done
+
+      - name: Check required secrets
+        run: |
+          missing=0
+          for name in DATABASE_URL CRON_SECRET; do
+            if [ -z "${!name}" ]; then echo "::error::${name} が見つかりません"; missing=1; fi
+          done
+          exit $missing
+
       - name: Install dependencies
-        if: steps.config.outputs.enabled == 'true'
         run: npm ci
 
       - name: Migrate and seed database
-        if: steps.config.outputs.enabled == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
         run: |
-          # 空のシークレットは未設定として扱う（prisma.config.ts の ?? が空文字を通さないように）
-          [ -n "$DATABASE_URL_UNPOOLED" ] || unset DATABASE_URL_UNPOOLED
           npm run db:migrate
           npm run db:seed
 
       - name: Build
-        if: steps.config.outputs.enabled == 'true'
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL || 'https://zenbu-navi.0abpk9f44v4wc.ap-northeast-1.cs.amazonlightsail.com' }}
           NEXT_PUBLIC_RUM_APP_MONITOR_ID: ${{ vars.NEXT_PUBLIC_RUM_APP_MONITOR_ID || secrets.NEXT_PUBLIC_RUM_APP_MONITOR_ID || '4ace6bfb-62c1-4df7-9956-9cc438ecc7ad' }}
           CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || secrets.CONTACT_EMAIL || 'coffee.acc9896@gmail.com' }}
@@ -90,21 +97,13 @@ jobs:
           cp -r .next/static .next/standalone/.next/
           if [ -d public ]; then cp -r public .next/standalone/; fi
 
-      - uses: aws-actions/configure-aws-credentials@v5
-        if: steps.config.outputs.enabled == 'true'
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::463470976368:role/zenbu-navi-github-deploy' }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Install lightsailctl
-        if: steps.config.outputs.enabled == 'true'
         run: |
           sudo curl -fsSL https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl \
             -o /usr/local/bin/lightsailctl
           sudo chmod +x /usr/local/bin/lightsailctl
 
       - name: Build and push image
-        if: steps.config.outputs.enabled == 'true'
         id: image
         run: |
           docker build -t "zenbu-navi:${GITHUB_SHA}" .
@@ -115,19 +114,15 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
 
       - name: Deploy
-        if: steps.config.outputs.enabled == 'true'
         env:
           IMAGE: ${{ steps.image.outputs.image }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL || 'https://zenbu-navi.0abpk9f44v4wc.ap-northeast-1.cs.amazonlightsail.com' }}
           CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || secrets.CONTACT_EMAIL || 'coffee.acc9896@gmail.com' }}
           AI_MODEL: ${{ vars.AI_MODEL }}
           AI_MIN_PUBLISHERS: ${{ vars.AI_MIN_PUBLISHERS }}
           AI_MAX_PER_RUN: ${{ vars.AI_MAX_PER_RUN }}
         run: |
-          # 値が空の環境変数は渡さない
+          # 値が空の環境変数は渡さない（DATABASE_URL・CRON_SECRET・ANTHROPIC_API_KEY は Load secrets で設定済み）
           environment=$(jq -n 'env
             | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN")))
             | with_entries(select(.value != ""))')
@@ -151,6 +146,5 @@ jobs:
           exit 1
 
       - name: Show URL
-        if: steps.config.outputs.enabled == 'true'
         run: |
           aws lightsail get-container-services --service-name "$SERVICE" --query 'containerServices[0].url' --output text

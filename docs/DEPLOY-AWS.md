@@ -24,18 +24,13 @@ Vercel から AWS へ移行するための手順です。データベースは�
 2. **デプロイ用 IAM ロール**：GitHub の OIDC（`token.actions.githubusercontent.com`）で、このリポジトリの main ブランチからだけ引き受けられるようにします。権限は、このコンテナサービスへのイメージ登録とデプロイに限ります。
 3. **CloudWatch RUM のアプリモニター**（任意）：ドメインに公開 URL を登録し、リソースベースポリシーで送信を許可します（Cognito は使いません）。
 
-## 2. GitHub の設定
+## 2. 秘密の値の保管
 
-リポジトリの **Settings → Secrets and variables → Actions → New repository secret** で、次の1つを登録します（`CRON_SECRET` は登録済み）。
-
-| Name | 値 |
-| --- | --- |
-| `DATABASE_URL` | Neon の接続文字列（Vercel の **Settings → Environment Variables** にある値をコピー） |
+`DATABASE_URL` と `CRON_SECRET` は、AWS Systems Manager Parameter Store に SecureString として保管します（`/zenbu-navi/DATABASE_URL`、`/zenbu-navi/CRON_SECRET`）。
+任意で `/zenbu-navi/DATABASE_URL_UNPOOLED`（マイグレーション用の直接接続）と `/zenbu-navi/ANTHROPIC_API_KEY` も置けます。
+デプロイ用ロールは `/zenbu-navi/*` だけを読めます。同じ名前の GitHub Secrets がある場合は、そちらを優先します。
 
 ロールの ARN・公開 URL・RUM の ID・問い合わせ先は、`.github/workflows/deploy-aws.yml` に既定値があります。変える場合だけ、同じ名前の Variables を登録します。
-`DATABASE_URL_UNPOOLED`（マイグレーション用の直接接続）と `ANTHROPIC_API_KEY` は任意です。
-
-`DATABASE_URL` を登録するまでは、デプロイのワークフローは何もせずに終了します。
 
 ## 3. 初回デプロイと確認
 
