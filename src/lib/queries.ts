@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { releaseSortKey } from "@/lib/game";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
+import { diversifyRising } from "@/lib/topics/rising";
 
 /** 「いま話題」の対象期間 */
 export const TRENDING_HOURS = 48;
@@ -307,18 +308,20 @@ export const getRisingTopics = cache(async (hours: number, take: number) => {
     FROM a
     GROUP BY "topicId"
     HAVING COUNT(*) FILTER (WHERE first >= ${since(hours)}) >= 2`;
-  const ranked = rows
+  const pool = rows
     .map((r) => ({ id: r.topicId, recent: Number(r.recent), before: Number(r.before) }))
     // 新しく報じた媒体の数に、それ以前と比べた伸びを加える（以前から大きい話題より、いま広がっている話題を上に）
     .map((r) => ({ ...r, rise: r.recent + r.recent / (r.before + 1) }))
     .sort((a, b) => b.rise - a.rise)
-    .slice(0, take);
-  const topics = await prisma.topic.findMany({ where: { id: { in: ranked.map((r) => r.id) } }, include: topicCardInclude });
+    // 同じ出来事やジャンルの偏りを除くので、多めに候補を取る
+    .slice(0, take * 5);
+  const topics = await prisma.topic.findMany({ where: { id: { in: pool.map((r) => r.id) } }, include: topicCardInclude });
   const byId = new Map(topics.map((t) => [t.id, t]));
-  return ranked.flatMap((r) => {
+  const candidates = pool.flatMap((r) => {
     const topic = byId.get(r.id);
-    return topic ? [{ topic, recent: r.recent }] : [];
+    return topic ? [{ ...r, topic, title: topic.aiTitle ?? topic.title, genreId: topic.genreId, score: topic.score }] : [];
   });
+  return diversifyRising(candidates, take).map((c) => ({ topic: c.topic, recent: c.recent }));
 });
 
 export type GameRelease = { topicId: number; title: string; release: string; platforms: string[]; kind: string | null };
