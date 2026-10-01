@@ -1,5 +1,6 @@
 # main への push で AWS（Lightsail のコンテナサービス、東京リージョン）へデプロイする。
 # 変数 AWS_DEPLOY_ROLE_ARN が未登録の間は何もせず正常終了する。
+# Variables の項目は Secrets に登録しても読み取る（登録先の取り違えでデプロイが止まらないように）。
 #
 # 必要な設定（Settings → Secrets and variables → Actions）
 #   Variables: AWS_DEPLOY_ROLE_ARN   GitHub OIDC で引き受ける IAM ロール
@@ -38,8 +39,14 @@ jobs:
       - name: Check configuration
         id: config
         env:
-          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN }}
+          HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+          HAS_CRON_SECRET: ${{ secrets.CRON_SECRET != '' }}
+          HAS_SITE_URL: ${{ (vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL) != '' }}
         run: |
+          # 値は出さず、登録の有無だけを表示する
+          echo "AWS_DEPLOY_ROLE_ARN: $([ -n "$ROLE" ] && echo 登録あり || echo 未登録)"
+          echo "DATABASE_URL: $HAS_DATABASE_URL / CRON_SECRET: $HAS_CRON_SECRET / NEXT_PUBLIC_SITE_URL: $HAS_SITE_URL"
           if [ -z "$ROLE" ]; then
             echo "AWS_DEPLOY_ROLE_ARN が未設定のためスキップします"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -75,9 +82,9 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_RUM_APP_MONITOR_ID: ${{ vars.NEXT_PUBLIC_RUM_APP_MONITOR_ID }}
-          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_RUM_APP_MONITOR_ID: ${{ vars.NEXT_PUBLIC_RUM_APP_MONITOR_ID || secrets.NEXT_PUBLIC_RUM_APP_MONITOR_ID }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || secrets.CONTACT_EMAIL }}
         run: |
           npm run build
           # standalone サーバーが配信できるよう、静的ファイルを同じフォルダーにまとめる
@@ -87,7 +94,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v5
         if: steps.config.outputs.enabled == 'true'
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install lightsailctl
@@ -115,8 +122,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || secrets.CONTACT_EMAIL }}
           AI_MODEL: ${{ vars.AI_MODEL }}
           AI_MIN_PUBLISHERS: ${{ vars.AI_MIN_PUBLISHERS }}
           AI_MAX_PER_RUN: ${{ vars.AI_MAX_PER_RUN }}
