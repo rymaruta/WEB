@@ -70,9 +70,4 @@ export async function createPost(creds: OAuthCredentials, text: string, mediaIds
   return r.data.id;
 }
 
-/** ダイレクトメッセージを送る（運営者への通知用）。アプリに DM の権限が必要 */
-export async function sendDirectMessage(creds: OAuthCredentials, participantId: string, text: string): Promise<void> {
-  await call(creds, `/dm_conversations/with/${encodeURIComponent(participantId)}/messages`, { text });
-}
-
 export const PRICES = { post: 0.015, mediaMetadata: 0.005 } as const;
