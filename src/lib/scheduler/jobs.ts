@@ -9,6 +9,7 @@ export type Job = {
 
 export const JOBS: Job[] = [
   { name: "crawl", path: "/api/cron/crawl", intervalMinutes: 15, envKey: "CRAWL_INTERVAL_MINUTES" },
+  { name: "stories", path: "/api/cron/stories", intervalMinutes: 15, envKey: "STORIES_INTERVAL_MINUTES" },
 ];
 
 /** 環境変数の値（分）を読む。0 以下・数値でない場合は既定値。"off" ならジョブを止める */

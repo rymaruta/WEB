@@ -102,6 +102,7 @@ model Topic {
   /// 生成時点の報道媒体数。媒体が増えたら作り直す
   aiSourceCount  Int       @default(0)
   articles       Article[]
+  story          Story?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -109,4 +110,181 @@ model Topic {
   @@index([genreId, score(sort: Desc)])
   @@index([lastSeenAt(sort: Desc)])
   @@index([aiGeneratedAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// X ニュースカード配信（媒体に依存しない「ストーリー」と、配信先ごとの「投稿」）
+// ---------------------------------------------------------------------------
+
+enum StoryStatus {
+  /// AI の解析待ち
+  QUEUED
+  /// 人の承認待ち
+  PENDING
+  /// 高リスク分野・確度が低いなど、慎重な確認が必要
+  REVIEW_REQUIRED
+  APPROVED
+  REJECTED
+  /// 事実照合・出典不足などで自動的に除外
+  REJECTED_AUTO
+  PUBLISHED
+}
+
+enum CardType {
+  NORMAL
+  BREAKING
+  IMPORTANT
+}
+
+enum Channel {
+  X
+  THREADS
+  WEB
+}
+
+enum PostStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELED
+}
+
+/// 1つの出来事（Topic）を、配信先に依存しない形にまとめたもの
+model Story {
+  id          String      @id @default(cuid())
+  topicId     Int         @unique
+  topic       Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  status      StoryStatus @default(QUEUED)
+  /// 状態の理由（要確認・自動除外の説明）
+  statusNote  String?
+  category    String?
+  cardType    CardType    @default(NORMAL)
+  importance  String?
+  riskFlags   String[]
+  /// 見出し（最大2行。行ごとに配列で持つ）
+  headline    String[]
+  summary     String?
+  /// 要点: [{ text: string, sources: number[] }]。sources は StorySource.position（1始まり）
+  points      Json?
+  /// 重複判定用の実体: { people, orgs, places, eventType, eventDate }
+  entities    Json?
+  eventTime   String?
+  conflicts   Json?
+  /// 投稿本文（最大2行。行ごとに配列で持つ）
+  postText    String[]
+  confidence  Float?
+  /// 投稿する価値（大きいほど優先）
+  score       Float       @default(0)
+  /// 同じ出来事として扱う別のストーリー（重複）
+  duplicateOf String?
+  editedAt    DateTime?
+  analyzedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sources     StorySource[]
+  analyses    StoryAnalysis[]
+  posts       Post[]
+  reviews     ReviewAction[]
+
+  @@index([status, score(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+/// ストーリーの出典（資料番号 position と記事の対応）
+model StorySource {
+  storyId   String
+  story     Story   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  position  Int
+  articleId Int
+  publisher String
+  isPrimary Boolean @default(false)
+
+  @@id([storyId, position])
+}
+
+/// AI の入出力と照合結果を全件残す（再現・原因調査のため）
+model StoryAnalysis {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  provider  String
+  model     String
+  output    Json
+  checks    Json
+  accepted  Boolean
+  createdAt DateTime @default(now())
+
+  @@index([storyId, createdAt(sort: Desc)])
+}
+
+/// 配信先ごとの投稿
+model Post {
+  id          String     @id @default(cuid())
+  storyId     String
+  story       Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  channel     Channel
+  status      PostStatus @default(SCHEDULED)
+  text        String
+  altText     String?
+  withLink    Boolean    @default(false)
+  cardVersion Int        @default(1)
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  /// 配信先での ID（X のポスト ID など）
+  externalId  String?    @unique
+  costUsd     Decimal?   @db.Decimal(8, 4)
+  lastError   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  attempts    PostAttempt[]
+
+  /// 同じストーリーを同じ配信先に二度出さない
+  @@unique([storyId, channel])
+  @@index([status, scheduledAt])
+}
+
+model PostAttempt {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  ok         Boolean
+  httpStatus Int?
+  error      String?
+  at         DateTime @default(now())
+}
+
+/// 人の操作の記録（承認・編集・却下）
+model ReviewAction {
+  id      String   @id @default(cuid())
+  storyId String
+  story   Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  action  String
+  before  Json?
+  after   Json?
+  actor   String
+  at      DateTime @default(now())
+
+  @@index([storyId, at(sort: Desc)])
+}
+
+/// 管理画面から変える設定（自動投稿 ON/OFF、間隔、上限など）
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// 障害の追跡用の記録
+model EventLog {
+  id      BigInt   @id @default(autoincrement())
+  level   String
+  scope   String
+  message String
+  ref     String?
+  data    Json?
+  at      DateTime @default(now())
+
+  @@index([scope, at(sort: Desc)])
+  @@index([ref])
 }
