@@ -1,4 +1,4 @@
-import { hasCronSecret } from "@/lib/auth";
+import { hasAdminAccess } from "@/lib/auth";
 import { loadEntries } from "@/lib/digest/build";
 import { renderCard } from "@/lib/digest/cards";
 import { buildBreakingCard } from "@/lib/digest/compose";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * ?unknown= に「まだ分かっていないこと」を渡す（人が書く）
  */
 export async function GET(request: Request, { params }: RouteContext<"/api/admin/stories/[id]/breaking-card">) {
-  if (!hasCronSecret(request)) {
+  if (!(await hasAdminAccess(request))) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;

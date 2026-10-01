@@ -1,4 +1,4 @@
-import { hasCronSecret } from "@/lib/auth";
+import { hasAdminAccess } from "@/lib/auth";
 import { getEditionView } from "@/lib/digest/build";
 import { altText, buildCards, splitParts, replyText } from "@/lib/digest/compose";
 import { jstDate } from "@/lib/digest/slots";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * 管理画面（M2）と、承認前の確認に使う
  */
 export async function GET(request: Request) {
-  if (!hasCronSecret(request)) {
+  if (!(await hasAdminAccess(request))) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const date = new URL(request.url).searchParams.get("date") ?? jstDate(new Date());

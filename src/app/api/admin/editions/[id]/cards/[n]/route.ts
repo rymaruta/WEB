@@ -1,4 +1,4 @@
-import { hasCronSecret } from "@/lib/auth";
+import { hasAdminAccess } from "@/lib/auth";
 import { getEditionView } from "@/lib/digest/build";
 import { buildCards } from "@/lib/digest/compose";
 import { renderCard } from "@/lib/digest/cards";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /** 配信回のカード画像（PNG、1080×1080）。n = 0 が INDEX、1 以降が掲載順 */
 export async function GET(request: Request, { params }: RouteContext<"/api/admin/editions/[id]/cards/[n]">) {
-  if (!hasCronSecret(request)) {
+  if (!(await hasAdminAccess(request))) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id, n } = await params;

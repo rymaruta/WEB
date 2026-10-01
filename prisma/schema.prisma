@@ -321,6 +321,8 @@ model EditionItem {
   score     Float    @default(0)
   /// 人が編集した見出し・要点など（Story の値より優先する）
   override  Json?
+  /// 要確認（REVIEW_REQUIRED）のストーリーを、人が内容を確かめたか
+  confirmed Boolean  @default(false)
 
   @@id([editionId, position])
   @@unique([editionId, storyId])
