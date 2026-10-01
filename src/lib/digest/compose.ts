@@ -83,12 +83,13 @@ export function composePostText(slot: Slot, date: string, entries: EditionEntry[
 // ---------------------------------------------------------------------------
 
 /**
- * 投稿に添えるカードの番号（1 以降 = 掲載順）。1回の配信は1投稿で完結させ、リプライは使わない。
- * 一覧は投稿文が担うため INDEX（0）は添えず、ニュースのカードを最大4枚載せる。
+ * 投稿に添えるカードの番号（0 = INDEX、1 以降 = 掲載順）。1回の配信は1投稿で完結させ、リプライは使わない。
+ * INDEX で全体を見せ、上位3本だけ詳しいカードを添える（X の1投稿は画像4枚まで）。
  */
 export function splitParts(entryCount: number): number[][] {
-  const n = Math.min(entryCount, IMAGES_PER_POST);
-  return n ? [Array.from({ length: n }, (_, i) => i + 1)] : [];
+  if (!entryCount) return [];
+  const n = Math.min(entryCount, IMAGES_PER_POST - 1);
+  return [[0, ...Array.from({ length: n }, (_, i) => i + 1)]];
 }
 
 /** リプライの本文（例: 「4・5本目」「4本目と続報」「続報」） */
