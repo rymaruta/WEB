@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiArticleView } from "@/components/ai-article";
@@ -99,7 +100,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             <MarketEventBadge event={topic.aiMarketEvent} />
             {topic.publisherCount > 1 && (
               <span className="flex items-center gap-2">
-                <PublisherAvatars names={[...new Set(topic.articles.map((a) => a.publisher))]} max={6} size="md" />
+                <PublisherAvatars names={[...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))]} max={6} size="md" />
                 <span>
                   <strong className="text-lg font-black text-accent tabular-nums">{topic.publisherCount}</strong>媒体・
                   {topic.articleCount}本の記事
@@ -146,7 +147,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
-                  <span className="font-bold text-fg">{a.publisher}</span>
+                  <span className="font-bold text-fg">{publisherLabel(a.publisher)}</span>
                   <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
                   {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
                     <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
@@ -159,7 +160,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
                 {a.summary && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
                 <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
-                  {a.publisher}で続きを読む ↗
+                  {publisherLabel(a.publisher)}で続きを読む ↗
                 </OutboundLink>
               </div>
               {a.imageUrl && (

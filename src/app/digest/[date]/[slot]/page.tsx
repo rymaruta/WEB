@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { siteConfig } from "@/config/site";
@@ -96,7 +97,7 @@ export default async function DigestPageView({ params }: PageProps<"/digest/[dat
               </p>
             )}
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-fg-subtle">
-              <span>出典：{it.publishers.slice(0, 3).join("・")}{it.publishers.length > 3 ? ` ほか${it.publishers.length - 3}` : ""}</span>
+              <span>出典：{[...new Set(it.publishers.map(publisherLabel))].slice(0, 3).join("・")}{it.publishers.length > 3 ? ` ほか${it.publishers.length - 3}` : ""}</span>
               <Link href={`/topic/${it.topicId}`} className="font-bold text-accent hover:underline">
                 詳しく読む →
               </Link>

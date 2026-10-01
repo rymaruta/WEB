@@ -1,4 +1,5 @@
 import type { AiArticle } from "@/lib/ai/article";
+import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { companyPath } from "@/lib/company";
 import { formatDateTime } from "@/lib/format";
@@ -30,7 +31,7 @@ function Cite({ n, source }: { n: number; source?: Source }) {
   return (
     <OutboundLink
       articleId={source.id}
-      title={`${source.publisher}の記事`}
+      title={`${publisherLabel(source.publisher)}の記事`}
       className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-accent-soft px-1 align-text-top text-[10px] font-bold text-accent hover:bg-accent hover:text-accent-fg"
     >
       {n}
@@ -133,7 +134,7 @@ export function AiArticleView({
           {cited.map(({ n, source }) => (
             <li key={n}>
               <OutboundLink articleId={source.id} className="hover:text-accent hover:underline">
-                [{n}] {source.publisher}
+                [{n}] {publisherLabel(source.publisher)}
               </OutboundLink>
             </li>
           ))}
