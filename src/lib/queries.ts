@@ -90,9 +90,10 @@ export const getTopic = cache((id: number) =>
 const withTopic = { genre: true, topic: { select: { id: true, aiGeneratedAt: true } } } as const;
 
 /** サイト内で読まれている記事（外部リンクのクリック数順） */
+/** よく読まれている記事。報道機関の記事に限る（SNS のまとめやプレスリリースは「SNSで話題」などで扱う） */
 export function getMostRead(take: number) {
   return prisma.article.findMany({
-    where: { publishedAt: { gte: since(TRENDING_HOURS) }, clicks: { gt: 0 } },
+    where: { publishedAt: { gte: since(TRENDING_HOURS) }, clicks: { gt: 0 }, source: { kind: "NEWS" } },
     orderBy: [{ clicks: "desc" }, { publishedAt: "desc" }],
     take,
     include: withTopic,
