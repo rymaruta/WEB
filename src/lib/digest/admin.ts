@@ -243,3 +243,33 @@ export async function cancelEdition(editionId: string) {
   await logEvent("info", "digest.cancel", `${e.key}: 下書きを取り消しました`, editionId);
   return e;
 }
+
+/**
+ * 投稿済みの回を出し直せる状態に戻す（運営者が X の投稿を削除したうえで、内容を直して投稿し直すとき）。
+ * X への投稿の記録を消して下書きに戻す。X の投稿そのものは消さない（運営者が X で削除する）。
+ */
+export async function reopenForRepost(editionId: string) {
+  const e = await prisma.edition.findUnique({ where: { id: editionId }, select: { key: true, slot: true, status: true } });
+  if (!e) throw new AdminError("配信回が見つかりません");
+  if (e.slot === "BREAKING") throw new AdminError("速報は出し直せません");
+  if (e.status !== "PUBLISHED") throw new AdminError("投稿済みの回ではありません");
+  await prisma.$transaction([
+    prisma.publication.deleteMany({ where: { editionId } }),
+    prisma.edition.update({ where: { id: editionId }, data: { status: "DRAFT", publishedAt: null, approvedAt: null, approvedBy: null } }),
+  ]);
+  await log(editionId, "reopen");
+  await logEvent("warn", "digest.reopen", `${e.key}: 出し直すため下書きに戻しました（X の投稿は運営者が削除）`, editionId);
+}
+
+/** 話題の最新のストーリーを配信回に足す（管理用 API から）。confirm なら要確認のストーリーも確認済みにする */
+export async function addTopicToEdition(editionId: string, topicId: number, confirm: boolean) {
+  const story = await prisma.story.findFirst({
+    where: { topicId, status: { in: ["PENDING", "REVIEW_REQUIRED", "APPROVED", "PUBLISHED"] } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (!story) throw new AdminError("この話題には、載せられる解析済みのストーリーがありません");
+  await addItem(editionId, story.id);
+  if (confirm) await prisma.editionItem.updateMany({ where: { editionId, storyId: story.id }, data: { confirmed: true } });
+  return story.id;
+}
