@@ -20,6 +20,7 @@
   --g-entertainment: #db2777;
   --g-sports: #ea580c;
   --g-game: #4f46e5;
+  --g-anime: #c026d3;
   --g-products: #b45309;
   --g-life: #0d9488;
 }
@@ -45,6 +46,7 @@
     --g-entertainment: #ff85bf;
     --g-sports: #ff9e5e;
     --g-game: #9ea2ff;
+    --g-anime: #f0a3ff;
     --g-products: #f0b35a;
     --g-life: #4fd6c6;
   }

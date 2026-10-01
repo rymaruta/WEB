@@ -13,7 +13,8 @@ export const genres: GenreSeed[] = [
   { slug: "tech", name: "IT・科学" },
   { slug: "entertainment", name: "エンタメ" },
   { slug: "sports", name: "スポーツ" },
-  { slug: "game", name: "ゲーム・アニメ" },
+  { slug: "game", name: "ゲーム" },
+  { slug: "anime", name: "アニメ・漫画" },
   { slug: "products", name: "新商品・グルメ" },
   { slug: "life", name: "ライフ・トレンド" },
 ];
@@ -99,14 +100,14 @@ export const sources: SourceSeed[] = [
   { name: "ライブドアニュース スポーツ", publisher: "ライブドアニュース", siteUrl: "https://news.livedoor.com/", feedUrl: "https://news.livedoor.com/topics/rss/spo.xml", genre: "sports" },
 
   // ゲーム・アニメ
-  { name: "アニメ！アニメ！", publisher: "アニメ！アニメ！", siteUrl: "https://animeanime.jp/", feedUrl: "https://animeanime.jp/rss/index.rdf", genre: "game" },
+  { name: "アニメ！アニメ！", publisher: "アニメ！アニメ！", siteUrl: "https://animeanime.jp/", feedUrl: "https://animeanime.jp/rss/index.rdf", genre: "anime" },
   { name: "インサイド", publisher: "インサイド", siteUrl: "https://www.inside-games.jp/", feedUrl: "https://www.inside-games.jp/rss/index.rdf", genre: "game" },
   { name: "Game*Spark", publisher: "Game*Spark", siteUrl: "https://www.gamespark.jp/", feedUrl: "https://www.gamespark.jp/rss/index.rdf", genre: "game" },
   { name: "4Gamer.net", publisher: "4Gamer.net", siteUrl: "https://www.4gamer.net/", feedUrl: "https://www.4gamer.net/rss/index.xml", genre: "game" },
   { name: "GAME Watch", publisher: "Impress Watch", siteUrl: "https://game.watch.impress.co.jp/", feedUrl: "https://game.watch.impress.co.jp/data/rss/1.0/gmw/feed.rdf", genre: "game" },
   { name: "AUTOMATON", publisher: "AUTOMATON", siteUrl: "https://automaton-media.com/", feedUrl: "https://automaton-media.com/feed/", genre: "game" },
   { name: "IGN Japan", publisher: "IGN Japan", siteUrl: "https://jp.ign.com/", feedUrl: "https://jp.ign.com/feed.xml", genre: "game", ...BLOCKED },
-  { name: "コミックナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/comic", feedUrl: "https://natalie.mu/comic/feed/news", genre: "game", ...BLOCKED },
+  { name: "コミックナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/comic", feedUrl: "https://natalie.mu/comic/feed/news", genre: "anime", ...BLOCKED },
   { name: "はてなブックマーク アニメとゲーム", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/game", feedUrl: "https://b.hatena.ne.jp/hotentry/game.rss", genre: "game", kind: "SOCIAL" },
 
   // 新商品・グルメ

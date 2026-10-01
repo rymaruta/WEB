@@ -15,6 +15,7 @@ export type TopicSignals = {
  */
 const GENRE_WEIGHT: Record<string, number> = {
   game: 0.6,
+  anime: 0.6,
   products: 0.6,
   entertainment: 0.85,
   life: 0.85,
