@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 
 /**
  * Threads API の最小限のクライアント（投稿にだけ使う）。無料。
- * 画像は URL で渡す（Threads 側が取りに来る）ため、カード画像は公開 URL で配る（/api/cards/…）。
  *
  * アクセストークンは長期トークン（60日で切れる）。環境変数 THREADS_ACCESS_TOKEN を最初の値とし、
  * 定期的に延長した新しいトークンを Setting（threads.token）に保存して使う。
@@ -77,34 +76,21 @@ async function call<T>(token: string, path: string, params: Record<string, strin
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** 画像の処理が終わるまで待つ（Threads は公開前に平均30秒ほど待つことを勧めている） */
+/** 投稿の準備が終わるまで待つ（Threads は公開前に待つことを勧めている） */
 async function waitFinished(token: string, id: string, timeoutMs = 90_000) {
   const started = Date.now();
   for (;;) {
     const r = await call<{ status?: string; error_message?: string }>(token, `/${id}`, { fields: "status,error_message" }, "GET");
     if (r.status === "FINISHED") return;
-    if (r.status === "ERROR" || r.status === "EXPIRED") throw new Error(`Threads の画像の処理に失敗しました: ${r.error_message ?? r.status}`);
-    if (Date.now() - started > timeoutMs) throw new Error("Threads の画像の処理が時間内に終わりませんでした");
+    if (r.status === "ERROR" || r.status === "EXPIRED") throw new Error(`Threads の投稿の準備に失敗しました: ${r.error_message ?? r.status}`);
+    if (Date.now() - started > timeoutMs) throw new Error("Threads の投稿の準備が時間内に終わりませんでした");
     await sleep(5_000);
   }
 }
 
-/** 画像（1〜20枚）付きで投稿し、投稿の ID を返す。2枚以上はカルーセル（横にスワイプ）にする */
-export async function createThreadsPost(token: string, text: string, images: { url: string; alt: string }[]): Promise<string> {
-  let creationId: string;
-  if (images.length === 0) {
-    creationId = (await call<{ id: string }>(token, "/me/threads", { media_type: "TEXT", text })).id;
-  } else if (images.length === 1) {
-    creationId = (await call<{ id: string }>(token, "/me/threads", { media_type: "IMAGE", image_url: images[0].url, alt_text: images[0].alt, text })).id;
-  } else {
-    const children: string[] = [];
-    for (const img of images.slice(0, 20)) {
-      const r = await call<{ id: string }>(token, "/me/threads", { media_type: "IMAGE", image_url: img.url, alt_text: img.alt, is_carousel_item: "true" });
-      children.push(r.id);
-    }
-    for (const id of children) await waitFinished(token, id);
-    creationId = (await call<{ id: string }>(token, "/me/threads", { media_type: "CAROUSEL", children: children.join(","), text })).id;
-  }
-  await waitFinished(token, creationId);
-  return (await call<{ id: string }>(token, "/me/threads_publish", { creation_id: creationId })).id;
+/** 文章に記事のリンク（プレビュー付き）を添えて投稿し、投稿の ID を返す */
+export async function createThreadsPost(token: string, text: string, link?: string): Promise<string> {
+  const { id } = await call<{ id: string }>(token, "/me/threads", { media_type: "TEXT", text, ...(link ? { link_attachment: link } : {}) });
+  await waitFinished(token, id);
+  return (await call<{ id: string }>(token, "/me/threads_publish", { creation_id: id })).id;
 }

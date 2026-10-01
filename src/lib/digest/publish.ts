@@ -115,5 +115,7 @@ async function publish(editionId: string) {
     prisma.eventThread.updateMany({ where: { id: { in: threads } }, data: { lastPublishedAt: now } }),
   ]);
   await logEvent("info", "x.publish", `${edition.key}: 投稿しました`, editionId, { posts: pub.parts.length, costUsd: cost });
+  // Bluesky にも投稿する。X の結果を待たせず、失敗は定期処理が再試行する（crosspost.ts）
+  void import("./crosspost").then((m) => m.crossPostAll(editionId)).catch(() => {});
   return { status: "published" as const, firstPostId: (await prisma.publicationPart.findFirst({ where: { publicationId: pub.id, position: 0 } }))?.externalId ?? null };
 }
