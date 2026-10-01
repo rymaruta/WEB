@@ -1,4 +1,5 @@
 import { relativeTime } from "@/lib/format";
+import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import { ArticleLink, type LinkableArticle } from "./article-link";
 
@@ -12,7 +13,7 @@ export function NewsTicker({ items }: { items: Item[] }) {
       <li key={`${hidden ? "b" : "a"}-${a.id}`} className="flex shrink-0 items-center gap-2 pr-10" aria-hidden={hidden || undefined}>
         <span className="text-[11px] font-semibold text-accent tabular-nums">{relativeTime(a.publishedAt)}</span>
         <ArticleLink article={a} className="text-sm hover:underline" tabIndex={hidden ? -1 : undefined}>
-          {a.title}
+          {cleanTitle(a.title)}
         </ArticleLink>
         <span className="text-[11px] text-fg-subtle">{publisherLabel(a.publisher)}</span>
       </li>

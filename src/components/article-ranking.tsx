@@ -1,4 +1,5 @@
 import { relativeTime, formatNumber } from "@/lib/format";
+import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import { GenreBadge } from "./genre-badge";
 import { ArticleLink, SummaryMark, type LinkableArticle } from "./article-link";
@@ -29,7 +30,7 @@ export function ArticleRanking({ items, metric = "none", showGenre = false, empt
           {ranked && <RankBadge rank={i + 1} />}
           <div className="min-w-0 flex-1">
             <ArticleLink article={a} className="headline text-sm leading-snug font-medium hover:text-accent hover:underline">
-              {a.title}
+              {cleanTitle(a.title)}
             </ArticleLink>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
               <SummaryMark article={a} />
