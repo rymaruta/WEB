@@ -57,12 +57,12 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
             </ul>
           )}
           <p className="mt-5 mb-1 text-sm text-fg-muted">
-            「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（新しい順）
+            「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（見出しに含むものを先に、新しい順）
           </p>
           <TopicList topics={items} emptyText="一致するニュースは見つかりませんでした。別のキーワードをお試しください。" />
           <Pagination
             page={page}
-            totalPages={Math.min(50, Math.ceil(total / PER_PAGE))}
+            totalPages={Math.ceil(total / PER_PAGE)}
             href={(p) => `/search?${new URLSearchParams({ q, ...(p > 1 ? { page: String(p) } : {}) })}`}
           />
         </>

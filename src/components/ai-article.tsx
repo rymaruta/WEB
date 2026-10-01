@@ -62,14 +62,17 @@ export function AiArticleView({
 
   return (
     <section aria-labelledby="ai-article" className="rounded-xl border border-accent/30 bg-accent-soft/40 p-5">
-      <p className="mb-2 flex items-center gap-2 text-xs font-bold text-accent">
-        <span className="rounded-full bg-accent px-2 py-0.5 text-accent-fg">AIまとめ記事</span>
-        {cited.length}媒体の報道をもとに作成
-        <span className="font-medium text-fg-subtle">
-          ・約{readingMinutes(article)}分で読めます・{formatDateTime(article.generatedAt)}
+      {/* 印と、記事の情報（媒体数・読む時間・更新時刻）を2段に分ける（スマホで1行に詰め込むと折り返して読みにくい） */}
+      <div className="mb-2">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-accent">
+          <span className="rounded-full bg-accent px-2 py-0.5 whitespace-nowrap text-accent-fg">AIまとめ記事</span>
+          <span className="whitespace-nowrap">{cited.length}媒体の報道をもとに作成</span>
+        </p>
+        <p className="mt-1 text-xs text-fg-subtle">
+          約{readingMinutes(article)}分で読めます・{formatDateTime(article.generatedAt)}
           {article.history.length > 1 ? "更新" : "作成"}
-        </span>
-      </p>
+        </p>
+      </div>
       <h2 id="ai-article" className={showTitle ? "text-lg leading-snug font-black sm:text-xl" : "sr-only"}>
         {article.title}
       </h2>

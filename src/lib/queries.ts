@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { parseSearchTerms } from "@/lib/search-terms";
+import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 
 /** 「いま話題」の対象期間 */
 export const TRENDING_HOURS = 48;
@@ -125,7 +125,13 @@ export function getLatestArticles(take: number, genreId?: number) {
 }
 
 /** 見出しの部分一致検索（pg_trgm インデックスを利用） */
-/** すべての語を含むトピック（見出し・AI まとめ記事の見出し・各媒体の見出しのどこかに含まれればよい） */
+/** 検索で並べ替える対象の上限（これより多く当てはまる場合は、新しいものから数える） */
+const SEARCH_RANK_LIMIT = 300;
+
+/**
+ * すべての語を含むトピック。見出し（話題の見出し・AI まとめ記事の見出し）に語が入っているものを先に、
+ * 各媒体の見出しにだけ入っているものを後に並べ、それぞれ新しい順にする
+ */
 export async function searchTopics(q: string, skip: number, take: number) {
   const terms = parseSearchTerms(q);
   if (terms.length === 0) return { items: [], total: 0 };
@@ -138,17 +144,19 @@ export async function searchTopics(q: string, skip: number, take: number) {
       ],
     })),
   };
-  const [items, total] = await Promise.all([
+  const [candidates, total] = await Promise.all([
     prisma.topic.findMany({
       where,
       orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
-      skip,
-      take,
-      include: topicCardInclude,
+      take: SEARCH_RANK_LIMIT,
+      select: { id: true, title: true, aiTitle: true },
     }),
     prisma.topic.count({ where }),
   ]);
-  return { items, total };
+  const ids = rankSearchResults(candidates, terms).slice(skip, skip + take);
+  const found = await prisma.topic.findMany({ where: { id: { in: ids } }, include: topicCardInclude });
+  const byId = new Map(found.map((t) => [t.id, t]));
+  return { items: ids.map((id) => byId.get(id)!).filter(Boolean), total: Math.min(total, SEARCH_RANK_LIMIT) };
 }
 
 export async function getSourcesWithStats() {
