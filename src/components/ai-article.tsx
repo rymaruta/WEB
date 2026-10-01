@@ -77,6 +77,22 @@ export function AiArticleView({
         ))}
       </ul>
 
+      {article.angles.length > 0 && (
+        <>
+          <h3 className="mt-4 mb-1.5 text-sm font-bold text-fg-muted">各社の報じ方</h3>
+          <ul className="space-y-1.5 rounded-lg border border-border bg-surface/70 p-3">
+            {article.angles.map((p, i) => (
+              <li key={i} className="text-[14px] leading-relaxed">
+                {p.text}
+                {p.sources.map((n) => (
+                  <Cite key={n} n={n} source={byNumber(n)} />
+                ))}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <div className="mt-4 space-y-3 text-[15px] leading-relaxed">
         {bodyWithoutLead(article).map((para, i) => (
           <p key={i}>{para}</p>
