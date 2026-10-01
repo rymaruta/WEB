@@ -24,6 +24,8 @@ export function GenreNav({ genres }: Props) {
         const color = item.slug ? `var(--g-${item.slug})` : "var(--accent)";
         return (
           <Link
+            // ジャンルは画面に並ぶだけで全部を先読みすると、閲覧のたびにサーバーへ十数回の問い合わせが走るため、触れたときだけ読み込む
+            prefetch={false}
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
