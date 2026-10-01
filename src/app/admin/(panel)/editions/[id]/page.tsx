@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { candidatePool, editionDetail } from "@/lib/digest/admin";
 import { prisma } from "@/lib/db";
 import { blueskyCredentialsFromEnv, blueskyPostUrl } from "@/lib/social/bluesky";
-import { autoApproveEnabled, jstTime } from "@/lib/digest/slots";
+import { autoApproveEnabled, isBeforeBuild, jstTime, SLOTS, type Slot } from "@/lib/digest/slots";
 import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
   addAction,
@@ -14,6 +14,7 @@ import {
   postTextAction,
   publishNowAction,
   rebuildAction,
+  cancelAction,
   removeAction,
   retryBlueskyAction,
   unapproveAction,
@@ -27,6 +28,8 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
   const { edition, items, cards, parts, title } = detail;
   const editable = edition.status === "DRAFT" || edition.status === "SKIPPED";
   const pool = editable ? await candidatePool(id) : [];
+  // 下書きを作る時刻の前か（取り消すと、その時刻に自動で作り直される）
+  const buildPending = isBeforeBuild(edition.date, edition.slot as Slot);
   const needReview = items.filter((i) => i.story?.status === "REVIEW_REQUIRED" && !i.confirmed).length;
   const publication = await prisma.publication.findUnique({
     where: { editionId_channel: { editionId: id, channel: "X" } },
@@ -102,6 +105,16 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
             <div className="flex flex-wrap gap-2">
               <ActionButton action={approveAction.bind(null, id)} label="この内容で承認する" tone="primary" />
               <ActionButton action={rebuildAction.bind(null, id)} label="選び直す" confirm="今の下書きを捨てて、候補から選び直しますか？" />
+              <ActionButton
+                action={cancelAction.bind(null, id)}
+                label="この下書きを取り消す"
+                tone="danger"
+                confirm={
+                  buildPending
+                    ? `この下書きを取り消します。${SLOTS[edition.slot as Slot].buildAt} に自動で作り直されます。よろしいですか？`
+                    : "この下書きを取り消します。下書きを作る時刻を過ぎているため、自動では作り直されません（配信一覧の「下書きを今すぐ作る」から作れます）。よろしいですか？"
+                }
+              />
             </div>
           </div>
         ) : (

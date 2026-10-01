@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { autoApproveEnabled, jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
+import { autoApproveEnabled, isBeforeBuild, jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
 import { buildAction } from "../actions";
+import { BuildButton } from "./build-button";
 import { ChannelsSection } from "./channels";
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -73,11 +74,7 @@ export default async function AdminHome() {
         <h2 className="mb-2 font-bold">下書きを今すぐ作る</h2>
         <div className="flex flex-wrap gap-2">
           {missing.map((slot) => (
-            <form key={slot} action={buildAction.bind(null, slot)}>
-              <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:border-accent">
-                {SLOTS[slot].title}
-              </button>
-            </form>
+            <BuildButton key={slot} action={buildAction.bind(null, slot)} label={SLOTS[slot].title} early={isBeforeBuild(today, slot, now)} buildAt={SLOTS[slot].buildAt} />
           ))}
           <Link href="/admin/breaking" className="rounded-lg border border-accent px-4 py-2 text-sm font-bold text-accent hover:bg-accent-soft">
             ⚡ 速報を作る

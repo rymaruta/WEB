@@ -226,3 +226,17 @@ export async function publishBreakingAction(storyId: string): Promise<ActionStat
     throw e;
   }
 }
+
+/** 下書きを取り消す。取り消した回は、下書きを作る時刻に自動で作り直される */
+export async function cancelAction(editionId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { cancelEdition } = await import("@/lib/digest/admin");
+  try {
+    await cancelEdition(editionId);
+  } catch (e) {
+    if (e instanceof AdminError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath("/admin");
+  redirect("/admin");
+}

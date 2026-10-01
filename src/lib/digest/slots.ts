@@ -143,3 +143,8 @@ export function msSinceJst(hhmm: string, now: Date): number {
 export function autoApproveEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.DIGEST_AUTO_APPROVE !== "false";
 }
+
+/** その日のその回の、下書きを作る時刻より前か */
+export function isBeforeBuild(date: string, slot: Slot, now = new Date()): boolean {
+  return now.getTime() < jstAt(date, SLOTS[slot].buildAt).getTime();
+}

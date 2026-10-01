@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { logEvent } from "@/lib/events";
 import { LIMITS, type Sourced } from "@/lib/stories/schema";
 import { textWidth } from "@/lib/stories/text";
 import { checkOverride } from "./check";
@@ -226,4 +227,15 @@ export async function candidatePool(editionId: string) {
     .filter((c) => c.story)
     .sort((a, b) => b.score - a.score)
     .slice(0, 30);
+}
+
+/**
+ * 下書きを取り消す（削除する）。間違えて早く作った下書きなどに使う。
+ * 取り消した回は、下書きを作る時刻になると自動で作り直される（時刻を過ぎていれば「下書きを今すぐ作る」から作れる）。
+ */
+export async function cancelEdition(editionId: string) {
+  const e = await editableEdition(editionId);
+  await prisma.edition.delete({ where: { id: editionId } });
+  await logEvent("info", "digest.cancel", `${e.key}: 下書きを取り消しました`, editionId);
+  return e;
 }
