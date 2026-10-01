@@ -234,3 +234,13 @@ export const getTopCompanies = cache(async (days: number, take: number, minTopic
     LIMIT ${take}`;
   return rows.map((r) => ({ name: r.name, topics: Number(r.topics) }));
 });
+
+/** ある時刻より後に初めて報じられた話題（話題の大きい順）。前回の訪問からの新着に使う */
+export async function getTopicsSince(since: Date, take: number) {
+  const where: Prisma.TopicWhereInput = { firstSeenAt: { gt: since } };
+  const [items, total] = await Promise.all([
+    prisma.topic.findMany({ where, orderBy: [{ score: "desc" }, { id: "desc" }], take, include: topicCardInclude }),
+    prisma.topic.count({ where }),
+  ]);
+  return { items, total };
+}

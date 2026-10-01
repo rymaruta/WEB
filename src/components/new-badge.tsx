@@ -12,7 +12,7 @@ const KEY_PREV = "zn:prevVisit";
 
 let prev: number | null | undefined;
 
-function previousVisit(): number | null {
+export function previousVisit(): number | null {
   if (prev !== undefined) return prev;
   try {
     const fixed = sessionStorage.getItem(KEY_PREV);
@@ -31,7 +31,7 @@ function previousVisit(): number | null {
   return prev;
 }
 
-const subscribe = () => () => {};
+export const subscribe = () => () => {};
 
 export function NewBadge({ since }: { since: Date | string }) {
   // サーバー描画では出さず、ブラウザで前回の訪問と比べてから出す
