@@ -148,3 +148,8 @@ export function autoApproveEnabled(env: Record<string, string | undefined> = pro
 export function isBeforeBuild(date: string, slot: Slot, now = new Date()): boolean {
   return now.getTime() < jstAt(date, SLOTS[slot].buildAt).getTime();
 }
+
+/** 投稿の時刻を過ぎたか（過ぎた回は、承認しても自動では投稿されない） */
+export function isPastPublish(scheduledAt: Date, now = new Date()): boolean {
+  return now.getTime() >= scheduledAt.getTime();
+}

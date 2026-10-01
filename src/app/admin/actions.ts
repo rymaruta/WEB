@@ -101,6 +101,22 @@ export async function approveAction(editionId: string): Promise<ActionState> {
   return run(editionId, () => approveEdition(editionId), "承認しました。予定の時刻に投稿されます");
 }
 
+/** 投稿の時刻を過ぎた下書きを、承認していますぐ投稿する（カードの時刻は投稿した時刻になる） */
+export async function publishAfterTimeAction(editionId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { publishEdition, PublishError } = await import("@/lib/digest/publish");
+  try {
+    await approveEdition(editionId, new Date(), { afterTime: true });
+    await publishEdition(editionId);
+  } catch (e) {
+    if (e instanceof AdminError || e instanceof PublishError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/admin/editions/${editionId}`);
+  revalidatePath("/admin");
+  return { ok: "X に投稿しました" };
+}
+
 export async function unapproveAction(editionId: string): Promise<ActionState> {
   return run(editionId, () => unapproveEdition(editionId), "承認を取り消しました");
 }
