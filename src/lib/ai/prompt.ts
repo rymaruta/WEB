@@ -30,6 +30,13 @@ export const ArticleSchema = z.object({
     .describe(
       "各媒体の報じ方の違い。資料の見出し・要約に、注目点や伝え方の違いが実際にあるときだけ1〜3個。媒体名を必ず入れる。違いがなければ空配列。資料にない評価（偏っている・正確だ など）は書かない",
     ),
+  companies: z
+    .array(z.string())
+    // 以前の形式（companies なし）で送られた記事も受け付ける
+    .optional()
+    .describe(
+      "この出来事の当事者である企業の名前（0〜5社）。資料に書かれている表記のまま、「株式会社」「(株)」は付けない（例: トヨタ自動車、ソニーグループ、Micron）。官公庁・自治体・団体・スポーツチーム・媒体名は含めない。単に言及されただけの企業も含めない",
+    ),
   body: z
     .array(z.string())
     .describe("本文の段落。2〜4段落、全体で300〜600文字。背景や経緯を資料の範囲で"),
@@ -65,6 +72,15 @@ export function buildPrompt(sources: { publisher: string; publishedAt: Date; tit
   return `次の資料をもとに、まとめ記事を書いてください。\n\n${lines.join("\n\n")}`;
 }
 
+/** 企業名の表記をそろえる（法人格や空白を除く） */
+export function normalizeCompany(name: string): string {
+  return name
+    .normalize("NFKC")
+    .replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)|㈱/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** 生成結果の検証。出典番号が資料の範囲外なら取り除き、要点が残らなければ不採用 */
 export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): GeneratedArticle | null {
   if (!a.sufficient) return null;
@@ -75,9 +91,10 @@ export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): Gener
     .map((p) => ({ text: p.text.trim(), sources: [...new Set(p.sources)].filter((n) => n >= 1 && n <= sourceCount).sort((x, y) => x - y) }))
     .filter((p) => p.text && p.sources.length > 0)
     .slice(0, 3);
+  const companies = [...new Set((a.companies ?? []).map(normalizeCompany).filter((c) => c.length >= 2 && c.length <= 30))].slice(0, 5);
   const body = a.body.map((b) => b.trim()).filter(Boolean);
   if (!a.title.trim() || points.length === 0 || body.length === 0) return null;
-  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), angles, body };
+  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), angles, companies, body };
 }
 
 export type FactSource = { publisher: string; publishedAt: Date; title: string; summary: string | null };
@@ -120,5 +137,8 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
     bodyMissing.push(...m);
     return m.length === 0 && !BANNED_WORDS.some((w) => p.text.includes(w));
   });
-  return { article: { ...a, body, angles }, missing: bodyMissing, banned };
+  // 企業名は資料のどこかにそのまま書かれているものだけを残す（AI が補った社名を企業ページに載せない）
+  const corpus = all.normalize("NFKC");
+  const companies = (a.companies ?? []).filter((c) => corpus.includes(c));
+  return { article: { ...a, body, angles, companies }, missing: bodyMissing, banned };
 }

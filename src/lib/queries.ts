@@ -211,3 +211,26 @@ export const getTrendingKeywords = cache(async (take: number) => {
   }
   return out;
 });
+
+/** 企業ページ：その企業を取り上げた話題（新しい順） */
+export async function getCompanyTopics(name: string, skip: number, take: number) {
+  const where: Prisma.TopicWhereInput = { aiCompanies: { has: name } };
+  const [items, total] = await Promise.all([
+    prisma.topic.findMany({ where, orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }], skip, take, include: topicCardInclude }),
+    prisma.topic.count({ where }),
+  ]);
+  return { items, total };
+}
+
+/** よく取り上げられている企業（直近 days 日の話題数の多い順） */
+export const getTopCompanies = cache(async (days: number, take: number, minTopics = 1) => {
+  const rows = await prisma.$queryRaw<{ name: string; topics: bigint }[]>`
+    SELECT c AS name, COUNT(*) AS topics
+    FROM "Topic", unnest("aiCompanies") AS c
+    WHERE "lastSeenAt" >= ${since(days * 24)}
+    GROUP BY c
+    HAVING COUNT(*) >= ${minTopics}
+    ORDER BY topics DESC, c ASC
+    LIMIT ${take}`;
+  return rows.map((r) => ({ name: r.name, topics: Number(r.topics) }));
+});
