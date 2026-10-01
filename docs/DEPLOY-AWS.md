@@ -26,22 +26,16 @@ Vercel から AWS へ移行するための手順です。データベースは�
 
 ## 2. GitHub の設定
 
-リポジトリの **Settings → Secrets and variables → Actions** に登録します。
+リポジトリの **Settings → Secrets and variables → Actions → New repository secret** で、次の1つを登録します（`CRON_SECRET` は登録済み）。
 
-| 種類 | 名前 | 値 |
-| --- | --- | --- |
-| Variable | `AWS_DEPLOY_ROLE_ARN` | 手順1-2のロールの ARN |
-| Variable | `NEXT_PUBLIC_SITE_URL` | 公開 URL（独自ドメインの設定前は Lightsail の URL） |
-| Variable | `CONTACT_EMAIL` | 問い合わせ先 |
-| Variable | `NEXT_PUBLIC_RUM_APP_MONITOR_ID` | 手順1-3のアプリモニター ID（任意） |
-| Secret | `DATABASE_URL` | Neon の接続文字列（Vercel の環境変数と同じ値） |
-| Secret | `DATABASE_URL_UNPOOLED` | Neon の直接接続の文字列（任意。Vercel の環境変数と同じ値） |
-| Secret | `CRON_SECRET` | Vercel の環境変数と同じ値 |
-| Secret | `ANTHROPIC_API_KEY` | API でまとめ記事を作る場合のみ |
+| Name | 値 |
+| --- | --- |
+| `DATABASE_URL` | Neon の接続文字列（Vercel の **Settings → Environment Variables** にある値をコピー） |
 
-Vercel の環境変数の値は、Vercel のプロジェクトの **Settings → Environment Variables** で確認できます。
+ロールの ARN・公開 URL・RUM の ID・問い合わせ先は、`.github/workflows/deploy-aws.yml` に既定値があります。変える場合だけ、同じ名前の Variables を登録します。
+`DATABASE_URL_UNPOOLED`（マイグレーション用の直接接続）と `ANTHROPIC_API_KEY` は任意です。
 
-`AWS_DEPLOY_ROLE_ARN` を登録するまでは、デプロイのワークフローは何もせずに終了します。
+`DATABASE_URL` を登録するまでは、デプロイのワークフローは何もせずに終了します。
 
 ## 3. 初回デプロイと確認
 
