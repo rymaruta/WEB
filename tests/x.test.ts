@@ -34,8 +34,19 @@ describe("OAuth 1.0a の署名", () => {
 describe("notifyOwner", () => {
   it("宛先か送信用の鍵がなければ何もしない", async () => {
     const { notifyOwner } = await import("@/lib/notify");
-    expect(await notifyOwner("test", {})).toBe(false);
-    expect(await notifyOwner("test", { NOTIFY_EMAIL: "a@example.com" })).toBe(false);
-    expect(await notifyOwner("test", { NOTIFY_EMAIL: "PLACEHOLDER", SES_ACCESS_KEY_ID: "x", SES_SECRET_ACCESS_KEY: "y" })).toBe(false);
+    expect(await notifyOwner({ title: "t", what: "w" }, {})).toBe(false);
+    expect(await notifyOwner({ title: "t", what: "w" }, { NOTIFY_EMAIL: "a@example.com" })).toBe(false);
+    expect(await notifyOwner({ title: "t", what: "w" }, { NOTIFY_EMAIL: "PLACEHOLDER", SES_ACCESS_KEY_ID: "x", SES_SECRET_ACCESS_KEY: "y" })).toBe(false);
+  });
+});
+
+describe("通知メールの本文", () => {
+  it("件名・対応・管理画面への案内をそろえ、HTML はエスケープする", async () => {
+    const { noticeText, noticeHtml } = await import("@/lib/notify");
+    const n = { title: "夜のニュースを見送りました", what: "<b>理由</b>", action: "不要です。" };
+    expect(noticeText({ ...n, action: "不要です。次の回は通常どおり投稿されます。" })).toContain("■ 対応\n不要です。\n次の回は通常どおり投稿されます。");
+    expect(noticeText(n)).toContain("https://zenbu-navi.com/admin");
+    expect(noticeHtml(n)).toContain("&lt;b&gt;理由&lt;/b&gt;");
+    expect(noticeHtml(n)).toContain("管理画面を開く");
   });
 });
