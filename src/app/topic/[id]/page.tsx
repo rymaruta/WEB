@@ -14,6 +14,7 @@ import { TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
+import { newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 
 export const revalidate = 60;
 
@@ -57,6 +58,14 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <article className="card min-w-0 overflow-hidden">
+        {ai && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: serializeJsonLd(newsArticleJsonLd(topic.id, ai, topic.articles.map((a) => ({ url: a.url, publisher: a.publisher })))),
+            }}
+          />
+        )}
         <header
           className="px-5 pt-4 pb-5 sm:px-6"
           style={{ background: `linear-gradient(180deg, color-mix(in oklab, var(--g-${topic.genre.slug}) 14%, var(--surface)), var(--surface))` }}

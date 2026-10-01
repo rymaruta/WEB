@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { poolConfig } from "@/lib/db";
+import { poolConfig } from "@/lib/db-config";
 
 describe("poolConfig", () => {
   it("AWS の DB は証明書を検証して接続する（sslmode は取り除く）", () => {
