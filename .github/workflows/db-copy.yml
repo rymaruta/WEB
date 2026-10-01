@@ -1,0 +1,73 @@
+# DB の引っ越し用（手動実行のみ）。今の DB の中身を、新しい DB に丸ごと写して件数を照合する。
+#
+# 写し元: Parameter Store /zenbu-navi/DATABASE_URL_UNPOOLED（なければ DATABASE_URL）
+# 写し先: Parameter Store /zenbu-navi/NEW_DATABASE_URL
+# 写し先にテーブルがあれば止まる（上書き防止）。接続先の切り替えはこのワークフローでは行わない。
+name: Copy database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "写し先の DB に書き込む場合は copy と入力"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: db-copy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: inputs.confirm == 'copy'
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN || secrets.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::463470976368:role/zenbu-navi-github-deploy' }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Load connection strings
+        run: |
+          get() { aws ssm get-parameter --name "/zenbu-navi/$1" --with-decryption --query Parameter.Value --output text 2>/dev/null || true; }
+          src=$(get DATABASE_URL_UNPOOLED); [ -n "$src" ] && [ "$src" != "None" ] || src=$(get DATABASE_URL)
+          dst=$(get NEW_DATABASE_URL)
+          if [ -z "$src" ] || [ -z "$dst" ] || [ "$dst" = "None" ]; then echo "::error::接続先が見つかりません"; exit 1; fi
+          if [ "$src" = "$dst" ]; then echo "::error::写し元と写し先が同じです"; exit 1; fi
+          echo "::add-mask::$src"; echo "::add-mask::$dst"
+          { echo "SRC<<__ZENBU_EOF__"; echo "$src"; echo "__ZENBU_EOF__"; echo "DST<<__ZENBU_EOF__"; echo "$dst"; echo "__ZENBU_EOF__"; } >> "$GITHUB_ENV"
+
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - name: Refuse to overwrite
+        run: |
+          n=$(psql "$DST" -Atc "select count(*) from pg_tables where schemaname = 'public'")
+          if [ "$n" != "0" ]; then echo "::error::写し先にテーブルが ${n} 個あります。上書きしないため止めます"; exit 1; fi
+
+      - name: Copy
+        run: |
+          pg_dump "$SRC" --format=custom --no-owner --no-privileges --file=db.dump
+          pg_restore --no-owner --no-privileges --exit-on-error --dbname="$DST" db.dump
+          rm -f db.dump
+
+      - name: Compare row counts
+        run: |
+          q="select relname, n from (select c.relname, (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text::bigint as n from pg_class c join pg_namespace s on s.oid = c.relnamespace where s.nspname = 'public' and c.relkind = 'r') t order by relname"
+          psql "$SRC" -Atc "$q" > src.txt
+          psql "$DST" -Atc "$q" > dst.txt
+          paste -d' ' src.txt dst.txt | awk -F'[| ]' '{ printf "%-28s 写し元 %8s  写し先 %8s %s\n", $1, $2, $4, ($2==$4 ? "" : "← 差あり") }'
+          # 写している間にも収集は続くため、写し先が少ない分だけの差は許容する（多い場合は異常）
+          paste -d' ' src.txt dst.txt | awk -F'[| ]' '$4 > $2 { bad = 1 } END { exit bad }'
