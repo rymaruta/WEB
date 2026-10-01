@@ -8,6 +8,7 @@ const article = {
   points: [],
   angles: [],
   companies: [],
+  history: [],
   sourceIds: [1],
   model: "claude-code",
   generatedAt: new Date("2026-10-01T00:00:00Z"),
