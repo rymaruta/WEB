@@ -94,3 +94,25 @@ export async function createThreadsPost(token: string, text: string, link?: stri
   await waitFinished(token, id);
   return (await call<{ id: string }>(token, "/me/threads_publish", { creation_id: id })).id;
 }
+
+/** 接続の確認（投稿はしない）。アカウント名を返す */
+export async function threadsAccount(token: string): Promise<string> {
+  const r = await call<{ username?: string }>(token, "/me", { fields: "username" }, "GET");
+  return r.username ?? "(名前なし)";
+}
+
+/** 投稿の URL（取れなければ null） */
+export async function threadsPermalink(token: string, id: string): Promise<string | null> {
+  return call<{ permalink?: string }>(token, `/${id}`, { fields: "permalink" }, "GET")
+    .then((r) => r.permalink ?? null)
+    .catch(() => null);
+}
+
+/** 管理画面向け：トークンを最後に延長した時刻と、期限の目安（延長から60日） */
+export async function threadsTokenInfo(env: Record<string, string | undefined> = process.env) {
+  if (!threadsConfigured(env)) return null;
+  const stored = await readStored();
+  const current = stored && stored.base === digest(env.THREADS_ACCESS_TOKEN!.trim()) ? stored : null;
+  const refreshedAt = current && Date.parse(current.refreshedAt) > 0 ? new Date(current.refreshedAt) : null;
+  return { refreshedAt, expiresAt: refreshedAt ? new Date(refreshedAt.getTime() + 60 * 86_400_000) : null, lastFailedAt: current?.triedAt ? new Date(current.triedAt) : null };
+}

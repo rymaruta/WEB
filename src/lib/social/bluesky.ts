@@ -12,7 +12,7 @@ export const BLUESKY_MAX_GRAPHEMES = 300;
 export const BLUESKY_MAX_IMAGE_BYTES = 1_000_000;
 
 export type BlueskyCredentials = { handle: string; appPassword: string };
-type Session = { accessJwt: string; did: string };
+type Session = { accessJwt: string; did: string; handle: string };
 type Blob = { $type: "blob"; ref: { $link: string }; mimeType: string; size: number };
 
 export function blueskyCredentialsFromEnv(env: Record<string, string | undefined> = process.env): BlueskyCredentials | null {

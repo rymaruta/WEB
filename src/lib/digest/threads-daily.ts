@@ -3,7 +3,7 @@ import { readAiArticle } from "@/lib/ai/article";
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
-import { createThreadsPost, THREADS_MAX_CHARS, threadsConfigured, threadsToken } from "@/lib/social/threads";
+import { createThreadsPost, THREADS_MAX_CHARS, threadsConfigured, threadsPermalink, threadsToken } from "@/lib/social/threads";
 import type { Assessment } from "@/lib/stories/schema";
 import { jstDate } from "./slots";
 
@@ -59,14 +59,14 @@ export async function pickThreadsDaily(date: string) {
   return candidates[0] ?? null;
 }
 
-type Stored = { date: string; topicId: number; postId: string };
+export type ThreadsDailyRecord = { date: string; topicId: number; postId: string; title?: string; permalink?: string | null; at?: string };
 
 /** 毎日 THREADS_DAILY.at に呼ぶ。今日の分を投稿済みなら何もしない */
 export async function runThreadsDaily(now = new Date()) {
   if (!threadsConfigured()) return { result: "not-configured" as const };
   const date = jstDate(now);
   const row = await prisma.setting.findUnique({ where: { key: THREADS_DAILY.settingKey } });
-  const stored = row?.value as Stored | undefined;
+  const stored = row?.value as ThreadsDailyRecord | undefined;
   if (stored?.date === date) return { result: "already-published" as const, postId: stored.postId };
 
   const pick = await pickThreadsDaily(date);
@@ -80,7 +80,8 @@ export async function runThreadsDaily(now = new Date()) {
     const token = await threadsToken();
     if (!token) throw new Error("Threads のアクセストークンが設定されていません");
     const postId = await createThreadsPost(token, text, link);
-    const value: Stored = { date, topicId: pick.topic.id, postId };
+    const permalink = await threadsPermalink(token, postId);
+    const value: ThreadsDailyRecord = { date, topicId: pick.topic.id, postId, title: pick.article.title, permalink, at: new Date().toISOString() };
     await prisma.setting.upsert({ where: { key: THREADS_DAILY.settingKey }, create: { key: THREADS_DAILY.settingKey, value }, update: { value } });
     await logEvent("info", "threads.daily", `${date}: Threads に投稿しました（${pick.article.title}）`, undefined, { topicId: pick.topic.id, postId });
     return { result: "published" as const, postId, topicId: pick.topic.id };
