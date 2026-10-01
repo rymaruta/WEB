@@ -4,7 +4,8 @@ import { SearchForm } from "@/components/search-form";
 import { TopicList } from "@/components/topic-card";
 import { formatNumber } from "@/lib/format";
 import Link from "next/link";
-import { getTrendingKeywords, searchTopics } from "@/lib/queries";
+import { companyPath } from "@/lib/company";
+import { findCompaniesByName, getTrendingKeywords, searchTopics } from "@/lib/queries";
 
 const PER_PAGE = 20;
 
@@ -25,6 +26,8 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
     q ? searchTopics(q, (page - 1) * PER_PAGE, PER_PAGE) : { items: [], total: 0 },
     getTrendingKeywords(12),
   ]);
+  // 企業名で検索した人には、その企業のニュースだけを集めたページを先に案内する
+  const companies = q ? await findCompaniesByName(q, 3) : [];
   // 検索前と、見つからなかったときは、いま話題のキーワードから選べるようにする
   const showKeywords = keywords.length > 0 && (!q || total === 0);
 
@@ -34,6 +37,25 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
       <SearchForm defaultValue={q} />
       {q && (
         <>
+          {companies.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {companies.map((c) => (
+                <li key={c.name}>
+                  <Link
+                    href={companyPath(c.name)}
+                    prefetch={false}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-4 py-3 text-sm font-bold hover:bg-accent-soft"
+                  >
+                    <span>
+                      {c.name}のニュースをまとめて見る
+                      <span className="ml-2 text-xs font-medium text-fg-subtle">{c.topics}件</span>
+                    </span>
+                    <span aria-hidden className="text-accent">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-5 mb-1 text-sm text-fg-muted">
             「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（新しい順）
           </p>

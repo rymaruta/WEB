@@ -244,3 +244,40 @@ export async function getTopicsSince(since: Date, take: number) {
   ]);
   return { items, total };
 }
+
+export type CompanyIndexRow = { name: string; topics: number; lastSeenAt: Date; latest: string; genreSlug: string; genreName: string };
+
+/** 企業別ニュースの一覧。直近 days 日に取り上げた企業ごとの話題数・最新の見出し・主なジャンル（最近の順） */
+export const getCompanyIndex = cache(async (days: number, take: number): Promise<CompanyIndexRow[]> => {
+  const rows = await prisma.$queryRaw<{ name: string; topics: bigint; last: Date; latest: string; genreId: number }[]>`
+    WITH c AS (
+      SELECT unnest(t."aiCompanies") AS name, t."lastSeenAt", COALESCE(t."aiTitle", t.title) AS title, t."genreId"
+      FROM "Topic" t
+      WHERE t."lastSeenAt" >= ${since(days * 24)}
+    )
+    SELECT name, COUNT(*) AS topics, MAX("lastSeenAt") AS last,
+      (ARRAY_AGG(title ORDER BY "lastSeenAt" DESC))[1] AS latest,
+      MODE() WITHIN GROUP (ORDER BY "genreId") AS "genreId"
+    FROM c
+    GROUP BY name
+    ORDER BY last DESC, topics DESC
+    LIMIT ${take}`;
+  const genres = new Map((await getGenres()).map((g) => [g.id, g]));
+  return rows.map((r) => ({
+    name: r.name,
+    topics: Number(r.topics),
+    lastSeenAt: r.last,
+    latest: r.latest,
+    genreSlug: genres.get(r.genreId)?.slug ?? "",
+    genreName: genres.get(r.genreId)?.name ?? "",
+  }));
+});
+
+/** 検索語に名前が当てはまる企業（直近の話題がある企業から、話題の多い順） */
+export async function findCompaniesByName(q: string, take: number) {
+  const fold = (s: string) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+  const key = fold(q);
+  if (key.length < 2) return [];
+  const all = await getTopCompanies(90, 2000);
+  return all.filter((c) => fold(c.name).includes(key)).slice(0, take);
+}

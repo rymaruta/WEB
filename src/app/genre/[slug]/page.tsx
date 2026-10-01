@@ -6,8 +6,10 @@ import { GenreIcon } from "@/components/genre-icon";
 import { Pagination, parsePage } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
+import { companyPath } from "@/lib/company";
 import {
   countTopics,
+  getTopCompanies,
   countTrendingTopics,
   getGenre,
   getLatestArticles,
@@ -48,6 +50,8 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
   ]);
   // SNS の話題シグナルがないジャンルは、代わりに新着記事を表示する
   const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
+  // 経済のページだけ、話題の企業への入口を出す（企業を追いたい人が多いジャンル）
+  const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
   const totalPages = Math.min(50, Math.ceil(total / PER_PAGE));
   if (page > 1 && topics.length === 0) notFound();
 
@@ -94,6 +98,25 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
           {tab("latest", "新着順")}
         </div>
       </header>
+
+      {companies.length > 0 && (
+        <nav aria-label="話題の企業" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="shrink-0 text-xs font-bold text-fg-muted">話題の企業</span>
+          {companies.map((c) => (
+            <Link
+              key={c.name}
+              href={companyPath(c.name)}
+              prefetch={false}
+              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
+            >
+              {c.name}
+            </Link>
+          ))}
+          <Link href="/company" prefetch={false} className="shrink-0 text-xs font-bold text-accent hover:underline">
+            すべて見る →
+          </Link>
+        </nav>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
