@@ -9,6 +9,8 @@ const FRESH_HOURS = 14;
 
 export type DigestSummary = {
   slot: Slot;
+  /** この回のページ（/digest/日付/回） */
+  href: string;
   title: string;
   dateLabel: string;
   items: { topicId: number; label: string; color: string; headline: string; point: string; followup: boolean }[];
@@ -48,5 +50,5 @@ export async function getLatestDigest(now = new Date()): Promise<DigestSummary |
     ];
   });
   if (items.length === 0) return null;
-  return { slot, title: SLOTS[slot].title, dateLabel: jstDateLabel(edition.date), items };
+  return { slot, href: `/digest/${edition.date}/${slot.toLowerCase()}`, title: SLOTS[slot].title, dateLabel: jstDateLabel(edition.date), items };
 }

@@ -131,6 +131,11 @@ export function msUntilJst(hhmm: string, now: Date): number {
   return target.getTime() - now.getTime();
 }
 
+/** 今日（日本時間）の HH:MM から何ミリ秒経ったか（まだなら負の値） */
+export function msSinceJst(hhmm: string, now: Date): number {
+  return now.getTime() - jstAt(jstDate(now), hhmm).getTime();
+}
+
 /**
  * おまかせ投稿（既定でオン）。下書きは自動の確認を通ったストーリーだけで作り、
  * 投稿の時刻までに人が承認しなくても、そのまま投稿する。DIGEST_AUTO_APPROVE=false で、人の承認が必要な運用に戻す

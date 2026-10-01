@@ -1,5 +1,5 @@
-import { msUntilJst } from "@/lib/digest/slots";
-import { DAILY_JOBS, JOBS, resolveInterval, type Job } from "./jobs";
+import { msSinceJst, msUntilJst } from "@/lib/digest/slots";
+import { DAILY_JOBS, JOBS, missedPublishJobs, resolveInterval, type Job } from "./jobs";
 
 /** 起動直後はサーバーの準備が整うまで少し待ってから初回を実行する */
 const FIRST_RUN_DELAY_MS = 60_000;
@@ -63,6 +63,15 @@ export function startScheduler() {
   if (process.env.DIGEST_ENABLED === "false") {
     log("info", "digest", "disabled");
     return;
+  }
+  // 再起動が投稿の時刻をまたいだ場合（例：19:58 に入れ替えが始まり 20:01 に起動）、その回の予約は消えている。
+  // 時刻を過ぎて間もない回があれば、起動の少しあとに一度だけ確認して、投稿待ちのまま残っていれば投稿する
+  if (process.env.AUTO_PUBLISH !== "false") {
+    for (const job of missedPublishJobs(new Date(), msSinceJst)) {
+      const timer = setTimeout(() => void runJob({ name: `${job.name}-catchup`, path: `${job.path}&catchup=1` }, secret, base, job.timeoutMs), FIRST_RUN_DELAY_MS);
+      timer.unref();
+      log("info", job.name, "catch-up scheduled after restart");
+    }
   }
   for (const job of DAILY_JOBS) {
     // 定時の自動投稿は AUTO_PUBLISH=false で止められる（下書き作りは続ける）

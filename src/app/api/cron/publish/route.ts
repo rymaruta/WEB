@@ -12,10 +12,11 @@ export async function GET(request: Request) {
   if (!hasCronSecret(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const slot = new URL(request.url).searchParams.get("slot");
+  const params = new URL(request.url).searchParams;
+  const slot = params.get("slot");
   if (!slot || !SLOT_ORDER.includes(slot as Slot)) {
     return Response.json({ error: "slot is required (MORNING, LUNCH or EVENING)" }, { status: 400 });
   }
-  const result = await runScheduledPublish(slot as Slot);
+  const result = await runScheduledPublish(slot as Slot, new Date(), { catchUp: params.get("catchup") === "1" });
   return Response.json(result, { status: result.result === "failed" ? 500 : 200 });
 }
