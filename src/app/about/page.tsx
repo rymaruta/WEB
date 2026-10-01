@@ -83,6 +83,11 @@ export default function AboutPage() {
       </section>
 
       <section>
+        <h2 className="mb-2 text-lg font-bold">運営者</h2>
+        <p>{siteConfig.name}</p>
+      </section>
+
+      <section>
         <h2 className="mb-2 text-lg font-bold">お問い合わせ</h2>
         <p>
           <a href={`mailto:${siteConfig.contactEmail}`} className="text-accent underline">{siteConfig.contactEmail}</a>
