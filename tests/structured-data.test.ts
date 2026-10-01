@@ -6,6 +6,7 @@ const article = {
   lead: "リード",
   body: ["本文"],
   points: [],
+  angles: [],
   sourceIds: [1],
   model: "claude-code",
   generatedAt: new Date("2026-10-01T00:00:00Z"),

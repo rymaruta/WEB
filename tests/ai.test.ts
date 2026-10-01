@@ -87,6 +87,18 @@ describe("checkArticleFacts", () => {
   it("煽り表現があれば採用しない", () => {
     expect(checkArticleFacts({ ...art, title: "【衝撃】米Micronが過去最高の決算" }, src).article).toBeNull();
   });
+  it("報じ方の違いは、取り上げた媒体の資料にない語を含む項目だけを落とす", () => {
+    const angles = [
+      { text: "A新聞は売上高4.8倍という数字を中心に報じた", sources: [1] },
+      { text: "B通信は売上高4.8倍を強調した", sources: [2] },
+      { text: "B通信はAI向けメモリの好調を中心に報じた", sources: [2] },
+    ];
+    const r = checkArticleFacts({ ...art, angles }, src);
+    expect(r.article?.angles?.map((p) => p.text)).toEqual([angles[0].text, angles[2].text]);
+  });
+  it("報じ方の違いがない記事も採用する", () => {
+    expect(checkArticleFacts(art, src).article?.angles).toEqual([]);
+  });
 });
 
 describe("bodyWithoutLead", () => {

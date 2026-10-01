@@ -73,6 +73,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiLead: article.lead,
       aiBody: article.body.join("\n\n"),
       aiPoints: article.points,
+      aiAngles: article.angles ?? [],
       aiSources: sourceIds,
       aiModel: model,
       aiGeneratedAt: new Date(),

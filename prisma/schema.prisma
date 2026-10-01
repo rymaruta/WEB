@@ -95,6 +95,8 @@ model Topic {
   aiBody         String?
   /// 要点と出典番号の配列: [{ text: string, sources: number[] }]。出典番号は aiSources の添字（1始まり）
   aiPoints       Json?
+  /// 各媒体の報じ方の違い: [{ text: string, sources: number[] }]。違いがなければ空配列か null
+  aiAngles       Json?
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?

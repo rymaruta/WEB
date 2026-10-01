@@ -18,9 +18,21 @@ export const ArticleSchema = z.object({
       }),
     )
     .describe("要点を3〜5個"),
+  angles: z
+    .array(
+      z.object({
+        text: z.string().describe("どの媒体が何に重点を置いて報じたかを1文で。例: 「A新聞は業績の数字を、B社は今後の需要の見通しを中心に報じた」"),
+        sources: z.array(z.number().int()).describe("この文で取り上げた媒体の資料番号（1始まり）"),
+      }),
+    )
+    // 以前の形式（angles なし）で送られた記事も受け付ける
+    .optional()
+    .describe(
+      "各媒体の報じ方の違い。資料の見出し・要約に、注目点や伝え方の違いが実際にあるときだけ1〜3個。媒体名を必ず入れる。違いがなければ空配列。資料にない評価（偏っている・正確だ など）は書かない",
+    ),
   body: z
     .array(z.string())
-    .describe("本文の段落。2〜4段落、全体で300〜600文字。背景や各媒体の報じ方の違いも資料の範囲で"),
+    .describe("本文の段落。2〜4段落、全体で300〜600文字。背景や経緯を資料の範囲で"),
   sufficient: z.boolean().describe("資料だけで記事を書くのに十分な情報があれば true"),
   genre: z
     .enum(GENRE_SLUGS)
@@ -39,6 +51,7 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 厳守すること:
 - 資料に書かれている事実だけを使う。資料にない数字・人名・経緯・背景知識を補わない。推測や意見を書かない。
 - 媒体間で内容が食い違う場合は、どの媒体がどう報じているかを分けて書く。
+- 媒体ごとの注目点の違い（数字を中心に報じた、影響を中心に報じた など）は angles に書く。違いがなければ無理に作らない。
 - 各要点の sources には、その要点の根拠になった資料番号をすべて入れる。
 - 資料の文章をそのまま長く引き写さず、自分の言葉で簡潔にまとめる。
 - 事件・事故・訃報などは、センセーショナルな表現を避け、落ち着いた文体で書く。
@@ -58,9 +71,13 @@ export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): Gener
   const points = a.points
     .map((p) => ({ text: p.text.trim(), sources: [...new Set(p.sources)].filter((n) => n >= 1 && n <= sourceCount).sort((x, y) => x - y) }))
     .filter((p) => p.text && p.sources.length > 0);
+  const angles = (a.angles ?? [])
+    .map((p) => ({ text: p.text.trim(), sources: [...new Set(p.sources)].filter((n) => n >= 1 && n <= sourceCount).sort((x, y) => x - y) }))
+    .filter((p) => p.text && p.sources.length > 0)
+    .slice(0, 3);
   const body = a.body.map((b) => b.trim()).filter(Boolean);
   if (!a.title.trim() || points.length === 0 || body.length === 0) return null;
-  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), body };
+  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), angles, body };
 }
 
 export type FactSource = { publisher: string; publishedAt: Date; title: string; summary: string | null };
@@ -71,6 +88,7 @@ export type FactCheck = { article: GeneratedArticle | null; missing: string[]; b
  * 資料との照合。AI の文章を信用せず、数字・カギかっこの語・英数字の語が資料にあるかを機械的に確かめる。
  * - 見出し・リード・要点：資料にない語が1つでもあれば記事を採用しない（要点は、その要点の出典に限って照合する）
  * - 本文：資料にない語を含む段落だけを落とす（すべて落ちたら採用しない）
+ * - 報じ方の違い：取り上げた媒体の資料にない語、または煽り表現を含む項目だけを落とす
  * - 煽り表現が見出し・リード・要点にあれば採用しない
  * @param sources 出典番号 1, 2, ... に対応する資料
  */
@@ -96,5 +114,11 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
     return m.length === 0;
   });
   if (body.length === 0) return { article: null, missing: bodyMissing, banned };
-  return { article: { ...a, body }, missing: bodyMissing, banned };
+  const angles = (a.angles ?? []).filter((p) => {
+    const cited = p.sources.map((n) => sources[n - 1]).filter(Boolean).map(text).join("\n");
+    const m = missingIn(p.text, cited);
+    bodyMissing.push(...m);
+    return m.length === 0 && !BANNED_WORDS.some((w) => p.text.includes(w));
+  });
+  return { article: { ...a, body, angles }, missing: bodyMissing, banned };
 }
