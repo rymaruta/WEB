@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { candidatePool, editionDetail } from "@/lib/digest/admin";
 import { prisma } from "@/lib/db";
+import { blueskyCredentialsFromEnv, blueskyPostUrl } from "@/lib/social/bluesky";
 import { autoApproveEnabled, jstTime } from "@/lib/digest/slots";
 import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
@@ -14,6 +15,7 @@ import {
   publishNowAction,
   rebuildAction,
   removeAction,
+  retryBlueskyAction,
   unapproveAction,
 } from "../../../actions";
 import { ActionButton, EditForm, PostTextForm } from "./controls";
@@ -30,6 +32,11 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
     where: { editionId_channel: { editionId: id, channel: "X" } },
     include: { parts: { orderBy: { position: "asc" } } },
   });
+  const bluesky = await prisma.publication.findUnique({
+    where: { editionId_channel: { editionId: id, channel: "BLUESKY" } },
+    include: { parts: { orderBy: { position: "asc" }, take: 1 } },
+  });
+  const blueskyHandle = blueskyCredentialsFromEnv()?.handle;
 
   return (
     <div className="space-y-5">
@@ -55,6 +62,22 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
                 </a>
               ) : null,
             )}
+            {/* Bluesky への同時投稿（設定済みのときだけ） */}
+            {blueskyHandle &&
+              (bluesky?.status === "PUBLISHED" && bluesky.parts[0]?.externalId ? (
+                <a href={blueskyPostUrl(bluesky.parts[0].externalId, blueskyHandle)} target="_blank" rel="noopener noreferrer" className="block text-sm text-accent underline">
+                  Bluesky で見る
+                </a>
+              ) : bluesky?.status === "FAILED" ? (
+                <div className="space-y-1 pt-1">
+                  <p className="whitespace-pre-line text-sm font-bold text-accent">
+                    Bluesky への投稿に失敗しました（{bluesky.attempts}回）。{bluesky.lastError ? `\n${bluesky.lastError.slice(0, 200)}` : ""}
+                  </p>
+                  <ActionButton action={retryBlueskyAction.bind(null, id)} label="Bluesky に投稿し直す" />
+                </div>
+              ) : bluesky ? (
+                <p className="text-sm text-fg-muted">Bluesky：投稿中です</p>
+              ) : null)}
           </div>
         ) : edition.status === "APPROVED" || edition.status === "FAILED" ? (
           <div className="space-y-2">

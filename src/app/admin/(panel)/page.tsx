@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { autoApproveEnabled, jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
 import { buildAction } from "../actions";
+import { ChannelsSection } from "./channels";
 
 const STATUS: Record<string, { label: string; className: string }> = {
   // おまかせ投稿では、下書きは人が触らなくても時刻に投稿される
@@ -82,6 +83,7 @@ export default async function AdminHome() {
           </div>
         </section>
       )}
+      <ChannelsSection />
     </div>
   );
 }

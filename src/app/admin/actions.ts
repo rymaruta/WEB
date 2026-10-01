@@ -141,3 +141,65 @@ export async function publishNowAction(editionId: string): Promise<ActionState> 
   revalidatePath("/admin");
   return { ok: "X に投稿しました" };
 }
+
+/** Bluesky の接続を確かめる（投稿はしない） */
+export async function checkBlueskyAction(): Promise<ActionState> {
+  await requireAdmin();
+  const { blueskyCredentialsFromEnv, createSession } = await import("@/lib/social/bluesky");
+  const creds = blueskyCredentialsFromEnv();
+  if (!creds) return { error: "Bluesky の認証情報（BLUESKY_HANDLE・BLUESKY_APP_PASSWORD）が設定されていません" };
+  try {
+    const s = await createSession(creds);
+    return { ok: `接続できました（@${s.handle}）` };
+  } catch (e) {
+    return { error: `接続できませんでした。ハンドルとアプリパスワードを確認してください。\n${e instanceof Error ? e.message : e}` };
+  }
+}
+
+/** Threads の接続を確かめる（投稿はしない） */
+export async function checkThreadsAction(): Promise<ActionState> {
+  await requireAdmin();
+  const { threadsAccount, threadsToken } = await import("@/lib/social/threads");
+  const token = await threadsToken();
+  if (!token) return { error: "Threads のアクセストークン（THREADS_ACCESS_TOKEN）が設定されていません" };
+  try {
+    return { ok: `接続できました（@${await threadsAccount(token)}）` };
+  } catch (e) {
+    return { error: `接続できませんでした。アクセストークンが有効か確認してください。\n${e instanceof Error ? e.message : e}` };
+  }
+}
+
+/** Threads の今日の1本を、時刻を待たずに投稿する（今日の分を投稿済みなら何もしない） */
+export async function threadsDailyNowAction(): Promise<ActionState> {
+  await requireAdmin();
+  const { runThreadsDaily } = await import("@/lib/digest/threads-daily");
+  const r = await runThreadsDaily();
+  revalidatePath("/admin");
+  switch (r.result) {
+    case "published":
+      return { ok: "Threads に投稿しました" };
+    case "already-published":
+      return { ok: "今日の分は投稿済みです" };
+    case "none":
+      return { error: "今日 X に載せたニュースに、Threads に載せられるもの（AI まとめ記事があるもの）がありません" };
+    case "not-configured":
+      return { error: "Threads のアクセストークンが設定されていません" };
+    default:
+      return { error: `投稿に失敗しました。\n${r.error}` };
+  }
+}
+
+/** この回の Bluesky への投稿をやり直す（再試行の回数を戻してから投稿する） */
+export async function retryBlueskyAction(editionId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { prisma } = await import("@/lib/db");
+  const { crossPostEdition } = await import("@/lib/digest/crosspost");
+  await prisma.publication.updateMany({ where: { editionId, channel: "BLUESKY", status: { not: "PUBLISHED" } }, data: { attempts: 0, status: "FAILED" } });
+  const r = await crossPostEdition(editionId, "BLUESKY");
+  revalidatePath(`/admin/editions/${editionId}`);
+  revalidatePath("/admin");
+  if (r === "published" || r === "already-published") return { ok: "Bluesky に投稿しました" };
+  if (r === "running") return { error: "投稿中です。少し待ってから画面を開き直してください" };
+  if (r === "skipped") return { error: "X に投稿済みの回だけを投稿できます" };
+  return { error: "投稿に失敗しました。理由は画面の表示か「記録」を確認してください" };
+}
