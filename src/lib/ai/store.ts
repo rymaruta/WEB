@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { GeneratedArticle } from "./prompt";
 
@@ -7,6 +8,8 @@ export const MIN_PUBLISHERS = Number(process.env.AI_MIN_PUBLISHERS ?? 2);
 const MAX_SOURCES = 12;
 /** 失敗・見送り後に再試行するまでの時間 */
 const RETRY_AFTER_MS = 6 * 3_600_000;
+/** 形式が古い記事（企業名・報じ方・更新履歴がない）を書き直す対象にする期間。今も動きのある話題に限る */
+const UPGRADE_WINDOW_HOURS = 48;
 /** 作り直す場合も、前回からこの時間は空ける */
 const REGENERATE_AFTER_MS = 2 * 3_600_000;
 
@@ -31,7 +34,7 @@ export async function findDueTopics(limit: number, now = Date.now()) {
     take: limit * 4,
     select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true },
   });
-  return candidates
+  const due = candidates
     .filter((t) => {
       if (!t.aiGeneratedAt) {
         // 未作成。前回失敗・見送りなら一定時間あける
@@ -41,6 +44,24 @@ export async function findDueTopics(limit: number, now = Date.now()) {
       return t.publisherCount > t.aiSourceCount;
     })
     .slice(0, limit);
+  if (due.length >= limit) return due;
+
+  // 枠が余ったら、今の形式になる前に書いた記事（更新の記録がないもの）を、今も動きのある話題から順に書き直す
+  const upgrades = await prisma.topic.findMany({
+    where: {
+      id: { notIn: due.map((t) => t.id) },
+      aiGeneratedAt: { not: null },
+      aiHistory: { equals: Prisma.DbNull },
+      lastSeenAt: { gte: new Date(now - UPGRADE_WINDOW_HOURS * 3_600_000) },
+      publisherCount: { gte: MIN_PUBLISHERS },
+      // 書き直しが見送られた記事は、しばらく空けてから
+      aiAttemptedAt: { lt: new Date(now - RETRY_AFTER_MS) },
+    },
+    orderBy: { score: "desc" },
+    take: limit - due.length,
+    select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true },
+  });
+  return [...due, ...upgrades];
 }
 
 /** 材料にする記事。同じ媒体の記事は最初の1本だけを使う */
@@ -63,10 +84,16 @@ export function markAttempted(topicId: number) {
 
 /** 検証済みのまとめ記事を保存する。sourceIds は出典番号 1, 2, ... に対応する記事 ID */
 export async function saveArticle(topicId: number, article: GeneratedArticle, sourceIds: number[], model: string) {
-  const topic = await prisma.topic.findUniqueOrThrow({ where: { id: topicId }, select: { publisherCount: true, aiHistory: true } });
+  const topic = await prisma.topic.findUniqueOrThrow({
+    where: { id: topicId },
+    select: { publisherCount: true, aiHistory: true, aiGeneratedAt: true, aiSourceCount: true },
+  });
   const now = new Date();
+  // 記録を始める前に書いた記事を書き直すときは、最初に作成した時点を履歴の先頭に残す
+  const earlier =
+    !Array.isArray(topic.aiHistory) && topic.aiGeneratedAt ? [{ at: topic.aiGeneratedAt.toISOString(), sources: topic.aiSourceCount }] : [];
   // 作成・更新の記録を残す（記事を黙って書き換えず、いつ・なぜ更新したかを読者に示す）
-  const history = [...(Array.isArray(topic.aiHistory) ? topic.aiHistory : []), { at: now.toISOString(), sources: sourceIds.length }].slice(-20);
+  const history = [...(Array.isArray(topic.aiHistory) ? topic.aiHistory : earlier), { at: now.toISOString(), sources: sourceIds.length }].slice(-20);
   // AI が内容から判定したジャンルがあれば、トピックのジャンルとして使う（媒体の欄による誤りを直す）
   const genre = article.genre ? await prisma.genre.findUnique({ where: { slug: article.genre }, select: { id: true } }) : null;
   await prisma.topic.update({
