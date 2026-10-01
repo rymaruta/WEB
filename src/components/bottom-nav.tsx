@@ -14,6 +14,8 @@ const ITEMS: { href: string; label: string; icon: NavIconName }[] = [
 /** スマホ用の画面下メニュー。片手で主要なページへ移動できるようにする（sm 以上では表示しない） */
 export function BottomNav() {
   const pathname = usePathname();
+  // 管理画面には専用のメニューがある
+  if (pathname.startsWith("/admin")) return null;
   return (
     <nav
       aria-label="メインメニュー"

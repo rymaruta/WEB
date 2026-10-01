@@ -13,7 +13,7 @@ const EXCLUDE_LOOKBACK_HOURS = 30;
  * 配信の候補。新しい出来事は「最初に報じられた時刻」、続報は登録した時刻で新しさを判断する。
  * 夜の「今日これだけ」は、今日すでに配信した出来事も候補に入れる（1日のまとめのため）
  */
-async function loadCandidates(since: Date, includePublished: boolean): Promise<Candidate[]> {
+export async function loadCandidates(since: Date, includePublished: boolean): Promise<Candidate[]> {
   const statuses = ["PENDING", "REVIEW_REQUIRED", "APPROVED", ...(includePublished ? ["PUBLISHED" as const] : [])] as const;
   const stories = await prisma.story.findMany({
     where: {
