@@ -47,9 +47,14 @@ export async function findDueTopics(limit: number, now = Date.now()) {
   if (due.length >= limit) return due;
 
   // 枠が余ったら、今の形式になる前に書いた記事（更新の記録がないもの）を、今も動きのある話題から順に書き直す
-  const upgrades = await prisma.topic.findMany({
+  return [...due, ...(await findUpgradeTopics(limit - due.length, now, due.map((t) => t.id)))];
+}
+
+/** 今の形式になる前に書いた記事（更新の記録がないもの）のうち、今も動きのある話題（話題度の高い順） */
+export function findUpgradeTopics(limit: number, now = Date.now(), excludeIds: number[] = []) {
+  return prisma.topic.findMany({
     where: {
-      id: { notIn: due.map((t) => t.id) },
+      id: { notIn: excludeIds },
       aiGeneratedAt: { not: null },
       aiHistory: { equals: Prisma.DbNull },
       lastSeenAt: { gte: new Date(now - UPGRADE_WINDOW_HOURS * 3_600_000) },
@@ -58,10 +63,9 @@ export async function findDueTopics(limit: number, now = Date.now()) {
       aiAttemptedAt: { lt: new Date(now - RETRY_AFTER_MS) },
     },
     orderBy: { score: "desc" },
-    take: limit - due.length,
+    take: limit,
     select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true },
   });
-  return [...due, ...upgrades];
 }
 
 /** 材料にする記事。同じ媒体の記事は最初の1本だけを使う */
