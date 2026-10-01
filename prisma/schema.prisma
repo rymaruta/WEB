@@ -82,6 +82,8 @@ model Topic {
   title          String
   genreId        Int
   genre          Genre     @relation(fields: [genreId], references: [id])
+  /// AI がまとめ記事を書くときに判定したジャンル（あれば媒体の欄から決めたジャンルより優先する）
+  aiGenreId      Int?
   articleCount   Int       @default(0)
   publisherCount Int       @default(0)
   score          Float     @default(0)
