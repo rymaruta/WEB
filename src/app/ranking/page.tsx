@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 import { ArticleRanking } from "@/components/article-ranking";
 import { SectionHeading } from "@/components/section-heading";
+import { RisingList } from "@/components/rising-list";
 import { TopicList } from "@/components/topic-card";
-import { getMostRead, getSocialBuzz, getTrendingTopics, TRENDING_HOURS } from "@/lib/queries";
+import { getMostRead, getRisingTopics, getSocialBuzz, getTrendingTopics, TRENDING_HOURS } from "@/lib/queries";
+
+/** 急上昇の対象期間 */
+const RISING_HOURS = 3;
 
 export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "ニュースランキング",
-  description: "いま多くの媒体が報じているニュース、よく読まれている記事、SNSで話題の記事のランキング。",
+  description: "いま急上昇しているニュース、多くの媒体が報じているニュース、よく読まれている記事、SNSで話題の記事のランキング。",
   alternates: { canonical: "/ranking" },
 };
 
 export default async function RankingPage() {
-  const [topics, mostRead, buzz] = await Promise.all([
+  const [rising, topics, mostRead, buzz] = await Promise.all([
+    getRisingTopics(RISING_HOURS, 10),
     getTrendingTopics({ minPublishers: 2, take: 20 }),
     getMostRead(20),
     getSocialBuzz(20),
@@ -22,7 +27,12 @@ export default async function RankingPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-extrabold">ランキング</h1>
-      <p className="text-sm text-fg-muted">直近{TRENDING_HOURS}時間のニュースが対象です。</p>
+      <section className="card p-4">
+        <SectionHeading title={`急上昇（直近${RISING_HOURS}時間）`} />
+        <p className="mb-1 text-xs text-fg-subtle">いま報じる媒体が急に増えている話題。新しく報じた媒体の数と、それまでからの伸びで並べています</p>
+        <RisingList items={rising} hours={RISING_HOURS} />
+      </section>
+      <p className="text-sm text-fg-muted">ここから下は、直近{TRENDING_HOURS}時間のニュースが対象です。</p>
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="min-w-0 card p-4">
           <SectionHeading title="話題のトピック" />

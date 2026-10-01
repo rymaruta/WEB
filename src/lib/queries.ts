@@ -289,3 +289,33 @@ export async function findCompaniesByName(q: string, take: number) {
   const all = await getTopCompanies(90, 2000);
   return all.filter((c) => fold(c.name).includes(key)).slice(0, take);
 }
+
+/** 急上昇：直近 hours 時間に新しく報じた媒体の数が多い話題（それ以前と比べて伸びているほど上） */
+export const getRisingTopics = cache(async (hours: number, take: number) => {
+  const rows = await prisma.$queryRaw<{ topicId: number; recent: bigint; before: bigint }[]>`
+    WITH a AS (
+      SELECT ar."topicId", ar.publisher, MIN(ar."publishedAt") AS first
+      FROM "Article" ar
+      JOIN "Source" s ON s.id = ar."sourceId"
+      WHERE ar."topicId" IS NOT NULL AND s.kind = 'NEWS' AND ar."publishedAt" >= ${since(TRENDING_HOURS)}
+      GROUP BY ar."topicId", ar.publisher
+    )
+    SELECT "topicId",
+      COUNT(*) FILTER (WHERE first >= ${since(hours)}) AS recent,
+      COUNT(*) FILTER (WHERE first < ${since(hours)}) AS before
+    FROM a
+    GROUP BY "topicId"
+    HAVING COUNT(*) FILTER (WHERE first >= ${since(hours)}) >= 2`;
+  const ranked = rows
+    .map((r) => ({ id: r.topicId, recent: Number(r.recent), before: Number(r.before) }))
+    // 新しく報じた媒体の数に、それ以前と比べた伸びを加える（以前から大きい話題より、いま広がっている話題を上に）
+    .map((r) => ({ ...r, rise: r.recent + r.recent / (r.before + 1) }))
+    .sort((a, b) => b.rise - a.rise)
+    .slice(0, take);
+  const topics = await prisma.topic.findMany({ where: { id: { in: ranked.map((r) => r.id) } }, include: topicCardInclude });
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  return ranked.flatMap((r) => {
+    const topic = byId.get(r.id);
+    return topic ? [{ topic, recent: r.recent }] : [];
+  });
+});
