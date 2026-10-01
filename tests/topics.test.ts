@@ -81,4 +81,15 @@ describe("topicScore", () => {
       topicScore({ ...base, publisherCount: 3, lastSeenAt: at(0) }, now),
     );
   });
+  it("5媒体が1時間前に報じた出来事は、2媒体が直前に報じた話題より上", () => {
+    const now = at(12);
+    const big = topicScore({ publisherCount: 5, articleCount: 5, socialCount: 0, clicks: 0, lastSeenAt: at(11) }, now);
+    const fresh = topicScore({ publisherCount: 2, articleCount: 2, socialCount: 20, clicks: 0, lastSeenAt: at(12) }, now);
+    expect(big).toBeGreaterThan(fresh);
+  });
+  it("ゲーム・アニメや新商品は、同じ条件なら控えめにする", () => {
+    const now = at(12);
+    const s = { publisherCount: 3, articleCount: 3, socialCount: 0, clicks: 0, lastSeenAt: at(11) };
+    expect(topicScore({ ...s, genreSlug: "game" }, now)).toBeLessThan(topicScore({ ...s, genreSlug: "domestic" }, now));
+  });
 });

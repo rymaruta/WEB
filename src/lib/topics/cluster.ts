@@ -133,25 +133,30 @@ export async function refreshTopics(topicIds: number[]) {
 export async function rescoreTopics(now = new Date()) {
   const since = hoursAgo(SCORE_WINDOW_HOURS, now);
   const rows = await prisma.$queryRaw<
-    { id: number; publisherCount: number; articleCount: number; lastSeenAt: Date; social: number; clicks: number }[]
+    { id: number; newsPublishers: number; articleCount: number; lastSeenAt: Date; social: number; clicks: number; genre: string | null }[]
   >`
-    SELECT t.id, t."publisherCount", t."articleCount", t."lastSeenAt",
+    SELECT t.id, t."articleCount", t."lastSeenAt", g.slug AS genre,
+           count(DISTINCT a.publisher) FILTER (WHERE s.kind <> 'PRESS')::int AS "newsPublishers",
            coalesce(sum(a."socialCount"), 0)::int AS social,
            coalesce(sum(a.clicks), 0)::int AS clicks
     FROM "Topic" t
+    LEFT JOIN "Genre" g ON g.id = t."genreId"
     LEFT JOIN "Article" a ON a."topicId" = t.id
+    LEFT JOIN "Source" s ON s.id = a."sourceId"
     WHERE t."lastSeenAt" >= ${since}
-    GROUP BY t.id`;
+    GROUP BY t.id, g.slug`;
 
   for (const part of chunk(rows, 10_000)) {
     const values = part.map(
       (r) =>
         Prisma.sql`(${r.id}::int, ${topicScore({
-          publisherCount: r.publisherCount,
+          // 企業プレスリリースは、報じた媒体の数に入れない（宣伝が「話題」に見えないように）
+          publisherCount: r.newsPublishers,
           articleCount: r.articleCount,
           socialCount: r.social,
           clicks: r.clicks,
           lastSeenAt: r.lastSeenAt,
+          genreSlug: r.genre ?? undefined,
         }, now)}::float8)`,
     );
     await prisma.$executeRaw`
