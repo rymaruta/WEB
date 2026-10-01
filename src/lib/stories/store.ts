@@ -106,9 +106,25 @@ async function enqueueTopicFollowups(now: number): Promise<number> {
   return created;
 }
 
-/** 解析待ちのストーリー（話題度の高い順） */
-export function findQueued(limit: number) {
-  return prisma.story.findMany({ where: { status: "QUEUED" }, orderBy: { score: "desc" }, take: limit, select: { id: true, topicId: true } });
+/** 先に解析するジャンル（朝・夜の配信は政治・経済・国際を1本以上載せるため、これらの解析が後回しにならないように） */
+const HARD_NEWS_GENRES = new Set(["domestic", "world", "business"]);
+
+/**
+ * 解析待ちのストーリー。国内・国際・経済の話題を先に、その中は話題度の高い順。
+ * 夜のあいだに話題がたまったとき、試合の談話記事などで解析の枠が埋まり、朝の配信の候補が足りなくなるのを防ぐ。
+ */
+export async function findQueued(limit: number) {
+  const rows = await prisma.story.findMany({
+    where: { status: "QUEUED" },
+    orderBy: { score: "desc" },
+    take: limit * 5,
+    select: { id: true, topicId: true, score: true, topic: { select: { genre: { select: { slug: true } } } } },
+  });
+  const hard = (r: (typeof rows)[number]) => (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? 0 : 1);
+  return rows
+    .sort((a, b) => hard(a) - hard(b) || b.score - a.score)
+    .slice(0, limit)
+    .map(({ id, topicId }) => ({ id, topicId }));
 }
 
 /** 続報の差分の解析待ち */

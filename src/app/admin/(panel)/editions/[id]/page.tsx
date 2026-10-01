@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { candidatePool, editionDetail } from "@/lib/digest/admin";
 import { prisma } from "@/lib/db";
 import { blueskyCredentialsFromEnv, blueskyPostUrl } from "@/lib/social/bluesky";
-import { autoApproveEnabled, isBeforeBuild, jstTime, SLOTS, type Slot } from "@/lib/digest/slots";
+import { autoApproveEnabled, isBeforeBuild, isPastPublish, jstTime, SLOTS, type Slot } from "@/lib/digest/slots";
 import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
   addAction,
@@ -12,6 +12,7 @@ import {
   editAction,
   moveAction,
   postTextAction,
+  publishAfterTimeAction,
   publishNowAction,
   rebuildAction,
   cancelAction,
@@ -30,6 +31,8 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
   const pool = editable ? await candidatePool(id) : [];
   // 下書きを作る時刻の前か（取り消すと、その時刻に自動で作り直される）
   const buildPending = isBeforeBuild(edition.date, edition.slot as Slot);
+  // 投稿の時刻を過ぎた回は、承認しても自動では投稿されない（今すぐ投稿するボタンを出す）
+  const pastTime = isPastPublish(edition.scheduledAt);
   const needReview = items.filter((i) => i.story?.status === "REVIEW_REQUIRED" && !i.confirmed).length;
   const publication = await prisma.publication.findUnique({
     where: { editionId_channel: { editionId: id, channel: "X" } },
@@ -85,7 +88,9 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
         ) : edition.status === "APPROVED" || edition.status === "FAILED" ? (
           <div className="space-y-2">
             {edition.status === "APPROVED" ? (
-              <p className="font-bold text-emerald-700 dark:text-emerald-400">承認済みです。予定の時刻に投稿されます。</p>
+              <p className="font-bold text-emerald-700 dark:text-emerald-400">
+                {pastTime ? "承認済みですが、投稿の時刻を過ぎています。出すときは「今すぐ X に投稿する」を押してください。" : "承認済みです。予定の時刻に投稿されます。"}
+              </p>
             ) : (
               <p className="whitespace-pre-line text-sm font-bold text-accent">投稿に失敗しました。{publication?.lastError ? `\n${publication.lastError}` : ""}</p>
             )}
@@ -96,14 +101,27 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
           </div>
         ) : editable ? (
           <div className="space-y-2">
-            {edition.status === "DRAFT" && autoApproveEnabled() && needReview === 0 && (
+            {pastTime ? (
+              <p className="text-sm font-bold text-accent">
+                投稿の時刻（{jstTime(edition.scheduledAt)}）を過ぎたため、この回は自動では投稿されません。出すときは「この内容で今すぐ投稿する」を押してください。カードの時刻は、投稿した時刻になります。
+              </p>
+            ) : edition.status === "DRAFT" && autoApproveEnabled() && needReview === 0 && (
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
                 おまかせ投稿です。確認しなくても {jstTime(edition.scheduledAt)} に自動で投稿されます。気になる点があるときだけ直してください。
               </p>
             )}
             {needReview > 0 && <p className="text-sm font-bold text-accent">要確認のニュースが {needReview} 本あります。内容を確かめて「確認した」を押してください（確認されないままだと、この回は見送りになります）。</p>}
             <div className="flex flex-wrap gap-2">
-              <ActionButton action={approveAction.bind(null, id)} label="この内容で承認する" tone="primary" />
+              {pastTime ? (
+                <ActionButton
+                  action={publishAfterTimeAction.bind(null, id)}
+                  label="この内容で今すぐ投稿する"
+                  tone="primary"
+                  confirm="この内容で、いますぐ X に投稿します。カードの時刻は投稿した時刻になります。よろしいですか？（取り消しはできません）"
+                />
+              ) : (
+                <ActionButton action={approveAction.bind(null, id)} label="この内容で承認する" tone="primary" />
+              )}
               <ActionButton action={rebuildAction.bind(null, id)} label="選び直す" confirm="今の下書きを捨てて、候補から選び直しますか？" />
               <ActionButton
                 action={cancelAction.bind(null, id)}

@@ -159,11 +159,14 @@ export async function setPostText(editionId: string, lines: string[] | null) {
   await log(editionId, "post-text", e.postText, clean);
 }
 
-/** 承認。要確認のストーリーは、すべて確認済みにしてからでないと承認できない */
-export async function approveEdition(editionId: string, now = new Date()) {
+/**
+ * 承認。要確認のストーリーは、すべて確認済みにしてからでないと承認できない。
+ * 投稿の時刻を過ぎた回は、承認しても自動では投稿されないため、afterTime（今すぐ投稿する）のときだけ承認できる
+ */
+export async function approveEdition(editionId: string, now = new Date(), opts: { afterTime?: boolean } = {}) {
   const e = await editableEdition(editionId);
   if (e.items.length === 0) throw new AdminError("載せるニュースがありません");
-  if (now >= e.scheduledAt) throw new AdminError("投稿の時刻を過ぎています");
+  if (now >= e.scheduledAt && !opts.afterTime) throw new AdminError("投稿の時刻を過ぎています。「この内容で今すぐ投稿する」を使ってください");
   const stories = await prisma.story.findMany({ where: { id: { in: e.items.map((i) => i.storyId) } }, select: { id: true, status: true } });
   const review = new Set(stories.filter((s) => s.status === "REVIEW_REQUIRED").map((s) => s.id));
   const unconfirmed = e.items.filter((i) => review.has(i.storyId) && !i.confirmed);

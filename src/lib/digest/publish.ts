@@ -25,23 +25,24 @@ export async function publishEdition(editionId: string) {
   }
 }
 
-/** 予定の時刻からこれ以上遅れて投稿するときは、カードの時刻を投稿の時刻に直す */
-export const LATE_MINUTES = 10;
+/** 予定の時刻からこれ以上ずれて投稿するときは、カードの時刻を投稿の時刻に直す（定時の自動投稿はずれない） */
+export const OFF_SCHEDULE_MINUTES = 3;
 
 /**
- * 定時の回を予定より遅れて投稿するとき（見送った回を出し直すときなど）、カードに入る時刻を実際の投稿時刻にする。
- * 「7:00」と書かれたカードが8時台に投稿されるような、時刻のずれを防ぐ。まだ1件も送っていない回だけを直す。
+ * 定時の回を予定の時刻と違う時刻に投稿するとき（管理画面から早めに・遅れて手動で投稿するときなど）、
+ * カードに入る時刻を実際の投稿時刻にする。「7:00」と書かれたカードが8時台に投稿されるような、時刻のずれを防ぐ。
+ * まだ1件も送っていない回だけを直す。
  */
-export async function stampLateEdition(editionId: string, now = new Date()) {
+export async function stampPostTime(editionId: string, now = new Date()) {
   const e = await prisma.edition.findUnique({
     where: { id: editionId },
     select: { slot: true, scheduledAt: true, publications: { select: { parts: { where: { externalId: { not: null } }, select: { position: true } } } } },
   });
   if (!e || e.slot === "BREAKING") return false;
-  if (now.getTime() - e.scheduledAt.getTime() < LATE_MINUTES * 60_000) return false;
+  if (Math.abs(now.getTime() - e.scheduledAt.getTime()) < OFF_SCHEDULE_MINUTES * 60_000) return false;
   if (e.publications.some((p) => p.parts.length > 0)) return false;
   await prisma.edition.update({ where: { id: editionId }, data: { scheduledAt: now } });
-  await logEvent("info", "x.publish", `予定より遅れて投稿するため、カードの時刻を ${now.toISOString()} にしました`, editionId);
+  await logEvent("info", "x.publish", `予定の時刻と違う時刻に投稿するため、カードの時刻を ${now.toISOString()} にしました`, editionId);
   return true;
 }
 
@@ -75,8 +76,8 @@ async function publish(editionId: string) {
   if (!creds) throw new PublishError("X の認証情報が設定されていません");
   // 速報は、投稿文とカードの時刻を実際に投稿する時刻に合わせる
   await (await import("./breaking")).stampBreakingTime(editionId);
-  // 定時の回を予定より遅れて投稿するときも、カードの時刻を実際に投稿する時刻にする
-  await stampLateEdition(editionId);
+  // 定時の回を予定と違う時刻に投稿するとき（手動で早め・遅れて投稿するとき）も、カードの時刻を実際に投稿する時刻にする
+  await stampPostTime(editionId);
   const loaded = await loadForPublish(editionId);
   if (!loaded) throw new PublishError("配信回が見つかりません");
   const { edition, cards, plan } = loaded;
