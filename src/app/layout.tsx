@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   openGraph: { siteName: siteConfig.name, locale: "ja_JP", type: "website" },
   twitter: { card: "summary_large_image" },
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: `${siteConfig.name}（まとめ記事）` }] } },
 };
 
 export const viewport: Viewport = {
