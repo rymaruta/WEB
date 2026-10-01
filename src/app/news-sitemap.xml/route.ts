@@ -1,9 +1,8 @@
 import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/db";
+import { xml } from "@/lib/xml";
 
 export const revalidate = 600;
-
-const xml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
 
 /**
  * Google ニュース用のサイトマップ。直近2日に作成・更新したまとめ記事だけを載せる（Google ニュースの決まり）

@@ -13,6 +13,7 @@ export function SiteFooter() {
           <Link href="/digest" className="rounded px-2 py-2 hover:text-fg">配信アーカイブ</Link>
           <Link href="/company" className="rounded px-2 py-2 hover:text-fg">企業別ニュース</Link>
           <Link href="/saved" className="rounded px-2 py-2 hover:text-fg">あとで読む</Link>
+          <a href="/feed.xml" className="rounded px-2 py-2 hover:text-fg">RSS</a>
           <Link href="/about" className="rounded px-2 py-2 hover:text-fg">運営方針・お問い合わせ</Link>
           <Link href="/sources" className="rounded px-2 py-2 hover:text-fg">掲載メディア</Link>
           <Link href="/privacy" className="rounded px-2 py-2 hover:text-fg">プライバシーポリシー</Link>
