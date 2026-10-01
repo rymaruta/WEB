@@ -74,10 +74,11 @@ export type Selection = {
 
 /**
  * @param excludeThreads 前の配信回に載った出来事。新しい事実がない限り、もう一度は載せない
+ * @param opts.verifiedOnly 人の確認が要る（REVIEW_REQUIRED）ストーリーを選ばない。おまかせ投稿の回で使う
  */
-export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, excludeThreads: Set<string>): Selection {
+export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, excludeThreads: Set<string>, opts: { verifiedOnly?: boolean } = {}): Selection {
   const scored = candidates.map((c) => ({ ...scoreCandidate(c), candidate: c }));
-  const eligible = scored.filter((s) => ELIGIBLE_STATUSES.has(s.candidate.status));
+  const eligible = scored.filter((s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !(opts.verifiedOnly && s.candidate.status === "REVIEW_REQUIRED"));
   const strong = eligible.filter((s) => s.score >= MIN_SCORE).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   const excluded = strong.filter((s) => s.candidate.kind === "NEW" && s.candidate.threadId && excludeThreads.has(s.candidate.threadId));
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { candidatePool, editionDetail } from "@/lib/digest/admin";
 import { prisma } from "@/lib/db";
-import { jstTime } from "@/lib/digest/slots";
+import { autoApproveEnabled, jstTime } from "@/lib/digest/slots";
 import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
   addAction,
@@ -70,7 +70,12 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
           </div>
         ) : editable ? (
           <div className="space-y-2">
-            {needReview > 0 && <p className="text-sm font-bold text-accent">要確認のニュースが {needReview} 本あります。内容を確かめて「確認した」を押してください。</p>}
+            {edition.status === "DRAFT" && autoApproveEnabled() && needReview === 0 && (
+              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                おまかせ投稿です。確認しなくても {jstTime(edition.scheduledAt)} に自動で投稿されます。気になる点があるときだけ直してください。
+              </p>
+            )}
+            {needReview > 0 && <p className="text-sm font-bold text-accent">要確認のニュースが {needReview} 本あります。内容を確かめて「確認した」を押してください（確認されないままだと、この回は見送りになります）。</p>}
             <div className="flex flex-wrap gap-2">
               <ActionButton action={approveAction.bind(null, id)} label="この内容で承認する" tone="primary" />
               <ActionButton action={rebuildAction.bind(null, id)} label="選び直す" confirm="今の下書きを捨てて、候補から選び直しますか？" />

@@ -4,7 +4,7 @@ import { logEvent } from "@/lib/events";
 import type { Assessment, Category, Sourced } from "@/lib/stories/schema";
 import { composePostText, type EditionEntry, type EditionView } from "./compose";
 import { selectForEdition, type Candidate } from "./select";
-import { editionKey, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
+import { autoApproveEnabled, editionKey, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
 
 /** 前の配信回に載った出来事を、どこまでさかのぼって除外するか */
 const EXCLUDE_LOOKBACK_HOURS = 30;
@@ -90,7 +90,7 @@ export async function buildEdition(slot: Slot, now = new Date()) {
   if (existing) return { created: false as const, id: existing.id, status: existing.status };
 
   const candidates = await loadCandidates(new Date(now.getTime() - cfg.windowHours * 3_600_000), cfg.allowRepeatToday);
-  const selection = selectForEdition(candidates, cfg, await previousThreads(slot, date, now));
+  const selection = selectForEdition(candidates, cfg, await previousThreads(slot, date, now), { verifiedOnly: autoApproveEnabled() });
   const picked = [
     ...selection.main.map((s) => ({ ...s, role: "MAIN" as const })),
     ...selection.followups.map((s) => ({ ...s, role: "FOLLOWUP" as const })),
