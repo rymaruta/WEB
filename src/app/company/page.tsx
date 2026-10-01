@@ -6,6 +6,9 @@ import { CompanyFinder } from "./company-finder";
 
 export const revalidate = 600;
 
+const WEEK_MS = 7 * 86_400_000;
+const isThisWeek = (d: Date) => Date.now() - d.getTime() < WEEK_MS;
+
 export const metadata: Metadata = {
   title: "企業別ニュース",
   description: "ニュースで取り上げられた企業ごとに、その企業のニュースだけをまとめて読めます。企業名で検索できます。",
@@ -22,6 +25,7 @@ export default async function CompaniesPage() {
     genreSlug: r.genreSlug,
     genreName: r.genreName,
     href: companyPath(r.name),
+    thisWeek: isThisWeek(r.lastSeenAt),
   }));
 
   return (
