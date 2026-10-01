@@ -170,19 +170,29 @@ describe("投稿文", () => {
   it("1行目は日付と回の名前、2行目以降は1本1行の見出し", () => {
     const es = [entry(), entry({ position: 2, headline: ["Googleが最新AI", "Gemini 4 Argon"] })];
     expect(composePostText("MORNING", "2026-10-02", es)).toEqual([
-      "10/2(金) 朝のニュース",
-      "ニデック、不正会計で6321億円の減損",
-      "Googleが最新AI Gemini 4 Argon",
+      "☀️ 10/2(金) 朝のニュース",
+      "",
+      "① ニデック、不正会計で6321億円の減損",
+      "② Googleが最新AI Gemini 4 Argon",
+      "",
+      "画像をスワイプで詳しく👉",
     ]);
   });
   it("続報は「続報：」を付ける", () => {
     const es = [entry(), entry({ position: 2, role: "FOLLOWUP", headline: ["ホルムズ海峡", "通航が再開"] })];
-    expect(composePostText("EVENING", "2026-10-01", es)).toEqual(["10/1(木) 夜のニュース", "ニデック、不正会計で6321億円の減損", "続報：ホルムズ海峡通航が再開"]);
+    expect(composePostText("EVENING", "2026-10-01", es)).toEqual([
+      "🌙 10/1(木) 夜のニュース",
+      "",
+      "① ニデック、不正会計で6321億円の減損",
+      "② 続報：ホルムズ海峡通航が再開",
+      "",
+      "画像をスワイプで詳しく👉",
+    ]);
   });
   it("X の文字数上限（全角140字）に収まるよう、後ろの行を削る", () => {
     const es = [1, 2, 3, 4, 5, 6, 7, 8].map((p) => entry({ position: p, headline: ["あいうえおかきくけこさし", "たちつてとなにぬねのはひ"] }));
     const text = composePostText("LUNCH", "2026-10-01", es);
-    expect(text[0]).toBe("10/1(木) 昼のニュース");
+    expect(text[0]).toBe("🕛 10/1(木) 昼のニュース");
     expect(text.length).toBeLessThan(9);
     expect(textWidth(text.join("\n"))).toBeLessThanOrEqual(LIMITS.postTotalWidth);
     for (const line of text) expect(textWidth(line)).toBeLessThanOrEqual(LIMITS.postWidth);
