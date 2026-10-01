@@ -123,7 +123,8 @@ export type IndexCard = {
   mainCount: number;
   /** 昼は番号の代わりに時刻を出す */
   timed: boolean;
-  entries: { label: string; color: string; text: string; time: string; role: "MAIN" | "FOLLOWUP" }[];
+  /** detail は見出しの下に添える一番の要点（続報は「現在」） */
+  entries: { label: string; color: string; text: string; detail: string; time: string; role: "MAIN" | "FOLLOWUP" }[];
 };
 
 export type NewsCard = {
@@ -231,6 +232,7 @@ export function buildCards(view: EditionView): Card[] {
       label: e.role === "FOLLOWUP" ? "続報" : label(e),
       color: e.role === "FOLLOWUP" ? FOLLOWUP_COLOR : color(e),
       text: e.shortTitle,
+      detail: (e.role === "FOLLOWUP" ? e.delta?.now.text : e.points[0]?.text) ?? "",
       time: jstTime(e.firstSeenAt),
       role: e.role,
     })),
@@ -293,7 +295,7 @@ export function altText(card: Card): string {
     case "INDEX":
       text = [
         `${card.title}（${card.dateLabel} ${card.time}）`,
-        ...card.entries.map((e, i) => `${card.timed ? e.time : i + 1}. ${e.label ? `［${e.label}］` : ""}${e.text}`),
+        ...card.entries.map((e, i) => `${card.timed ? e.time : i + 1}. ${e.label ? `［${e.label}］` : ""}${e.text}${e.detail ? `（${e.detail}）` : ""}`),
       ].join("\n");
       break;
     case "NEWS":
