@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
+import { notifyOwner } from "@/lib/notify";
 import { publishEdition } from "./publish";
-import { autoApproveEnabled, editionKey, jstDate, type Slot } from "./slots";
+import { autoApproveEnabled, editionKey, jstDate, SLOTS, type Slot } from "./slots";
 
 export type ScheduledResult =
   | { result: "published"; editionId: string }
@@ -17,8 +18,12 @@ export type ScheduledResult =
  * - それ以外（投稿済み・見送り済み・失敗）→ 何もしない（失敗は人が確かめてから再実行する）
  */
 export async function runScheduledPublish(slot: Slot, now = new Date()): Promise<ScheduledResult> {
+  const name = SLOTS[slot].title;
   const edition = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(now), slot) }, select: { id: true, key: true, status: true } });
-  if (!edition) return { result: "noop" };
+  if (!edition) {
+    await notifyOwner(`${name}の下書きが作られていなかったため、投稿しませんでした。ログを確認してください。`);
+    return { result: "noop" };
+  }
 
   if (edition.status === "DRAFT" && autoApproveEnabled()) {
     // 管理画面で後から足した要確認のニュースが、確認されないまま残っていれば出さない
@@ -39,15 +44,21 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
       return { result: "published", editionId: edition.id };
     } catch (e) {
       // 失敗の記録（FAILED と理由）は publishEdition が残す
-      return { result: "failed", editionId: edition.id, error: e instanceof Error ? e.message : String(e) };
+      const error = e instanceof Error ? e.message : String(e);
+      await notifyOwner(`${name}の X への投稿に失敗しました。管理画面の「続きを投稿する」で再実行できます（送った分は重複しません）。\n${error.slice(0, 200)}`);
+      return { result: "failed", editionId: edition.id, error };
     }
   }
 
   if (edition.status === "DRAFT") {
     await prisma.edition.update({ where: { id: edition.id }, data: { status: "SKIPPED" } });
     await logEvent("warn", "digest.skip", `${edition.key}: 承認されなかった（または確認待ちのニュースが残っていた）ため見送りました`, edition.id);
+    await notifyOwner(`${name}は、確認待ちのニュースが残っていた（または承認されなかった）ため見送りました。`);
     return { result: "skipped", editionId: edition.id };
   }
 
+  if (edition.status === "SKIPPED") {
+    await notifyOwner(`${name}は、載せられるニュースが足りなかったため見送りました。`);
+  }
   return { result: "noop", editionId: edition.id, status: edition.status };
 }

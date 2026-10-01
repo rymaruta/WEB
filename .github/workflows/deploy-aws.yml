@@ -59,7 +59,7 @@ jobs:
           GH_X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: |
           # GitHub Secrets を優先し、なければ Parameter Store から読む。値はログに出さない
-          for name in DATABASE_URL DATABASE_URL_UNPOOLED CRON_SECRET ANTHROPIC_API_KEY ADMIN_PASSWORD ADMIN_SESSION_SECRET X_CONSUMER_KEY X_CONSUMER_SECRET X_ACCESS_TOKEN X_ACCESS_TOKEN_SECRET; do
+          for name in DATABASE_URL DATABASE_URL_UNPOOLED CRON_SECRET ANTHROPIC_API_KEY ADMIN_PASSWORD ADMIN_SESSION_SECRET X_CONSUMER_KEY X_CONSUMER_SECRET X_ACCESS_TOKEN X_ACCESS_TOKEN_SECRET X_NOTIFY_USER_ID; do
             gh_var="GH_${name}"
             value="${!gh_var}"
             source="GitHub Secrets"
@@ -135,7 +135,7 @@ jobs:
         run: |
           # 値が空の環境変数は渡さない（DATABASE_URL・CRON_SECRET・ANTHROPIC_API_KEY は Load secrets で設定済み）
           environment=$(jq -n 'env
-            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","ADMIN_PASSWORD","ADMIN_SESSION_SECRET","X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED","HOSTNAME")))
+            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","ADMIN_PASSWORD","ADMIN_SESSION_SECRET","X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET","X_NOTIFY_USER_ID","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED","HOSTNAME")))
             | with_entries(select(.value != ""))')
           containers=$(jq -n --arg image "$IMAGE" --argjson environment "$environment" \
             '{web: {image: $image, environment: $environment, ports: {"3000": "HTTP"}}}')

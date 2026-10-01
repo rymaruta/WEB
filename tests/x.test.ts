@@ -30,3 +30,11 @@ describe("OAuth 1.0a の署名", () => {
     for (const k of ["oauth_consumer_key", "oauth_nonce", "oauth_signature", "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_version"]) expect(h).toContain(`${k}=`);
   });
 });
+
+describe("notifyOwner", () => {
+  it("宛先か X の認証情報がなければ何もしない", async () => {
+    const { notifyOwner } = await import("@/lib/notify");
+    expect(await notifyOwner("test", {})).toBe(false);
+    expect(await notifyOwner("test", { X_NOTIFY_USER_ID: "123" })).toBe(false);
+  });
+});
