@@ -7,6 +7,8 @@ import { SearchConsoleSection } from "./search-console";
 
 const DAYS = 14;
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+
 function daysBack(n: number): string[] {
   const now = Date.now();
   return Array.from({ length: n }, (_, i) => jstDate(new Date(now - i * 86_400_000)));
@@ -16,12 +18,18 @@ function daysBack(n: number): string[] {
 export default async function AnalyticsPage() {
   const days = daysBack(DAYS);
   const [today, yesterday] = days;
-  const [traffic, pagesToday, pagesWeek, editions] = await Promise.all([
+  const [traffic, pagesToday, pagesWeek, editions, feedback] = await Promise.all([
     prisma.trafficDaily.findMany({ where: { date: { in: days } } }),
     prisma.pageDaily.findMany({ where: { date: today }, orderBy: { views: "desc" }, take: 10 }),
     prisma.pageDaily.groupBy({ by: ["path"], where: { date: { in: days.slice(0, 7) } }, _sum: { views: true }, orderBy: { _sum: { views: "desc" } }, take: 10 }),
     prisma.edition.findMany({ where: { date: { in: days.slice(0, 7) }, slot: { not: "BREAKING" } }, select: { date: true, slot: true, status: true }, orderBy: { scheduledAt: "desc" } }),
+    // 直近7日に評価があった記事（「分かりにくい」の多い順）
+    prisma.topicFeedback.findMany({ where: { updatedAt: { gte: daysAgo(7) } }, orderBy: [{ unclear: "desc" }, { helpful: "desc" }], take: 50 }),
   ]);
+  const fbTopics = await prisma.topic.findMany({ where: { id: { in: feedback.map((f) => f.topicId) } }, select: { id: true, aiTitle: true, title: true } });
+  const fbTitle = new Map(fbTopics.map((t) => [t.id, t.aiTitle ?? t.title]));
+  const fbHelpful = feedback.reduce((a, f) => a + f.helpful, 0);
+  const fbUnclear = feedback.reduce((a, f) => a + f.unclear, 0);
 
   const byDay = new Map<string, Map<string, number>>();
   for (const t of traffic) {
@@ -122,6 +130,33 @@ export default async function AnalyticsPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="card p-4">
+        <h2 className="mb-2 text-sm font-bold text-fg-muted">記事への評価（直近7日）</h2>
+        <p className="text-sm">
+          役に立った <strong className="tabular-nums">{fbHelpful}</strong> ／ 分かりにくい <strong className="tabular-nums">{fbUnclear}</strong>
+        </p>
+        {feedback.filter((f) => f.unclear > 0).length > 0 && (
+          <>
+            <h3 className="mt-3 mb-1 text-xs font-bold">「分かりにくい」が多い記事</h3>
+            <ol className="space-y-1 text-xs">
+              {feedback
+                .filter((f) => f.unclear > 0)
+                .slice(0, 10)
+                .map((f) => (
+                  <li key={f.topicId} className="flex justify-between gap-2">
+                    <Link href={`/topic/${f.topicId}`} className="truncate text-accent hover:underline">
+                      {fbTitle.get(f.topicId) ?? `#${f.topicId}`}
+                    </Link>
+                    <span className="shrink-0 tabular-nums text-fg-muted">
+                      分かりにくい {f.unclear}・役に立った {f.helpful}
+                    </span>
+                  </li>
+                ))}
+            </ol>
+          </>
+        )}
       </section>
 
       <section className="card p-4">

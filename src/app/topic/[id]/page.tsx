@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
+import { FeedbackButtons } from "@/components/feedback-buttons";
 import { GenreBadge } from "@/components/genre-badge";
 import { GenreIcon } from "@/components/genre-icon";
 import { OutboundLink } from "@/components/outbound-link";
@@ -128,8 +129,11 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 showTitle={false}
                 reportHref={`mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent(`【誤りの報告】${ai.title}`)}&body=${encodeURIComponent(`${siteConfig.url}/topic/${topic.id}\n\n誤っている箇所：\n正しい内容（分かれば出典も）：\n`)}`}
               />
-              {/* 共有は読み終えた位置に置く（本文より先に並べると、読む前に場所を取る） */}
               <div className="mt-4">
+                <FeedbackButtons topicId={topic.id} />
+              </div>
+              {/* 共有は読み終えた位置に置く（本文より先に並べると、読む前に場所を取る） */}
+              <div className="mt-3">
                 <ShareButtons title={ai.title} url={`${siteConfig.url}/topic/${topic.id}`} />
               </div>
             </div>
