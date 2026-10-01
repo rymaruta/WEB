@@ -32,6 +32,6 @@ describe("サイト・パンくずの構造化データ", () => {
     expect(b.itemListElement.map((i) => i.position)).toEqual([1, 2]);
     expect(b.itemListElement[1].item).toMatch(/\/genre\/business$/);
     const s = siteJsonLd();
-    expect(s["@graph"][1].sameAs).toContain("https://x.com/ZenbuNavi");
+    expect((s["@graph"][1] as { sameAs: string[] }).sameAs).toContain("https://x.com/ZenbuNavi");
   });
 });
