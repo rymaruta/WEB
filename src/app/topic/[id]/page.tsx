@@ -40,8 +40,9 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
     alternates: { canonical: `/topic/${topic.id}` },
     // openGraph はレイアウトの値を丸ごと置き換えるため、サイト名と言語もここで指定する
     openGraph: { title, description: summary, type: "article", siteName: siteConfig.name, locale: "ja_JP" },
-    // 単独記事のトピックは独自の付加価値が小さいため検索エンジンに登録しない
-    robots: topic.publisherCount < 2 ? { index: false, follow: true } : undefined,
+    // 検索エンジンに登録するのは、独自の文章（AI まとめ記事）があるトピックだけ。
+    // 見出しと元記事へのリンクだけのページは付加価値が小さいため登録しない
+    robots: ai ? undefined : { index: false, follow: true },
   };
 }
 

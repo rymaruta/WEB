@@ -51,6 +51,13 @@ export default function AboutPage() {
       </section>
 
       <section>
+        <h2 className="mb-2 text-lg font-bold">個人情報・広告・アクセス解析</h2>
+        <p>
+          取り扱いの詳細は<Link href="/privacy" className="text-accent underline">プライバシーポリシー</Link>をご覧ください。
+        </p>
+      </section>
+
+      <section>
         <h2 className="mb-2 text-lg font-bold">アクセス解析について</h2>
         <p>
           サイト改善のため、Amazon CloudWatch RUM でページの閲覧数や閲覧環境（ブラウザー・端末の種類など）を集計しています。Cookie は使用せず、個人を特定できる情報は収集しません。
