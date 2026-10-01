@@ -2,6 +2,7 @@ import { hasCronSecret } from "@/lib/auth";
 import { buildEdition, currentSlot } from "@/lib/digest/build";
 import { SLOT_ORDER, type Slot } from "@/lib/digest/slots";
 import { logEvent } from "@/lib/events";
+import { notifyOwner } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     return Response.json(await buildEdition(slot));
   } catch (e) {
     await logEvent("error", "digest.build", `${slot}: 下書きの作成に失敗`, undefined, String(e));
+    await notifyOwner(`${slot} の下書きの作成に失敗しました。このままだと投稿されません。\n${String(e).slice(0, 200)}`);
     return Response.json({ error: "build failed" }, { status: 500 });
   }
 }
