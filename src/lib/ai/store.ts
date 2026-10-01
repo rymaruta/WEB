@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import type { GeneratedArticle } from "./prompt";
 
 /** この媒体数以上が報じたトピックだけを対象にする */
-export const MIN_PUBLISHERS = Number(process.env.AI_MIN_PUBLISHERS ?? 3);
+export const MIN_PUBLISHERS = Number(process.env.AI_MIN_PUBLISHERS ?? 2);
 /** 材料にする記事の最大数 */
 const MAX_SOURCES = 12;
 /** 失敗・見送り後に再試行するまでの時間 */

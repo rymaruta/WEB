@@ -1,12 +1,12 @@
 import { relativeTime, formatNumber } from "@/lib/format";
 import { GenreBadge } from "./genre-badge";
-import { OutboundLink } from "./outbound-link";
+import { ArticleLink, SummaryMark, type LinkableArticle } from "./article-link";
 import { RankBadge } from "./rank-badge";
 
 /** 閲覧回数がこれより少ないうちは回数を表示しない（少ない数字はかえって人気がないように見えるため） */
 const MIN_CLICKS_SHOWN = 10;
 
-type Item = {
+type Item = LinkableArticle & {
   id: number;
   title: string;
   publisher: string;
@@ -27,10 +27,11 @@ export function ArticleRanking({ items, metric = "none", showGenre = false, empt
         <li key={a.id} className="flex gap-3 py-2.5">
           {ranked && <RankBadge rank={i + 1} />}
           <div className="min-w-0 flex-1">
-            <OutboundLink articleId={a.id} className="headline text-sm leading-snug font-medium hover:text-accent hover:underline">
+            <ArticleLink article={a} className="headline text-sm leading-snug font-medium hover:text-accent hover:underline">
               {a.title}
-            </OutboundLink>
+            </ArticleLink>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
+              <SummaryMark article={a} />
               {showGenre && <GenreBadge genre={a.genre} />}
               <span className="truncate">{a.publisher}</span>
               <time dateTime={a.publishedAt.toISOString()}>{relativeTime(a.publishedAt)}</time>

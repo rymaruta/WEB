@@ -1,7 +1,7 @@
 import { relativeTime } from "@/lib/format";
-import { OutboundLink } from "./outbound-link";
+import { ArticleLink, type LinkableArticle } from "./article-link";
 
-type Item = { id: number; title: string; publisher: string; publishedAt: Date };
+type Item = LinkableArticle & { id: number; title: string; publisher: string; publishedAt: Date };
 
 /** ヘッダー下を流れる新着見出し。動きを減らす設定の利用者には静止表示にする */
 export function NewsTicker({ items }: { items: Item[] }) {
@@ -10,9 +10,9 @@ export function NewsTicker({ items }: { items: Item[] }) {
     items.map((a) => (
       <li key={`${hidden ? "b" : "a"}-${a.id}`} className="flex shrink-0 items-center gap-2 pr-10" aria-hidden={hidden || undefined}>
         <span className="text-[11px] font-semibold text-accent tabular-nums">{relativeTime(a.publishedAt)}</span>
-        <OutboundLink articleId={a.id} className="text-sm hover:underline" tabIndex={hidden ? -1 : undefined}>
+        <ArticleLink article={a} className="text-sm hover:underline" tabIndex={hidden ? -1 : undefined}>
           {a.title}
-        </OutboundLink>
+        </ArticleLink>
         <span className="text-[11px] text-fg-subtle">{a.publisher}</span>
       </li>
     ));

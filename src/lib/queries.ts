@@ -86,13 +86,16 @@ export const getTopic = cache((id: number) =>
   }),
 );
 
+/** 記事一覧のリンク先を決めるため、AI まとめ記事の有無を一緒に読む */
+const withTopic = { genre: true, topic: { select: { id: true, aiGeneratedAt: true } } } as const;
+
 /** サイト内で読まれている記事（外部リンクのクリック数順） */
 export function getMostRead(take: number) {
   return prisma.article.findMany({
     where: { publishedAt: { gte: since(TRENDING_HOURS) }, clicks: { gt: 0 } },
     orderBy: [{ clicks: "desc" }, { publishedAt: "desc" }],
     take,
-    include: { genre: true },
+    include: withTopic,
   });
 }
 
@@ -106,7 +109,7 @@ export function getSocialBuzz(take: number, genreId?: number) {
     },
     orderBy: [{ socialCount: "desc" }, { publishedAt: "desc" }],
     take,
-    include: { genre: true },
+    include: withTopic,
   });
 }
 
@@ -115,7 +118,7 @@ export function getLatestArticles(take: number, genreId?: number) {
     where: genreId ? { genreId } : {},
     orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
     take,
-    include: { genre: true },
+    include: withTopic,
   });
 }
 
