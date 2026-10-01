@@ -19,7 +19,18 @@ function Cite({ n, source }: { n: number; source?: Source }) {
 }
 
 /** showTitle=false は、ページの見出しが同じ記事のタイトルのとき（見出しを2回並べない） */
-export function AiArticleView({ article, sources, showTitle = true }: { article: AiArticle; sources: Source[]; showTitle?: boolean }) {
+export function AiArticleView({
+  article,
+  sources,
+  showTitle = true,
+  reportHref,
+}: {
+  article: AiArticle;
+  sources: Source[];
+  showTitle?: boolean;
+  /** 誤りの報告先（メールの宛先と件名入りのリンク） */
+  reportHref?: string;
+}) {
   const byNumber = (n: number) => {
     const id = article.sourceIds[n - 1];
     return sources.find((s) => s.id === id);
@@ -75,6 +86,13 @@ export function AiArticleView({ article, sources, showTitle = true }: { article:
           この記事は、上記の媒体が配信した見出しと要約をもとに AI（Claude）が自動で作成しました（{formatDateTime(article.generatedAt)}）。
           誤りを含む可能性があります。正確な内容は各媒体の記事でご確認ください。
         </p>
+        {reportHref && (
+          <p className="mt-2">
+            <a href={reportHref} className="font-bold text-accent underline">
+              誤りを報告する
+            </a>
+          </p>
+        )}
       </div>
     </section>
   );
