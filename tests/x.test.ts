@@ -32,9 +32,9 @@ describe("OAuth 1.0a の署名", () => {
 });
 
 describe("notifyOwner", () => {
-  it("宛先か X の認証情報がなければ何もしない", async () => {
+  it("宛先か送信用の鍵がなければ何もしない", async () => {
     const { notifyOwner } = await import("@/lib/notify");
     expect(await notifyOwner("test", {})).toBe(false);
-    expect(await notifyOwner("test", { X_NOTIFY_USER_ID: "123" })).toBe(false);
+    expect(await notifyOwner("test", { NOTIFY_EMAIL: "a@example.com" })).toBe(false);
   });
 });
