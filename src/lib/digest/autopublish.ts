@@ -17,9 +17,13 @@ export type ScheduledResult =
  *   おまかせ投稿でない、または確認待ちが残っている場合は見送る（SKIPPED）
  * - それ以外（投稿済み・見送り済み・失敗）→ 何もしない（失敗は人が確かめてから再実行する）
  */
-export async function runScheduledPublish(slot: Slot, now = new Date()): Promise<ScheduledResult> {
+export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { catchUp?: boolean } = {}): Promise<ScheduledResult> {
   const name = SLOTS[slot].title;
   const edition = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(now), slot) }, select: { id: true, key: true, status: true } });
+  // 起動直後の取りこぼし確認：投稿待ち（承認済み・下書き）の回だけを扱い、それ以外では何もせず知らせもしない
+  if (opts.catchUp && (!edition || (edition.status !== "APPROVED" && edition.status !== "DRAFT"))) {
+    return { result: "noop", editionId: edition?.id, status: edition?.status };
+  }
   if (!edition) {
     await notifyOwner({
       title: `${name}を投稿できませんでした`,
