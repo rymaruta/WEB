@@ -69,20 +69,21 @@ export default async function AdminHome() {
           );
         })}
       </ul>
-      {missing.length > 0 && (
-        <section className="card p-4">
-          <h2 className="mb-2 font-bold">下書きを今すぐ作る</h2>
-          <div className="flex flex-wrap gap-2">
-            {missing.map((slot) => (
-              <form key={slot} action={buildAction.bind(null, slot)}>
-                <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:border-accent">
-                  {SLOTS[slot].title}
-                </button>
-              </form>
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="card p-4">
+        <h2 className="mb-2 font-bold">下書きを今すぐ作る</h2>
+        <div className="flex flex-wrap gap-2">
+          {missing.map((slot) => (
+            <form key={slot} action={buildAction.bind(null, slot)}>
+              <button type="submit" className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:border-accent">
+                {SLOTS[slot].title}
+              </button>
+            </form>
+          ))}
+          <Link href="/admin/breaking" className="rounded-lg border border-accent px-4 py-2 text-sm font-bold text-accent hover:bg-accent-soft">
+            ⚡ 速報を作る
+          </Link>
+        </div>
+      </section>
       <ChannelsSection />
     </div>
   );

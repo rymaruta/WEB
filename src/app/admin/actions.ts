@@ -203,3 +203,26 @@ export async function retryBlueskyAction(editionId: string): Promise<ActionState
   if (r === "skipped") return { error: "X に投稿済みの回だけを投稿できます" };
   return { error: "投稿に失敗しました。理由は画面の表示か「記録」を確認してください" };
 }
+
+/** 選んだ出来事を、いますぐ速報として X に投稿する（投稿文とカードの時刻は投稿した時刻になる） */
+export async function publishBreakingAction(storyId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { prisma } = await import("@/lib/db");
+  const { createManualBreaking } = await import("@/lib/digest/breaking");
+  const { editionKey, jstDate } = await import("@/lib/digest/slots");
+  const { publishEdition, PublishError } = await import("@/lib/digest/publish");
+  // 失敗した速報の出し直しは、同じ回の続きとして投稿する（二重に投稿しない）
+  const existing = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(new Date()), "BREAKING", storyId) }, select: { id: true, status: true } });
+  if (existing?.status === "PUBLISHED") return { error: "この出来事の速報は、今日すでに投稿しています" };
+  const editionId = existing?.id ?? (await createManualBreaking(storyId))?.id;
+  if (!editionId) return { error: "速報を作れませんでした。画面を開き直してください" };
+  try {
+    const r = await publishEdition(editionId);
+    revalidatePath("/admin/breaking");
+    const url = r.status === "published" && r.firstPostId ? `\nhttps://x.com/i/web/status/${r.firstPostId}` : "";
+    return { ok: `速報を X に投稿しました${url}` };
+  } catch (e) {
+    if (e instanceof PublishError) return { error: `${e.message}\nもう一度押すと、続きから投稿します。` };
+    throw e;
+  }
+}

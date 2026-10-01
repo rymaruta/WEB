@@ -158,3 +158,84 @@ export async function runBreakingCheck(now = new Date()) {
   });
   return { result: "published" as const, editionId: edition.id };
 }
+
+// ---------------------------------------------------------------------------
+// 管理画面から出す速報（人が選んで出す。自動の速報の条件は使わず、注意の印を見せて人が判断する）
+// ---------------------------------------------------------------------------
+
+/** 管理画面の候補に出す範囲（最初の報道からの時間） */
+export const MANUAL_BREAKING_HOURS = 6;
+
+/** 速報の候補：直近に最初に報じられた、まだ配信していない出来事（話題の大きい順） */
+export async function listBreakingCandidates(now = new Date(), take = 20) {
+  const since = new Date(now.getTime() - MANUAL_BREAKING_HOURS * 3_600_000);
+  const [stories, postedToday] = await Promise.all([
+    prisma.story.findMany({
+      where: {
+        status: { in: ["PENDING", "REVIEW_REQUIRED", "APPROVED"] },
+        kind: "NEW",
+        topic: { firstSeenAt: { gte: since } },
+        items: { none: { edition: { slot: "BREAKING" } } },
+      },
+      orderBy: { score: "desc" },
+      take,
+      select: {
+        id: true,
+        headline: true,
+        status: true,
+        cardType: true,
+        riskFlags: true,
+        confidence: true,
+        topic: { select: { id: true, publisherCount: true, firstSeenAt: true } },
+      },
+    }),
+    prisma.edition.count({ where: { slot: "BREAKING", date: jstDate(now), status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } }),
+  ]);
+  return { stories, postedToday };
+}
+
+/** 選んだ出来事で速報の回を作る（承認済み）。同じ出来事の速報が今日すでにあれば null */
+export async function createManualBreaking(storyId: string, now = new Date()) {
+  const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
+  if (!story) return null;
+  const date = jstDate(now);
+  return prisma.edition
+    .create({
+      data: {
+        key: editionKey(date, "BREAKING", story.id),
+        slot: "BREAKING",
+        date,
+        status: "APPROVED",
+        scheduledAt: now,
+        deadlineAt: now,
+        approvedAt: now,
+        approvedBy: "admin",
+        postText: breakingPostText(story.headline, now),
+        items: { create: [{ position: 1, storyId: story.id, role: "MAIN" }] },
+      },
+      select: { id: true },
+    })
+    .catch(() => null);
+}
+
+/**
+ * 速報の時刻を、実際に投稿する時刻に合わせる（作ってから投稿するまでに時間が空いても、
+ * 投稿文の「⚡ 速報（HH:MM時点）」とカードの時刻が投稿の時刻とずれないように）。
+ * まだ1件も送っていない回だけを直す（途中まで送った回の続きでは変えない）。
+ */
+export async function stampBreakingTime(editionId: string, now = new Date()) {
+  const e = await prisma.edition.findUnique({
+    where: { id: editionId },
+    select: {
+      slot: true,
+      items: { take: 1, select: { story: { select: { headline: true } } } },
+      publications: { select: { parts: { where: { externalId: { not: null } }, select: { position: true } } } },
+    },
+  });
+  if (!e || e.slot !== "BREAKING" || !e.items[0]) return;
+  if (e.publications.some((p) => p.parts.length > 0)) return;
+  await prisma.edition.update({
+    where: { id: editionId },
+    data: { scheduledAt: now, deadlineAt: now, postText: breakingPostText(e.items[0].story.headline, now) },
+  });
+}
