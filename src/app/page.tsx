@@ -1,19 +1,23 @@
 import { ArticleRanking } from "@/components/article-ranking";
+import { DigestSummaryCard } from "@/components/digest-summary";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-card";
+import { getLatestDigest } from "@/lib/digest/latest";
 import { formatNumber } from "@/lib/format";
 import { getGenres, getLatestArticles, getMostRead, getSiteStats, getSocialBuzz, getTrendingTopics } from "@/lib/queries";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [genres, headline, mostRead, buzz, latest, stats] = await Promise.all([
+  const [genres, headline, mostRead, buzz, latest, stats, digest] = await Promise.all([
     getGenres(),
     getTrendingTopics({ minPublishers: 2, take: 11 }),
     getMostRead(8),
     getSocialBuzz(8),
     getLatestArticles(8),
     getSiteStats(),
+    // 配信の失敗でトップ全体を止めない
+    getLatestDigest().catch(() => null),
   ]);
 
   const headlineIds = headline.map((t) => t.id);
@@ -30,6 +34,8 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-10">
+      {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
+      {digest && <DigestSummaryCard digest={digest} />}
       <section aria-labelledby="trending">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
