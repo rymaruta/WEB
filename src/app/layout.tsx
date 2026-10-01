@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: { default: `${siteConfig.name} | ${siteConfig.tagline}`, template: `%s | ${siteConfig.name}` },
   description: siteConfig.description,
   openGraph: { siteName: siteConfig.name, locale: "ja_JP", type: "website" },
+  twitter: { card: "summary_large_image" },
   alternates: { canonical: "/" },
 };
 
