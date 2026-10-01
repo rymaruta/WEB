@@ -79,15 +79,16 @@ export function composePostText(slot: Slot, date: string, entries: EditionEntry[
 }
 
 // ---------------------------------------------------------------------------
-// 投稿の分け方（本投稿＋自分へのリプライ）
+// 投稿の分け方
 // ---------------------------------------------------------------------------
 
-/** カードの番号（0 = INDEX、1 以降 = 掲載順）を、1投稿4枚ずつに分ける */
+/**
+ * 投稿に添えるカードの番号（1 以降 = 掲載順）。1回の配信は1投稿で完結させ、リプライは使わない。
+ * 一覧は投稿文が担うため INDEX（0）は添えず、ニュースのカードを最大4枚載せる。
+ */
 export function splitParts(entryCount: number): number[][] {
-  const cards = Array.from({ length: entryCount + 1 }, (_, i) => i);
-  const parts: number[][] = [];
-  for (let i = 0; i < cards.length; i += IMAGES_PER_POST) parts.push(cards.slice(i, i + IMAGES_PER_POST));
-  return parts;
+  const n = Math.min(entryCount, IMAGES_PER_POST);
+  return n ? [Array.from({ length: n }, (_, i) => i + 1)] : [];
 }
 
 /** リプライの本文（例: 「4・5本目」「4本目と続報」「続報」） */
