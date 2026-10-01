@@ -28,7 +28,7 @@ export type SlotConfig = {
 
 export const SLOTS: Record<Slot, SlotConfig> = {
   MORNING: {
-    title: "朝これだけ",
+    title: "朝のニュース",
     emoji: "☀️",
     publishAt: "07:00",
     buildAt: "06:10",
@@ -41,7 +41,7 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     allowRepeatToday: false,
   },
   LUNCH: {
-    title: "昼までに起きたこと",
+    title: "昼のニュース",
     emoji: "🕛",
     publishAt: "12:00",
     buildAt: "11:10",
@@ -54,7 +54,7 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     allowRepeatToday: false,
   },
   EVENING: {
-    title: "今日これだけ",
+    title: "夜のニュース",
     emoji: "🌙",
     publishAt: "20:00",
     buildAt: "19:10",
@@ -85,12 +85,26 @@ export function jstAt(date: string, hhmm: string): Date {
   return new Date(`${date}T${hhmm}:00+09:00`);
 }
 
+function weekday(date: string): string {
+  const d = new Date(`${date}T12:00:00+09:00`);
+  return "日月火水木金土"[new Date(d.getTime() + JST_OFFSET_MS).getUTCDay()];
+}
+
 /** 日本時間の「10月1日（木）」 */
 export function jstDateLabel(date: string): string {
-  const d = new Date(`${date}T12:00:00+09:00`);
-  const w = "日月火水木金土"[new Date(d.getTime() + JST_OFFSET_MS).getUTCDay()];
   const [, m, day] = date.split("-").map(Number);
-  return `${m}月${day}日（${w}）`;
+  return `${m}月${day}日（${weekday(date)}）`;
+}
+
+/** カード用の「2026年10月1日（木）」（画像は保存・転載されるため年も入れる） */
+export function jstFullDateLabel(date: string): string {
+  return `${date.slice(0, 4)}年${jstDateLabel(date)}`;
+}
+
+/** 投稿文の「10/1(木)」 */
+export function jstPostDate(date: string): string {
+  const [, m, day] = date.split("-").map(Number);
+  return `${m}/${day}(${weekday(date)})`;
 }
 
 /** 日本時間の「7:00」 */

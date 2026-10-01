@@ -61,7 +61,7 @@ async function rewriteItems(editionId: string, rows: ItemRow[]) {
       where: { id: editionId },
       data: {
         status: ordered.length ? "DRAFT" : edition.status,
-        ...(notes.postTextManual ? {} : { postText: composePostText(edition.slot as Slot, entries) }),
+        ...(notes.postTextManual ? {} : { postText: composePostText(edition.slot as Slot, edition.date, entries) }),
       },
     }),
   ]);
@@ -138,7 +138,7 @@ export async function setPostText(editionId: string, lines: string[] | null) {
     const entries = await loadEntries(e.items.map((r) => ({ position: r.position, role: r.role, storyId: r.storyId, override: r.override })));
     await prisma.edition.update({
       where: { id: editionId },
-      data: { postText: composePostText(e.slot as Slot, entries), notes: { ...notes, postTextManual: false } as Prisma.InputJsonValue },
+      data: { postText: composePostText(e.slot as Slot, e.date, entries), notes: { ...notes, postTextManual: false } as Prisma.InputJsonValue },
     });
     return;
   }
@@ -146,6 +146,7 @@ export async function setPostText(editionId: string, lines: string[] | null) {
   if (clean.length < 1 || clean.length > LIMITS.postLines) throw new AdminError(`投稿文は1〜${LIMITS.postLines}行です`);
   const long = clean.filter((l) => textWidth(l) > LIMITS.postWidth);
   if (long.length) throw new AdminError(`1行は${LIMITS.postWidth}字までです`);
+  if (textWidth(clean.join("\n")) > LIMITS.postTotalWidth) throw new AdminError(`投稿文は全体で${LIMITS.postTotalWidth}字までです`);
   await prisma.edition.update({ where: { id: editionId }, data: { postText: clean, notes: { ...notes, postTextManual: true } as Prisma.InputJsonValue } });
   await log(editionId, "post-text", e.postText, clean);
 }

@@ -5,13 +5,14 @@ import {
   buildBreakingCard,
   buildCards,
   composePostText,
+  joinHeadline,
   replyText,
   sourcesLine,
   splitParts,
   type EditionEntry,
 } from "@/lib/digest/compose";
 import { scoreCandidate, selectForEdition, type Candidate } from "@/lib/digest/select";
-import { editionKey, jstAt, jstDate, jstDateLabel, jstTime, msUntilJst, SLOTS } from "@/lib/digest/slots";
+import { editionKey, jstAt, jstDate, jstDateLabel, jstFullDateLabel, jstPostDate, jstTime, msUntilJst, SLOTS } from "@/lib/digest/slots";
 import { pickFollowupMaterials } from "@/lib/stories/materials";
 import { LIMITS, type Assessment, type FollowupAnalysis, type StoryMaterial } from "@/lib/stories/schema";
 import { textWidth } from "@/lib/stories/text";
@@ -24,6 +25,8 @@ describe("日本時間の扱い", () => {
   });
   it("表示用の日付と時刻", () => {
     expect(jstDateLabel("2026-10-01")).toBe("10月1日（木）");
+    expect(jstFullDateLabel("2026-10-01")).toBe("2026年10月1日（木）");
+    expect(jstPostDate("2026-10-02")).toBe("10/2(金)");
     expect(jstTime(new Date("2026-09-30T22:00:00Z"))).toBe("7:00");
   });
   it("次の時刻までの待ち時間。過ぎていれば翌日", () => {
@@ -165,20 +168,29 @@ const entry = (o: Partial<EditionEntry> = {}): EditionEntry => ({
 });
 
 describe("投稿文", () => {
-  it("1行目は回の名前と本数、2行目は上位2本のキーワード。各行20字以内", () => {
-    const es = [entry({ keyword: "ホルムズ海峡" }), entry({ position: 2 }), entry({ position: 3, keyword: "Windows" })];
-    const text = composePostText("MORNING", es);
-    expect(text).toEqual(["☀️ 朝これだけ（3本）", "ホルムズ海峡・ニデック決算ほか"]);
+  it("1行目は日付と回の名前、2行目以降は1本1行の見出し", () => {
+    const es = [entry(), entry({ position: 2, headline: ["Googleが最新AI", "Gemini 4 Argon"] })];
+    expect(composePostText("MORNING", "2026-10-02", es)).toEqual([
+      "10/2(金) 朝のニュース",
+      "ニデック、不正会計で6321億円の減損",
+      "Googleが最新AI Gemini 4 Argon",
+    ]);
+  });
+  it("続報は「続報：」を付ける", () => {
+    const es = [entry(), entry({ position: 2, role: "FOLLOWUP", headline: ["ホルムズ海峡", "通航が再開"] })];
+    expect(composePostText("EVENING", "2026-10-01", es)).toEqual(["10/1(木) 夜のニュース", "ニデック、不正会計で6321億円の減損", "続報：ホルムズ海峡通航が再開"]);
+  });
+  it("X の文字数上限（全角140字）に収まるよう、後ろの行を削る", () => {
+    const es = [1, 2, 3, 4, 5, 6, 7, 8].map((p) => entry({ position: p, headline: ["あいうえおかきくけこさし", "たちつてとなにぬねのはひ"] }));
+    const text = composePostText("LUNCH", "2026-10-01", es);
+    expect(text[0]).toBe("10/1(木) 昼のニュース");
+    expect(text.length).toBeLessThan(9);
+    expect(textWidth(text.join("\n"))).toBeLessThanOrEqual(LIMITS.postTotalWidth);
     for (const line of text) expect(textWidth(line)).toBeLessThanOrEqual(LIMITS.postWidth);
   });
-  it("夜に続報があれば、2行目で「その後」を知らせる", () => {
-    const es = [entry(), entry({ position: 2, role: "FOLLOWUP", keyword: "ホルムズ海峡" })];
-    expect(composePostText("EVENING", es)).toEqual(["🌙 今日これだけ（1本＋続報1）", "ホルムズ海峡のその後も"]);
-  });
-  it("長すぎるキーワードは数を減らして20字に収める", () => {
-    const es = [entry({ keyword: "あいうえおかきくけ" }), entry({ position: 2, keyword: "さしすせそたちつて" }), entry({ position: 3 })];
-    const [, second] = composePostText("LUNCH", es);
-    expect(second).toBe("あいうえおかきくけほか");
+  it("見出しの連結は英数字どうしの境目だけ空白を入れる", () => {
+    expect(joinHeadline(["米Micronが", "過去最高の決算"])).toBe("米Micronが過去最高の決算");
+    expect(joinHeadline(["Googleが最新AI", "Gemini 4"])).toBe("Googleが最新AI Gemini 4");
   });
 });
 
@@ -196,8 +208,8 @@ describe("投稿の分け方", () => {
   });
   it("リプライの本文", () => {
     const es = [1, 2, 3, 4, 5].map((p) => entry({ position: p, role: p >= 5 ? "FOLLOWUP" : "MAIN" }));
-    expect(replyText(es, [4, 5])).toBe("4本目と続報");
-    expect(replyText(es.map((e) => ({ ...e, role: "MAIN" as const })), [4, 5])).toBe("4・5本目");
+    expect(replyText(es, [4, 5])).toBe("4本目と続報\nニデック、不正会計で6321億円の減損\n続報：ニデック、不正会計で6321億円の減損");
+    expect(replyText(es.map((e) => ({ ...e, role: "MAIN" as const })), [4, 5]).split("\n")[0]).toBe("4・5本目");
   });
 });
 

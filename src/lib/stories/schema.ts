@@ -48,8 +48,11 @@ export const LIMITS = {
   whyWidth: 26,
   /** 続報の「朝の時点」「現在」 */
   deltaWidth: 24,
-  postLines: 2,
-  postWidth: 20,
+  /** 投稿文：1行目が見出し、2行目以降が1本1行 */
+  postLines: 8,
+  postWidth: 28,
+  /** 投稿文全体（X の上限 280 は全角 2・半角 1 で数えるため、全角換算で 140） */
+  postTotalWidth: 140,
 } as const;
 
 const sourced = (text: string) =>

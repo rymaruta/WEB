@@ -108,7 +108,7 @@ export async function buildEdition(slot: Slot, now = new Date()) {
         status: picked.length === 0 ? "SKIPPED" : "DRAFT",
         scheduledAt,
         deadlineAt: new Date(scheduledAt.getTime() - cfg.deadlineMinutes * 60_000),
-        postText: composePostText(slot, view.entries),
+        postText: composePostText(slot, date, view.entries),
         notes: { ...selection.notes, scores: picked.map((p) => ({ id: p.id, ...p.parts })) } as Prisma.InputJsonValue,
         items: { create: picked.map((p, i) => ({ position: i + 1, storyId: p.id, role: p.role, score: p.score })) },
       },

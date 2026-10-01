@@ -1,6 +1,6 @@
 import { CATEGORY_LABELS, LIMITS, type Category, type Sourced } from "@/lib/stories/schema";
 import { textWidth } from "@/lib/stories/text";
-import { jstDate, jstDateLabel, jstShortDate, jstTime, SLOTS, type Slot } from "./slots";
+import { jstDate, jstFullDateLabel, jstPostDate, jstShortDate, jstTime, SLOTS, type Slot } from "./slots";
 
 /**
  * 配信回の中身（投稿文・投稿の分け方・カード・代替テキスト）を組み立てる。DB に依存しない。
@@ -54,38 +54,28 @@ export type EditionView = {
 // 投稿文
 // ---------------------------------------------------------------------------
 
-const fitsLine = (s: string) => textWidth(s) <= LIMITS.postWidth;
+const isAlnum = (ch: string | undefined) => !!ch && /[A-Za-z0-9]/.test(ch);
 
-/** 2行目に入れるキーワードの並び。上限に収まるまで減らす */
-function keywordsLine(keywords: string[], suffix: string): string | null {
-  const ks = keywords.filter(Boolean);
-  for (let n = Math.min(2, ks.length); n >= 1; n--) {
-    const line = `${ks.slice(0, n).join("・")}${suffix}`;
-    if (fitsLine(line)) return line;
-  }
-  return null;
+/** 2行の見出しを1文にする（英数字どうしの境目だけ空白を入れる） */
+export function joinHeadline(lines: string[]): string {
+  return lines.reduce((acc, l) => (acc && isAlnum(acc.at(-1)) && isAlnum(l[0]) ? `${acc} ${l}` : acc + l), "");
 }
 
 /**
- * 本投稿の本文。1行目は回の名前と本数、2行目は今回の中身（上位2本のキーワード）。
- * 例: 「☀️ 朝これだけ（5本）」「ホルムズ海峡・ニデック決算ほか」
+ * 本投稿の本文。1行目は日付と回の名前、2行目以降は1本1行の見出し。
+ * 例: 「10/2(金) 朝のニュース」「米Micronが過去最高の決算」「Googleが最新AI Gemini 4 Argon」
+ * X の文字数上限を超える場合は、後ろの行から削る。
  */
-export function composePostText(slot: Slot, entries: EditionEntry[]): string[] {
-  const cfg = SLOTS[slot];
-  const main = entries.filter((e) => e.role === "MAIN");
-  const follow = entries.filter((e) => e.role === "FOLLOWUP");
-  const count = follow.length ? `${main.length}本＋続報${follow.length}` : `${main.length}本`;
-  const first = `${cfg.emoji} ${cfg.title}（${count}）`;
-  const second = follow.length
-    ? keywordsLine(
-        follow.map((e) => e.keyword),
-        "のその後も",
-      )
-    : keywordsLine(
-        main.map((e) => e.keyword),
-        main.length > 2 ? "ほか" : "",
-      );
-  return second ? [first, second] : [first];
+export function composePostText(slot: Slot, date: string, entries: EditionEntry[]): string[] {
+  const first = `${jstPostDate(date)} ${SLOTS[slot].title}`;
+  const lines = [first];
+  for (const e of entries) {
+    const line = `${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+    if (textWidth(line) > LIMITS.postWidth) continue;
+    if (textWidth([...lines, line].join("\n")) > LIMITS.postTotalWidth) break;
+    lines.push(line);
+  }
+  return lines;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,8 +96,15 @@ export function replyText(entries: EditionEntry[], cards: number[]): string {
   const mainNos = items.filter((e) => e.role === "MAIN").map((e) => e.position);
   const hasFollowup = items.some((e) => e.role === "FOLLOWUP");
   const nos = mainNos.length ? `${mainNos.join("・")}本目` : "";
-  if (nos && hasFollowup) return `${nos}と続報`;
-  return nos || "続報";
+  const lines = [nos && hasFollowup ? `${nos}と続報` : nos || "続報"];
+  // 本投稿と同じく、1本1行の見出しを続ける
+  for (const e of items) {
+    const line = `${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+    if (textWidth(line) > LIMITS.postWidth) continue;
+    if (textWidth([...lines, line].join("\n")) > LIMITS.postTotalWidth) break;
+    lines.push(line);
+  }
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +221,7 @@ export function buildCards(view: EditionView): Card[] {
     slot: view.slot,
     title: cfg.title,
     emoji: cfg.emoji,
-    dateLabel: jstDateLabel(view.date),
+    dateLabel: jstFullDateLabel(view.date),
     time,
     mainCount: main.length,
     timed: view.slot === "LUNCH",

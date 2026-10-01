@@ -334,6 +334,7 @@ function font(family: string, weight: number, text: string) {
 }
 
 export async function renderCard(card: Card) {
+  const started = Date.now();
   const text = cardText(card);
   const [d800, d900, body] = await Promise.all([font(DISPLAY, 800, text), font(DISPLAY, 900, text), font(BODY, 700, text)]);
   const fonts = [
@@ -342,6 +343,7 @@ export async function renderCard(card: Card) {
     body && { name: BODY, data: body, weight: 700 as const, style: "normal" as const },
   ].filter((f) => !!f);
   if (fonts.length < 3) throw new Error("カード用のフォントを取得できませんでした");
+  console.log(JSON.stringify({ event: "card", level: "info", type: card.type, message: "fonts ready", ms: Date.now() - started }));
   const view =
     card.type === "INDEX" ? (
       <IndexCardView card={card} />
