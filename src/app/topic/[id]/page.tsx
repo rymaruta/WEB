@@ -78,7 +78,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               {topic.genre.name}
             </Link>
           </nav>
-          <h1 className="text-xl leading-snug font-black sm:text-[26px]">{topic.title}</h1>
+          {/* AI まとめ記事があるときは、その見出しをページの見出しにする（同じ話題の見出しを2回並べない） */}
+          <h1 className="text-xl leading-snug font-black sm:text-[26px]">{ai?.title ?? topic.title}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
             <GenreBadge genre={topic.genre} link />
             {topic.publisherCount > 1 && (
@@ -99,15 +100,16 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               )}
             </span>
           </div>
-          <div className="mt-4">
-            <ShareButtons title={ai?.title ?? topic.title} url={`${siteConfig.url}/topic/${topic.id}`} />
-          </div>
         </header>
 
         <div className="px-5 pb-5 sm:px-6">
           {ai && (
             <div className="mb-6">
-              <AiArticleView article={ai} sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))} />
+              <AiArticleView article={ai} sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))} showTitle={false} />
+              {/* 共有は読み終えた位置に置く（本文より先に並べると、読む前に場所を取る） */}
+              <div className="mt-4">
+                <ShareButtons title={ai.title} url={`${siteConfig.url}/topic/${topic.id}`} />
+              </div>
             </div>
           )}
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">各媒体の報道（古い順）</h2>
@@ -140,6 +142,11 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             </li>
           ))}
         </ol>
+        {!ai && (
+          <div className="mt-4">
+            <ShareButtons title={topic.title} url={`${siteConfig.url}/topic/${topic.id}`} />
+          </div>
+        )}
         </div>
       </article>
 

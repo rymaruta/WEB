@@ -17,19 +17,24 @@ export async function SiteHeader() {
   const [genres, latest] = await Promise.all([getGenres(), getLatestArticles(12)]);
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
+      {/* スマホでは固定しない（下のメニューで移動できるため、読む場所を広く取る） */}
+      <header className="z-20 border-b border-border bg-surface/95 backdrop-blur sm:sticky sm:top-0">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 pt-3 pb-2">
           <Link href="/" aria-label="トップページ">
             <Logo />
           </Link>
           <p className="hidden text-xs font-medium text-fg-muted md:block">{today.format(new Date())}</p>
-          <SearchForm className="order-last w-full sm:order-none sm:ml-auto sm:w-80" />
+          {/* スマホでは検索は下のメニューから（上に置くと最初に見えるニュースが減る） */}
+          <SearchForm className="hidden sm:ml-auto sm:block sm:w-80" />
         </div>
         <div className="mx-auto max-w-6xl px-2">
           <GenreNav genres={genres.map((g) => ({ slug: g.slug, name: g.name }))} />
         </div>
       </header>
-      <NewsTicker items={latest} />
+      {/* 流れる新着はスマホでは出さない（狭い画面で動き続けると読みにくい） */}
+      <div className="hidden sm:block">
+        <NewsTicker items={latest} />
+      </div>
     </>
   );
 }

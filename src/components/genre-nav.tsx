@@ -10,11 +10,12 @@ type Props = { genres: { slug: string; name: string }[] };
 export function GenreNav({ genres }: Props) {
   const pathname = usePathname();
   const items = [
-    { href: "/", label: "トップ", slug: null, featured: false },
+    // トップ・ランキング・まとめ記事は、スマホでは下のメニューにあるため PC でだけ出す
+    { href: "/", label: "トップ", slug: null, featured: false, desktopOnly: true },
     // ランキングはよく見られるため、トップの次に置いてアクセント色で目立たせる
-    { href: "/ranking", label: "ランキング", slug: null, featured: true },
-    { href: "/articles", label: "まとめ記事", slug: null, featured: false },
-    ...genres.map((g) => ({ href: `/genre/${g.slug}`, label: g.name, slug: g.slug, featured: false })),
+    { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true },
+    { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true },
+    ...genres.map((g) => ({ href: `/genre/${g.slug}`, label: g.name, slug: g.slug, featured: false, desktopOnly: false })),
   ];
   return (
     <nav aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
@@ -26,7 +27,7 @@ export function GenreNav({ genres }: Props) {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-1.5 border-b-[3px] px-2.5 py-2.5 text-sm whitespace-nowrap transition-colors ${
+            className={`${item.desktopOnly ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-1.5 border-b-[3px] px-2.5 py-2.5 text-sm whitespace-nowrap transition-colors ${
               active
                 ? "font-bold text-fg"
                 : item.featured
