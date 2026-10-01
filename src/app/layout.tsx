@@ -24,6 +24,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ja" className="h-full antialiased">
+      <head>
+        {/* Google AdSense。async なので本文の表示を待たせない */}
+        {siteConfig.adsenseClient && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${siteConfig.adsenseClient}`}
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       {/* スマホでは画面下メニューの高さ分だけ下に余白を取る */}
       <body className="flex min-h-full flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
         <a
