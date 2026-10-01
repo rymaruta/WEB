@@ -331,8 +331,8 @@ export type GameRelease = { topicId: number; title: string; release: string; pla
  */
 export const getGameReleases = cache(async (now = new Date()): Promise<GameRelease[]> => {
   const topics = await prisma.topic.findMany({
-    // 噂・リークの日付は発売スケジュールに載せない（公式に決まった日付ではないため）
-    where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { not: "rumor" }, lastSeenAt: { gte: since(24 * 365) } },
+    // ゲーム本体の発表・発売日の決定・発売の報道だけ（噂・リークは公式の日付ではないので載せない。アップデートやセールの日付も載せない）
+    where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { in: ["announce", "release_date", "release"] }, lastSeenAt: { gte: since(24 * 365) } },
     orderBy: { lastSeenAt: "desc" },
     take: 2000,
     select: { id: true, aiGameTitle: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
