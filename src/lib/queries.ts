@@ -1,6 +1,7 @@
 import { cache } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { releaseSortKey } from "@/lib/game";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 
 /** 「いま話題」の対象期間 */
@@ -318,4 +319,50 @@ export const getRisingTopics = cache(async (hours: number, take: number) => {
     const topic = byId.get(r.id);
     return topic ? [{ topic, recent: r.recent }] : [];
   });
+});
+
+export type GameRelease = { topicId: number; title: string; release: string; platforms: string[]; kind: string | null };
+
+/**
+ * ゲームの発売予定。作品ごとに最も新しい報道の発売日を使い（延期などで変わった日付を反映する）、
+ * まだ来ていない日付だけを日付順に返す。日付が月・年までのものは、その月・年の終わりまで残す
+ */
+export const getGameReleases = cache(async (now = new Date()): Promise<GameRelease[]> => {
+  const topics = await prisma.topic.findMany({
+    // 噂・リークの日付は発売スケジュールに載せない（公式に決まった日付ではないため）
+    where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { not: "rumor" }, lastSeenAt: { gte: since(24 * 365) } },
+    orderBy: { lastSeenAt: "desc" },
+    take: 2000,
+    select: { id: true, aiGameTitle: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
+  });
+  const today = new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+  const seen = new Set<string>();
+  const out: GameRelease[] = [];
+  for (const t of topics) {
+    const key = t.aiGameTitle!.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const r = t.aiGameRelease!;
+    // まだ来ていないか（月・年までの予定は、その期間が終わるまで）
+    if (today.slice(0, r.length) > r) continue;
+    out.push({ topicId: t.id, title: t.aiGameTitle!, release: r, platforms: t.aiGamePlatforms, kind: t.aiGameKind });
+  }
+  return out.sort((a, b) => releaseSortKey(a.release).localeCompare(releaseSortKey(b.release)));
+});
+
+/** 新着ゲーム：直近に新作の発表・発売日の決定が報じられた作品（新しい順、作品ごとに1件） */
+export const getNewGames = cache(async (days: number, take: number) => {
+  const topics = await prisma.topic.findMany({
+    where: { aiGameKind: { in: ["announce", "release_date"] }, aiGameTitle: { not: null }, firstSeenAt: { gte: since(days * 24) } },
+    orderBy: { firstSeenAt: "desc" },
+    take: take * 3,
+    include: topicCardInclude,
+  });
+  const seen = new Set<string>();
+  return topics
+    .filter((t) => {
+      const key = t.aiGameTitle!.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+      return seen.has(key) ? false : (seen.add(key), true);
+    })
+    .slice(0, take);
 });

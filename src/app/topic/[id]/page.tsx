@@ -15,7 +15,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { SaveButton } from "@/components/save-button";
 import { ShareButtons } from "@/components/share-buttons";
 import { siteConfig } from "@/config/site";
-import { MarketEventBadge, TopicList } from "@/components/topic-card";
+import { MarketEventBadge, RumorBadge, TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
@@ -99,6 +99,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
             <GenreBadge genre={topic.genre} link />
             <MarketEventBadge event={topic.aiMarketEvent} />
+            {topic.aiGameKind === "rumor" && <RumorBadge />}
             {topic.publisherCount > 1 && (
               <span className="flex items-center gap-2">
                 <PublisherAvatars names={[...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))]} max={6} size="md" />

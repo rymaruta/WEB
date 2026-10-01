@@ -127,6 +127,11 @@ export function MarketEventBadge({ event }: { event: string | null | undefined }
   return <span className="rounded border border-fg-muted/40 bg-surface px-1.5 py-px text-[11px] font-bold text-fg">{label}</span>;
 }
 
+/** 噂・リーク（公式の発表ではない）の印。事実と見分けられるようにする */
+export function RumorBadge() {
+  return <span className="rounded border border-dashed border-fg-muted/60 px-1.5 py-px text-[11px] font-bold text-fg-muted">噂・リーク</span>;
+}
+
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
   const { lead, title, summary, publishers, image, hasAi } = describe(topic);
@@ -143,6 +148,7 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
           <GenreBadge genre={topic.genre} />
           {hasAi && <AiBadge />}
           <MarketEventBadge event={topic.aiMarketEvent} />
+          {topic.aiGameKind === "rumor" && <RumorBadge />}
           {topic.publisherCount > 1 && (
             <span className="rounded-full bg-black/60 px-2 py-px text-[11px] font-bold text-white backdrop-blur">
               {topic.publisherCount}媒体が報道
@@ -191,6 +197,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
           {showGenre && <GenreBadge genre={topic.genre} />}
           {hasAi && <AiBadge />}
           <MarketEventBadge event={topic.aiMarketEvent} />
+          {topic.aiGameKind === "rumor" && <RumorBadge />}
           <CoverageBadge count={topic.publisherCount} />
           {topic.publisherCount > 1 && !compact && <PublisherAvatars names={publishers} max={4} />}
           <PublisherLine publishers={publishers} max={compact ? 2 : 3} />

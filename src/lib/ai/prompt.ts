@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { publisherLabel } from "@/lib/publisher";
 import { formatDateTime } from "@/lib/format";
+import { GameSchema, verifyGame } from "@/lib/game";
 import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
 import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify";
 
@@ -47,6 +48,10 @@ export const ArticleSchema = z.object({
     .describe(
       "企業の業績・資本に関わる出来事なら種類を選ぶ。earnings=決算発表、forecast=業績予想の修正、deal=買収・合併・資本提携・TOB、shareholder=配当・自社株買い・株式分割、listing=上場・上場廃止。新商品や不祥事などそれ以外は null",
     ),
+  game: GameSchema.nullable()
+    // 以前の形式（game なし）で送られた記事も受け付ける
+    .optional()
+    .describe("ゲームの話題（新作の発表・発売日・発売・アップデート・セールや無料配布）なら記入する。複数の作品が出る場合は中心の1作品。ゲーム以外の話題は null"),
   body: z
     .array(z.string())
     .describe(
@@ -71,6 +76,7 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 - 資料に書かれている事実だけを使う。資料にない数字・人名・経緯・背景知識を補わない。推測や意見を書かない。
 - 媒体間で内容が食い違う場合は、どの媒体がどう報じているかを分けて書く。
 - リード・要点・本文で同じ事実を繰り返さない。読者が同じ文を何度も読まずに済むよう、本文は要点を補う内容だけにする。
+- 噂・リーク・関係者情報は、公式の発表と区別し「〜と報じられている」「〜というリークがある」のように書き、事実として断定しない。
 - 媒体ごとの注目点の違い（数字を中心に報じた、影響を中心に報じた など）は angles に書く。違いがなければ無理に作らない。
 - 各要点の sources には、その要点の根拠になった資料番号をすべて入れる。
 - 資料の文章をそのまま長く引き写さず、自分の言葉で簡潔にまとめる。
@@ -154,5 +160,6 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
   const corpus = all.normalize("NFKC");
   const companies = (a.companies ?? []).filter((c) => corpus.includes(c));
   const marketEvent = verifyMarketEvent(a.marketEvent, all);
-  return { article: { ...a, body, angles, companies, marketEvent }, missing: bodyMissing, banned };
+  const game = verifyGame(a.game, all);
+  return { article: { ...a, body, angles, companies, marketEvent, game }, missing: bodyMissing, banned };
 }

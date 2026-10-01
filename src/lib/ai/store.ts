@@ -56,7 +56,8 @@ export function findUpgradeTopics(limit: number, now = Date.now(), excludeIds: n
     where: {
       id: { notIn: excludeIds },
       aiGeneratedAt: { not: null },
-      aiHistory: { equals: Prisma.DbNull },
+      // 今の形式になる前の記事（更新の記録がない）か、ゲームの情報を読み取る前のゲームの記事
+      OR: [{ aiHistory: { equals: Prisma.DbNull } }, { aiGameChecked: false, genre: { slug: "game" } }],
       lastSeenAt: { gte: new Date(now - UPGRADE_WINDOW_HOURS * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
       // 書き直しが見送られた記事は、しばらく空けてから
@@ -110,6 +111,12 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiAngles: article.angles ?? [],
       aiCompanies: article.companies ?? [],
       aiMarketEvent: article.marketEvent ?? null,
+      aiGameTitle: article.game?.title ?? null,
+      aiGameRelease: article.game?.releaseDate ?? null,
+      aiGameKind: article.game?.kind ?? null,
+      aiGamePlatforms: article.game?.platforms ?? [],
+      // game を書く形式で送られた記事だけ「確認済み」にする（以前の形式の記事は、書き直しの対象に残す）
+      aiGameChecked: article.game !== undefined,
       aiSources: sourceIds,
       aiModel: model,
       aiHistory: history,
