@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { BottomNav } from "@/components/bottom-nav";
+import { FONT_SIZE_SCRIPT } from "@/components/font-size-toggle";
 import { ReadTracker } from "@/components/read-tracker";
 import { PageviewBeacon } from "@/components/pageview-beacon";
 import { SiteFooter } from "@/components/site-footer";
@@ -25,8 +26,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" className="h-full antialiased">
+    <html lang="ja" className="h-full antialiased" suppressHydrationWarning>
       <head>
+        {/* 保存された文字サイズを、描画の前に反映する */}
+        <script dangerouslySetInnerHTML={{ __html: FONT_SIZE_SCRIPT }} />
         {/* Google AdSense。async なので本文の表示を待たせない */}
         {siteConfig.adsenseClient && (
           <script

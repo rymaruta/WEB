@@ -3,6 +3,7 @@ import { getGenres, getLatestArticles } from "@/lib/queries";
 import { GenreNav } from "./genre-nav";
 import { Logo } from "./logo";
 import { NewsTicker } from "./news-ticker";
+import { FontSizeToggle } from "./font-size-toggle";
 import { SearchForm } from "./search-form";
 
 const today = new Intl.DateTimeFormat("ja-JP", {
@@ -25,7 +26,8 @@ export async function SiteHeader() {
           </Link>
           <p className="hidden text-xs font-medium text-fg-muted md:block">{today.format(new Date())}</p>
           {/* スマホでは検索は下のメニューから（上に置くと最初に見えるニュースが減る） */}
-          <SearchForm className="hidden sm:ml-auto sm:block sm:w-80" />
+          <FontSizeToggle className="ml-auto sm:ml-auto" />
+          <SearchForm className="hidden sm:block sm:w-80" />
         </div>
         <div className="mx-auto max-w-6xl px-2">
           <GenreNav genres={genres.map((g) => ({ slug: g.slug, name: g.name }))} />

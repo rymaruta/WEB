@@ -69,6 +69,11 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* 文字を大きく（src/components/font-size-toggle.tsx）。rem で指定した文字・余白がまとめて大きくなる */
+html[data-font="large"] {
+  font-size: 112.5%;
+}
+
 body {
   background: var(--bg);
   color: var(--fg);
