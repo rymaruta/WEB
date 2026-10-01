@@ -76,16 +76,17 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
   return (
     <div className="space-y-6">
       <header
-        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5 text-white sm:p-6"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 text-white sm:gap-4 sm:p-6"
         style={{ background: `linear-gradient(120deg, ${color}, color-mix(in oklab, ${color} 50%, #000))` }}
       >
-        <div className="flex items-center gap-4">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
-            <GenreIcon slug={genre.slug} className="h-8 w-8" />
+        {/* スマホでは見出しの帯を低くして、最初の画面にニュースが見えるようにする */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 sm:h-14 sm:w-14 sm:rounded-2xl">
+            <GenreIcon slug={genre.slug} className="h-6 w-6 sm:h-8 sm:w-8" />
           </span>
           <div>
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{genre.name}</h1>
-            <p className="text-sm opacity-90">直近の話題 {total}件</p>
+            <h1 className="text-xl font-black tracking-tight sm:text-3xl">{genre.name}</h1>
+            <p className="text-xs opacity-90 sm:text-sm">直近の話題 {total}件</p>
           </div>
         </div>
         <div className="flex gap-1 rounded-full bg-black/15 p-1">

@@ -4,6 +4,18 @@ import { OutboundLink } from "./outbound-link";
 
 type Source = { id: number; publisher: string };
 
+const squash = (s: string) => s.replace(/[\s、。,.「」『』（）()]/g, "");
+
+/** 本文の最初の段落がリード文とほぼ同じなら省く（同じ内容を2回読ませない） */
+export function bodyWithoutLead(article: Pick<AiArticle, "lead" | "body">): string[] {
+  const [first, ...rest] = article.body;
+  if (!first || !article.lead) return article.body;
+  const a = squash(article.lead);
+  const b = squash(first);
+  const head = Math.min(20, a.length, b.length);
+  return head >= 10 && a.slice(0, head) === b.slice(0, head) ? rest.length ? rest : article.body : article.body;
+}
+
 /** 出典番号を元記事へのリンクにする */
 function Cite({ n, source }: { n: number; source?: Source }) {
   if (!source) return null;
@@ -66,7 +78,7 @@ export function AiArticleView({
       </ul>
 
       <div className="mt-4 space-y-3 text-[15px] leading-relaxed">
-        {article.body.map((para, i) => (
+        {bodyWithoutLead(article).map((para, i) => (
           <p key={i}>{para}</p>
         ))}
       </div>
