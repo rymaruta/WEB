@@ -121,28 +121,30 @@ jobs:
           AI_MODEL: ${{ vars.AI_MODEL }}
           AI_MIN_PUBLISHERS: ${{ vars.AI_MIN_PUBLISHERS }}
           AI_MAX_PER_RUN: ${{ vars.AI_MAX_PER_RUN }}
+          # 常駐サーバーなので、定期収集はサーバー内のスケジューラーで行う（src/instrumentation.ts）
+          SCHEDULER_ENABLED: "true"
         run: |
           # 値が空の環境変数は渡さない（DATABASE_URL・CRON_SECRET・ANTHROPIC_API_KEY は Load secrets で設定済み）
           environment=$(jq -n 'env
-            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN")))
+            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED")))
             | with_entries(select(.value != ""))')
           containers=$(jq -n --arg image "$IMAGE" --argjson environment "$environment" \
             '{web: {image: $image, environment: $environment, ports: {"3000": "HTTP"}}}')
           endpoint='{"containerName":"web","containerPort":3000,"healthCheck":{"path":"/robots.txt","successCodes":"200","intervalSeconds":10,"timeoutSeconds":5,"healthyThreshold":2,"unhealthyThreshold":3}}'
-          version=$(aws lightsail create-container-service-deployment --service-name "$SERVICE" \
-            --containers "$containers" --public-endpoint "$endpoint" \
-            --query 'containerService.nextDeployment.version' --output text)
-          echo "デプロイ v${version} を開始しました"
+          aws lightsail create-container-service-deployment --service-name "$SERVICE" \
+            --containers "$containers" --public-endpoint "$endpoint" > /dev/null
+          echo "イメージ ${IMAGE} のデプロイを開始しました"
 
-          # 新しいデプロイが有効になるまで待つ（最大15分）
+          # このイメージのデプロイが有効になるまで待つ（最大15分）
           for _ in $(seq 1 90); do
-            read -r current state <<< "$(aws lightsail get-container-services --service-name "$SERVICE" \
-              --query 'containerServices[0].[currentDeployment.version, nextDeployment.state]' --output text)"
-            if [ "$current" = "$version" ]; then echo "デプロイ v${version} が有効になりました"; exit 0; fi
-            if [ "$state" = "FAILED" ]; then echo "::error::デプロイ v${version} が失敗しました。Lightsail のログを確認してください"; exit 1; fi
+            read -r image state next <<< "$(aws lightsail get-container-services --service-name "$SERVICE" \
+              --query 'containerServices[0].[currentDeployment.containers.web.image, currentDeployment.state, nextDeployment.state]' \
+              --output text)"
+            if [ "$image" = "$IMAGE" ] && [ "$state" = "ACTIVE" ]; then echo "デプロイが有効になりました"; exit 0; fi
+            if [ "$next" = "FAILED" ]; then echo "::error::デプロイが失敗しました。Lightsail のログを確認してください"; exit 1; fi
             sleep 10
           done
-          echo "::error::デプロイ v${version} が15分以内に有効になりませんでした"
+          echo "::error::デプロイが15分以内に有効になりませんでした"
           exit 1
 
       - name: Show URL
