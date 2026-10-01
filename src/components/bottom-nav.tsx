@@ -27,6 +27,8 @@ export function BottomNav() {
           return (
             <li key={item.href}>
               <Link
+                // 画面下のメニューは常に表示されるため、先読みするとページを開くたびにトップ・ランキング全体（数百KB）を取得してしまう。押したときだけ読み込む
+                prefetch={false}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] ${

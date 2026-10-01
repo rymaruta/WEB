@@ -20,7 +20,7 @@ export async function SiteHeader() {
       {/* スマホでは固定しない（下のメニューで移動できるため、読む場所を広く取る） */}
       <header className="z-20 border-b border-border bg-surface/95 backdrop-blur sm:sticky sm:top-0">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 pt-3 pb-2">
-          <Link href="/" aria-label="トップページ">
+          <Link href="/" prefetch={false} aria-label="トップページ">
             <Logo />
           </Link>
           <p className="hidden text-xs font-medium text-fg-muted md:block">{today.format(new Date())}</p>
