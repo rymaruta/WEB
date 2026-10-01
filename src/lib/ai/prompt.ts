@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { publisherLabel } from "@/lib/publisher";
 import { formatDateTime } from "@/lib/format";
 import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
 import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify";
@@ -48,7 +49,9 @@ export const ArticleSchema = z.object({
     ),
   body: z
     .array(z.string())
-    .describe("本文の段落。2〜4段落、全体で300〜600文字。背景や経緯を資料の範囲で"),
+    .describe(
+      "本文の段落。リードと要点に書いたことは繰り返さず、資料にある背景・経緯・数字の内訳・今後の予定など、要点を補う内容だけを書く。補う内容が少なければ1段落・100文字程度でよい。最大3段落・500文字",
+    ),
   sufficient: z.boolean().describe("資料だけで記事を書くのに十分な情報があれば true"),
   genre: z
     .enum(GENRE_SLUGS)
@@ -67,6 +70,7 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 厳守すること:
 - 資料に書かれている事実だけを使う。資料にない数字・人名・経緯・背景知識を補わない。推測や意見を書かない。
 - 媒体間で内容が食い違う場合は、どの媒体がどう報じているかを分けて書く。
+- リード・要点・本文で同じ事実を繰り返さない。読者が同じ文を何度も読まずに済むよう、本文は要点を補う内容だけにする。
 - 媒体ごとの注目点の違い（数字を中心に報じた、影響を中心に報じた など）は angles に書く。違いがなければ無理に作らない。
 - 各要点の sources には、その要点の根拠になった資料番号をすべて入れる。
 - 資料の文章をそのまま長く引き写さず、自分の言葉で簡潔にまとめる。
@@ -76,7 +80,7 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 export function buildPrompt(sources: { publisher: string; publishedAt: Date; title: string; summary: string | null; kind: string }[]) {
   const lines = sources.map((s, i) => {
     const label = s.kind === "PRESS" ? "（企業発表）" : "";
-    return `[${i + 1}] ${s.publisher}${label}／${formatDateTime(s.publishedAt)}\n見出し: ${s.title}\n要約: ${s.summary ?? "（なし）"}`;
+    return `[${i + 1}] ${publisherLabel(s.publisher)}${label}／${formatDateTime(s.publishedAt)}\n見出し: ${s.title}\n要約: ${s.summary ?? "（なし）"}`;
   });
   return `次の資料をもとに、まとめ記事を書いてください。\n\n${lines.join("\n\n")}`;
 }
@@ -119,7 +123,7 @@ export type FactCheck = { article: GeneratedArticle | null; missing: string[]; b
  * @param sources 出典番号 1, 2, ... に対応する資料
  */
 export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): FactCheck {
-  const text = (s: FactSource) => `${s.publisher} ${formatDateTime(s.publishedAt)} ${s.title} ${s.summary ?? ""}`;
+  const text = (s: FactSource) => `${s.publisher} ${publisherLabel(s.publisher)} ${formatDateTime(s.publishedAt)} ${s.title} ${s.summary ?? ""}`;
   const all = sources.map(text).join("\n");
   const missingIn = (t: string, corpus: string) => extractFacts(t).filter((f) => !factInSources(f, corpus));
 

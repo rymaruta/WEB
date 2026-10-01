@@ -1,4 +1,5 @@
 import { relativeTime } from "@/lib/format";
+import { publisherLabel } from "@/lib/publisher";
 import { ArticleLink, type LinkableArticle } from "./article-link";
 
 type Item = LinkableArticle & { id: number; title: string; publisher: string; publishedAt: Date };
@@ -13,7 +14,7 @@ export function NewsTicker({ items }: { items: Item[] }) {
         <ArticleLink article={a} className="text-sm hover:underline" tabIndex={hidden ? -1 : undefined}>
           {a.title}
         </ArticleLink>
-        <span className="text-[11px] text-fg-subtle">{a.publisher}</span>
+        <span className="text-[11px] text-fg-subtle">{publisherLabel(a.publisher)}</span>
       </li>
     ));
   return (

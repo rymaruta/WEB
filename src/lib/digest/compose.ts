@@ -1,6 +1,7 @@
 import { CATEGORY_LABELS, LIMITS, type Category, type Sourced } from "@/lib/stories/schema";
 import { textWidth } from "@/lib/stories/text";
 import { jstDate, jstFullDateLabel, jstPostDate, jstShortDate, jstTime, SLOTS, type Slot } from "./slots";
+import { publisherLabel } from "@/lib/publisher";
 
 /**
  * 配信回の中身（投稿文・投稿の分け方・カード・代替テキスト）を組み立てる。DB に依存しない。
@@ -179,32 +180,8 @@ export type BreakingCard = {
 
 export type Card = IndexCard | NewsCard | FollowupCard | BreakingCard;
 
-/** ドメイン名で記録された媒体（ソーシャル経由の記事）を、読者に分かる名前にする */
-const PUBLISHER_NAMES: Record<string, string> = {
-  "yomiuri.co.jp": "読売新聞",
-  "asahi.com": "朝日新聞",
-  "mainichi.jp": "毎日新聞",
-  "nikkei.com": "日本経済新聞",
-  "sankei.com": "産経新聞",
-  "tokyo-np.co.jp": "東京新聞",
-  "jiji.com": "時事通信",
-  "kyodonews.jp": "共同通信",
-  "nhk.or.jp": "NHK",
-  "news.yahoo.co.jp": "Yahoo!ニュース",
-  "cnn.co.jp": "CNN",
-  "bbc.com": "BBC",
-  "reuters.com": "ロイター",
-  "bloomberg.co.jp": "ブルームバーグ",
-  "tv-asahi.co.jp": "テレビ朝日",
-  "fnn.jp": "FNN",
-  "news.tbs.co.jp": "TBS",
-  "news.ntv.co.jp": "日本テレビ",
-};
 
-export function publisherLabel(publisher: string): string {
-  const host = publisher.toLowerCase().replace(/^www\./, "");
-  return PUBLISHER_NAMES[host] ?? publisher;
-}
+export { publisherLabel };
 
 /** 出典の表記。媒体名を2つまで出し、残りは「ほかN」 */
 export function sourcesLine(publishers: string[]): string {

@@ -1,4 +1,5 @@
 import { relativeTime, formatNumber } from "@/lib/format";
+import { publisherLabel } from "@/lib/publisher";
 import { GenreBadge } from "./genre-badge";
 import { ArticleLink, SummaryMark, type LinkableArticle } from "./article-link";
 import { RankBadge } from "./rank-badge";
@@ -33,7 +34,7 @@ export function ArticleRanking({ items, metric = "none", showGenre = false, empt
             <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
               <SummaryMark article={a} />
               {showGenre && <GenreBadge genre={a.genre} />}
-              <span className="truncate">{a.publisher}</span>
+              <span className="truncate">{publisherLabel(a.publisher)}</span>
               <time dateTime={a.publishedAt.toISOString()}>{relativeTime(a.publishedAt)}</time>
               {metric === "social" && <span className="font-semibold text-accent">{formatNumber(a.socialCount)} users</span>}
               {metric === "clicks" && a.clicks >= MIN_CLICKS_SHOWN && (

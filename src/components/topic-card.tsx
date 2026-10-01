@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publisherLabel } from "@/lib/publisher";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -19,7 +20,7 @@ function describe(topic: TopicCardData) {
   const lead = primary[0] ?? topic.articles[0];
   const summary =
     topic.aiLead || ((primary.find((a) => a.summary) ?? topic.articles.find((a) => a.summary))?.summary ?? null);
-  const publishers = [...new Set(topic.articles.map((a) => a.publisher))];
+  const publishers = [...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))];
   const image = (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl))?.imageUrl ?? null;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || topic.title;
