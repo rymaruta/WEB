@@ -7,11 +7,11 @@ const MARK = { MORNING: "☀️", LUNCH: "🕛", EVENING: "🌙" } as const;
 export function DigestSummaryCard({ digest }: { digest: DigestSummary }) {
   return (
     <section aria-labelledby="digest" className="card overflow-hidden">
-      <div className="flex items-baseline justify-between gap-3 border-b border-border px-4 pt-4 pb-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border px-4 pt-4 pb-3">
         <h2 id="digest" className="text-lg font-black tracking-tight">
           <span aria-hidden className="mr-1.5">{MARK[digest.slot]}</span>
           {digest.title}
-          <span className="ml-2 text-xs font-bold text-fg-muted">{digest.dateLabel}</span>
+          <span className="ml-2 inline-block text-xs font-bold whitespace-nowrap text-fg-muted">{digest.dateLabel}</span>
         </h2>
         <p className="shrink-0 text-[11px] text-fg-subtle">毎日 7:00・12:00・20:00</p>
       </div>
