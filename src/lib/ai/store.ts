@@ -64,6 +64,8 @@ export function markAttempted(topicId: number) {
 /** 検証済みのまとめ記事を保存する。sourceIds は出典番号 1, 2, ... に対応する記事 ID */
 export async function saveArticle(topicId: number, article: GeneratedArticle, sourceIds: number[], model: string) {
   const topic = await prisma.topic.findUniqueOrThrow({ where: { id: topicId }, select: { publisherCount: true } });
+  // AI が内容から判定したジャンルがあれば、トピックのジャンルとして使う（媒体の欄による誤りを直す）
+  const genre = article.genre ? await prisma.genre.findUnique({ where: { slug: article.genre }, select: { id: true } }) : null;
   await prisma.topic.update({
     where: { id: topicId },
     data: {
@@ -76,6 +78,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiGeneratedAt: new Date(),
       aiAttemptedAt: new Date(),
       aiSourceCount: topic.publisherCount,
+      ...(genre ? { aiGenreId: genre.id, genreId: genre.id } : {}),
     },
   });
 }

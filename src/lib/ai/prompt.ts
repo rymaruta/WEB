@@ -4,6 +4,9 @@ import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify"
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
 
+/** サイトのジャンル（prisma/catalog.ts の slug と同じ） */
+export const GENRE_SLUGS = ["domestic", "world", "business", "tech", "entertainment", "sports", "game", "products", "life"] as const;
+
 export const ArticleSchema = z.object({
   title: z.string().describe("記事の見出し。40文字以内。事実を端的に"),
   lead: z.string().describe("リード文。何が起きたかを1〜2文、100文字程度で"),
@@ -19,6 +22,14 @@ export const ArticleSchema = z.object({
     .array(z.string())
     .describe("本文の段落。2〜4段落、全体で300〜600文字。背景や各媒体の報じ方の違いも資料の範囲で"),
   sufficient: z.boolean().describe("資料だけで記事を書くのに十分な情報があれば true"),
+  genre: z
+    .enum(GENRE_SLUGS)
+    .nullable()
+    // 以前の形式（genre なし）で送られた記事も受け付ける
+    .optional()
+    .describe(
+      "出来事の内容で決めるジャンル（どの媒体が報じたかではなく、何についての出来事か）。domestic=国内の政治・社会・事件、world=海外の出来事・国際関係、business=経済・企業・市場、tech=IT・科学、entertainment=芸能・映画・音楽・テレビ、sports=スポーツ、game=ゲーム・アニメ・漫画、products=新商品・グルメ、life=暮らし・トレンド。迷う場合は null",
+    ),
 });
 
 export type GeneratedArticle = z.infer<typeof ArticleSchema>;
