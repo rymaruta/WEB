@@ -31,11 +31,13 @@ export function FontSizeToggle({ className = "" }: { className?: string }) {
       type="button"
       onClick={toggle}
       aria-pressed={size === "large"}
+      aria-label={size === "large" ? "文字の大きさを標準に戻す" : "文字を大きくする"}
       className={`inline-flex h-8 items-center gap-1 rounded-full border border-border bg-surface px-3 text-xs font-bold text-fg hover:bg-surface-muted ${className}`}
     >
       <span aria-hidden className="text-[13px]">あ</span>
       <span aria-hidden className="text-[17px] leading-none">あ</span>
-      {size === "large" ? "標準の文字に戻す" : "文字を大きく"}
+      {/* 文字を大きくしてもヘッダーが2行にならないよう、表示は短くする */}
+      <span aria-hidden>{size === "large" ? "標準" : "大きく"}</span>
     </button>
   );
 }
