@@ -15,6 +15,7 @@ const GENRE_COLORS: Record<string, string> = {
   entertainment: "#db2777",
   sports: "#ea580c",
   game: "#4f46e5",
+  anime: "#c026d3",
   products: "#b45309",
   life: "#0d9488",
 };

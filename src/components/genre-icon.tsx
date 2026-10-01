@@ -52,6 +52,13 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="17.5" cy="13.5" r="0.9" fill="currentColor" stroke="none" />
     </>
   ),
+  anime: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M8 2.5l4 3.5 4-3.5" />
+      <path d="M10.5 10v5l4-2.5z" fill="currentColor" stroke="none" />
+    </>
+  ),
   products: (
     <>
       <path d="M5 8h14l-1 12H6z" />
