@@ -34,7 +34,7 @@ export function SectionHeading({ title, href, moreLabel = "もっと見る", gen
       {href && (
         <Link
           href={href}
-          className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
+          className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
         >
           {moreLabel}
         </Link>
