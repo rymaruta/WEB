@@ -23,16 +23,31 @@ export function resolveInterval(job: Job, env: Record<string, string | undefined
   return Number.isFinite(n) && n > 0 ? n : job.intervalMinutes;
 }
 
-/** 毎日決まった時刻（日本時間）に動かす処理。定時配信の下書き作り */
+/** 毎日決まった時刻（日本時間）に動かす処理。定時配信の下書き作りと投稿 */
 export type DailyJob = {
   name: string;
   path: string;
   /** 日本時間 HH:MM */
   at: string;
+  /** 待ち時間の上限（ミリ秒）。投稿は画像の作成とアップロードがあるため長めにする */
+  timeoutMs?: number;
+  /** 投稿のジョブ（AUTO_PUBLISH=false で止められる） */
+  publish?: boolean;
 };
 
-export const DAILY_JOBS: DailyJob[] = (["MORNING", "LUNCH", "EVENING"] as const).map((slot) => ({
-  name: `digest-${slot.toLowerCase()}`,
-  path: `/api/cron/digest?slot=${slot}`,
-  at: SLOTS[slot].buildAt,
-}));
+const SLOT_KEYS = ["MORNING", "LUNCH", "EVENING"] as const;
+
+export const DAILY_JOBS: DailyJob[] = [
+  ...SLOT_KEYS.map((slot) => ({
+    name: `digest-${slot.toLowerCase()}`,
+    path: `/api/cron/digest?slot=${slot}`,
+    at: SLOTS[slot].buildAt,
+  })),
+  ...SLOT_KEYS.map((slot) => ({
+    name: `publish-${slot.toLowerCase()}`,
+    path: `/api/cron/publish?slot=${slot}`,
+    at: SLOTS[slot].publishAt,
+    timeoutMs: 180_000,
+    publish: true,
+  })),
+];
