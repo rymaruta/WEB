@@ -43,8 +43,8 @@ describe("notifyOwner", () => {
 describe("通知メールの本文", () => {
   it("件名・対応・管理画面への案内をそろえ、HTML はエスケープする", async () => {
     const { noticeText, noticeHtml } = await import("@/lib/notify");
-    const n = { title: "夜のニュースを見送りました", what: "<b>理由</b>", action: "対応は不要です。" };
-    expect(noticeText(n)).toContain("対応：対応は不要です。");
+    const n = { title: "夜のニュースを見送りました", what: "<b>理由</b>", action: "不要です。" };
+    expect(noticeText(n)).toContain("対応：不要です。");
     expect(noticeText(n)).toContain("https://zenbu-navi.com/admin");
     expect(noticeHtml(n)).toContain("&lt;b&gt;理由&lt;/b&gt;");
     expect(noticeHtml(n)).toContain("管理画面を開く");

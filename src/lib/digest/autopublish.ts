@@ -24,7 +24,7 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
     await notifyOwner({
       title: `${name}を投稿できませんでした`,
       what: `${name}の下書きが作られていなかったため、投稿しませんでした。`,
-      action: "急ぎの対応は不要です。続くようであれば、管理画面の「ログ」を確認してください。",
+      action: "急ぎでは不要です。続くようであれば、管理画面の「ログ」を確認してください。",
     });
     return { result: "noop" };
   }
@@ -65,7 +65,7 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
     await notifyOwner({
       title: `${name}を見送りました`,
       what: `${name}は、確認待ちのニュースが残っていたため投稿を見送りました。内容を確かめていないニュースを出さないための仕組みです。`,
-      action: "対応は不要です。次の回は通常どおり投稿されます。",
+      action: "不要です。次の回は通常どおり投稿されます。",
     });
     return { result: "skipped", editionId: edition.id };
   }
@@ -74,7 +74,7 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
     await notifyOwner({
       title: `${name}を見送りました`,
       what: `${name}は、載せられるニュースが足りなかったため投稿を見送りました。`,
-      action: "対応は不要です。次の回は通常どおり投稿されます。",
+      action: "不要です。次の回は通常どおり投稿されます。",
     });
   }
   return { result: "noop", editionId: edition.id, status: edition.status };
