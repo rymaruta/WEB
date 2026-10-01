@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
 import { NewBadge } from "./new-badge";
+import { ReadTitle } from "./read-title";
 import type { TopicCardData } from "@/lib/queries";
 import { GenreBadge } from "./genre-badge";
 import { OutboundLink } from "./outbound-link";
@@ -28,11 +29,11 @@ function describe(topic: TopicCardData) {
 /** 複数記事のトピックはトピックページへ、単独記事は元記事へ直接リンクする */
 function TopicLink({ topic, leadId, className, children }: { topic: TopicCardData; leadId: number; className?: string; children: ReactNode }) {
   return topic.articleCount > 1 ? (
-    <Link href={`/topic/${topic.id}`} className={className}>
+    <Link href={`/topic/${topic.id}`} className={className} data-topic-id={topic.id}>
       {children}
     </Link>
   ) : (
-    <OutboundLink articleId={leadId} className={className}>
+    <OutboundLink articleId={leadId} className={className} topicId={topic.id}>
       {children}
     </OutboundLink>
   );
@@ -97,7 +98,9 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
           トップニュース{hasAi && <AiBadge />}
         </p>
         <TopicLink topic={topic} leadId={lead.id} className="headline">
-          <h2 className="text-xl leading-snug font-black group-hover:text-accent sm:text-2xl">{title}</h2>
+          <h2 className="text-xl leading-snug font-black group-hover:text-accent sm:text-2xl">
+            <ReadTitle id={topic.id}>{title}</ReadTitle>
+          </h2>
         </TopicLink>
         {summary && <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-fg-muted">{summary}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-xs text-fg-subtle">
@@ -145,7 +148,9 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
       </TopicLink>
       <div className="flex flex-1 flex-col p-4">
         <TopicLink topic={topic} leadId={lead.id} className="headline">
-          <h3 className="leading-snug font-bold group-hover:text-accent">{title}</h3>
+          <h3 className="leading-snug font-bold group-hover:text-accent">
+            <ReadTitle id={topic.id}>{title}</ReadTitle>
+          </h3>
         </TopicLink>
         {summary && <p className="mt-1.5 line-clamp-2 text-[13px] text-fg-muted">{summary}</p>}
         <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-fg-subtle">
@@ -174,7 +179,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
       <div className="min-w-0 flex-1">
         <TopicLink topic={topic} leadId={lead.id} className="headline">
           <span className={`${compact ? "text-sm font-medium" : "text-[15px] font-bold"} leading-snug group-hover:text-accent`}>
-            {title}
+            <ReadTitle id={topic.id}>{title}</ReadTitle>
           </span>
         </TopicLink>
         {!compact && summary && <p className="mt-1 line-clamp-2 text-[13px] text-fg-muted">{summary}</p>}
