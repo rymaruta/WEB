@@ -18,9 +18,21 @@ export type Notice = {
 
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+/** 文ごとに改行する（「。」で区切る） */
+export function sentences(s: string): string[] {
+  return s.split(/(?<=。)/).map((x) => x.trim()).filter(Boolean);
+}
+
 /** プレーンテキスト版（HTML を表示しないメールアプリ向け） */
 export function noticeText(n: Notice): string {
-  return [n.what, n.action ? `\n対応：${n.action}` : "", `\n管理画面：${ADMIN_URL}`, n.detail ? `\n---\n${n.detail}` : ""].join("\n").trim();
+  return [
+    n.what,
+    n.action ? `\n■ 対応\n${sentences(n.action).join("\n")}` : "",
+    `\n■ 管理画面\n${ADMIN_URL}`,
+    n.detail ? `\n---\n${n.detail}` : "",
+  ]
+    .join("\n")
+    .trim();
 }
 
 /** HTML 版。スマホで読みやすい簡素な見た目にする */
@@ -31,7 +43,14 @@ export function noticeHtml(n: Notice): string {
 <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#c2410c">ぜんぶナビ 運営通知</p>
 <h1 style="margin:0 0 16px;font-size:18px;line-height:1.5">${escape(n.title)}</h1>
 ${p(n.what, "font-size:15px;line-height:1.7")}
-${n.action ? p(`対応：${n.action}`, "font-size:15px;line-height:1.7;font-weight:700") : ""}
+${
+  n.action
+    ? `<div style="margin:0 0 20px;padding:12px 14px;background:#fff7ed;border-left:4px solid #c2410c;border-radius:6px">
+<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#c2410c">対応</p>
+${sentences(n.action).map((x) => `<p style="margin:0 0 4px;font-size:15px;line-height:1.6;font-weight:700">${escape(x)}</p>`).join("\n")}
+</div>`
+    : ""
+}
 <p style="margin:0 0 16px"><a href="${ADMIN_URL}" style="display:inline-block;background:#c2410c;color:#ffffff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px">管理画面を開く</a></p>
 ${n.detail ? p(n.detail, "font-size:12px;line-height:1.6;color:#78716c;border-top:1px solid #e7e5e4;padding-top:12px") : ""}
 </div></body></html>`;
