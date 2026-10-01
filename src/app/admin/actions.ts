@@ -126,3 +126,18 @@ export async function buildAction(slot: "MORNING" | "LUNCH" | "EVENING") {
   revalidatePath("/admin");
   redirect(`/admin/editions/${r.id}`);
 }
+
+/** 承認済みの配信回を、いますぐ X に投稿する */
+export async function publishNowAction(editionId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { publishEdition, PublishError } = await import("@/lib/digest/publish");
+  try {
+    await publishEdition(editionId);
+  } catch (e) {
+    if (e instanceof PublishError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/admin/editions/${editionId}`);
+  revalidatePath("/admin");
+  return { ok: "X に投稿しました" };
+}

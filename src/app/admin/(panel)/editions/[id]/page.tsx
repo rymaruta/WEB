@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { candidatePool, editionDetail } from "@/lib/digest/admin";
+import { prisma } from "@/lib/db";
 import { jstTime } from "@/lib/digest/slots";
 import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
@@ -10,6 +11,7 @@ import {
   editAction,
   moveAction,
   postTextAction,
+  publishNowAction,
   rebuildAction,
   removeAction,
   unapproveAction,
@@ -24,6 +26,10 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
   const editable = edition.status === "DRAFT" || edition.status === "SKIPPED";
   const pool = editable ? await candidatePool(id) : [];
   const needReview = items.filter((i) => i.story?.status === "REVIEW_REQUIRED" && !i.confirmed).length;
+  const publication = await prisma.publication.findUnique({
+    where: { editionId_channel: { editionId: id, channel: "X" } },
+    include: { parts: { orderBy: { position: "asc" } } },
+  });
 
   return (
     <div className="space-y-5">
@@ -39,10 +45,28 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
 
       {/* 承認 */}
       <section className="card p-4">
-        {edition.status === "APPROVED" ? (
+        {edition.status === "PUBLISHED" ? (
+          <div className="space-y-1">
+            <p className="font-bold">投稿しました。</p>
+            {publication?.parts.map((p) =>
+              p.externalId ? (
+                <a key={p.position} href={`https://x.com/i/web/status/${p.externalId}`} target="_blank" rel="noopener noreferrer" className="block text-sm text-accent underline">
+                  {p.position === 0 ? "本投稿を X で見る" : `リプライ ${p.position} を X で見る`}
+                </a>
+              ) : null,
+            )}
+          </div>
+        ) : edition.status === "APPROVED" || edition.status === "FAILED" ? (
           <div className="space-y-2">
-            <p className="font-bold text-emerald-700 dark:text-emerald-400">承認済みです。予定の時刻に投稿されます。</p>
-            <ActionButton action={unapproveAction.bind(null, id)} label="承認を取り消す" tone="danger" />
+            {edition.status === "APPROVED" ? (
+              <p className="font-bold text-emerald-700 dark:text-emerald-400">承認済みです。予定の時刻に投稿されます。</p>
+            ) : (
+              <p className="whitespace-pre-line text-sm font-bold text-accent">投稿に失敗しました。{publication?.lastError ? `\n${publication.lastError}` : ""}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <ActionButton action={publishNowAction.bind(null, id)} label={edition.status === "FAILED" ? "続きを投稿する" : "今すぐ X に投稿する"} tone="primary" confirm="X に投稿します。よろしいですか？（取り消しはできません）" />
+              {edition.status === "APPROVED" && <ActionButton action={unapproveAction.bind(null, id)} label="承認を取り消す" tone="danger" />}
+            </div>
           </div>
         ) : editable ? (
           <div className="space-y-2">
