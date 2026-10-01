@@ -113,9 +113,23 @@ export function predictGenre(model: GenreModel, text: string): Prediction | null
 /** 判定し直すときの基準。この確率以上で当てたときだけ、フィードのジャンルを上書きする */
 export const RECLASSIFY_MIN_PROB = 0.9;
 
+/**
+ * 判定し直してよいジャンル。正答率を測って、当てたものがほぼ正しいジャンルだけに絞る
+ * （2026-10-02 の測定: スポーツは「スポーツ」と判定したものの 98.8% が正解。他は 70% 台で、まだ使わない）。
+ * 記事がたまって精度が上がったら、/api/admin/genre-classifier で測り直して広げる。
+ */
+export const RECLASSIFY_TARGETS: ReadonlySet<string> = new Set(["sports"]);
+
 /** 混ざったフィードの記事のジャンル。自信がなければフィードのジャンルのまま */
-export function reclassify(model: GenreModel | null, feedUrl: string, feedGenre: string, text: string, minProb = RECLASSIFY_MIN_PROB): string {
+export function reclassify(
+  model: GenreModel | null,
+  feedUrl: string,
+  feedGenre: string,
+  text: string,
+  opts: { minProb?: number; targets?: ReadonlySet<string> } = {},
+): string {
   if (!model || !MIXED_FEEDS.has(feedUrl)) return feedGenre;
   const p = predictGenre(model, text);
-  return p && p.prob >= minProb ? p.slug : feedGenre;
+  if (!p || p.prob < (opts.minProb ?? RECLASSIFY_MIN_PROB)) return feedGenre;
+  return (opts.targets ?? RECLASSIFY_TARGETS).has(p.slug) ? p.slug : feedGenre;
 }

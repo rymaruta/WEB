@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { summarizeTopics, type SummarizeResult } from "@/lib/ai/summarize";
 import { prisma } from "@/lib/db";
+import { genreResolver } from "@/lib/topics/genre-model";
 import { parseFeed, type ParsedItem } from "@/lib/feed/parse";
 import { cleanTitle, displayHost, splitSiteSuffix } from "@/lib/feed/text";
 import { clusterArticles, rescoreTopics } from "@/lib/topics/cluster";
@@ -72,7 +73,9 @@ function normalizePublishedAt(item: ParsedItem, now: Date): Date | null {
   return d;
 }
 
-async function crawlSource(source: SourceRow, hostPublishers: Map<string, string>): Promise<SourceResult> {
+type GenreOf = (source: { feedUrl: string; genreId: number }, title: string, summary?: string | null) => number;
+
+async function crawlSource(source: SourceRow, hostPublishers: Map<string, string>, genreOf: GenreOf | null): Promise<SourceResult> {
   const base = { sourceId: source.id, name: source.name };
   const now = new Date();
   try {
@@ -111,7 +114,8 @@ async function crawlSource(source: SourceRow, hostPublishers: Map<string, string
         publishedAt,
         socialCount: item.socialCount,
         sourceId: source.id,
-        genreId: source.genreId,
+        // ジャンルの混ざったフィードは、見出しから判定し直す（src/lib/topics/genre-model.ts）
+        genreId: genreOf ? genreOf(source, title, item.summary) : source.genreId,
       }];
     });
 
@@ -166,11 +170,13 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
   }
   const queues = [...byHost.values()];
   const results: SourceResult[] = [];
+  // 判定の準備に失敗しても、フィードのジャンルのまま収集は続ける
+  const genreOf = await genreResolver().catch(() => null);
   const worker = async () => {
     for (let queue = queues.shift(); queue; queue = queues.shift()) {
       for (const [i, s] of queue.entries()) {
         if (i > 0) await sleep(SAME_HOST_DELAY_MS);
-        results.push(await crawlSource(s, hostPublishers));
+        results.push(await crawlSource(s, hostPublishers, genreOf));
       }
     }
   };
