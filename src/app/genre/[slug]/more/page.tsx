@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleRanking } from "@/components/article-ranking";
 import { GenreIcon } from "@/components/genre-icon";
-import { Pagination } from "@/components/pagination";
+import { Pagination, parsePage } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
 import { companyPath } from "@/lib/company";
@@ -18,19 +18,9 @@ import {
   getTrendingTopics,
 } from "@/lib/queries";
 
-import { SortButtons, SortPanels } from "./sort-tabs";
-
 const PER_PAGE = 20;
 
-/** 話題順・新着順の1ページ目をまとめて作り、キャッシュする（切り替えは画面の中で行う） */
-export const revalidate = 60;
-
-/** ビルド時には生成せず、初回アクセス時に生成して ISR でキャッシュする */
-export async function generateStaticParams() {
-  return [];
-}
-
-export async function generateMetadata({ params }: PageProps<"/genre/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/genre/[slug]/more">): Promise<Metadata> {
   const { slug } = await params;
   const genre = await getGenre(slug);
   if (!genre) return {};
@@ -38,30 +28,56 @@ export async function generateMetadata({ params }: PageProps<"/genre/[slug]">): 
     title: `${genre.name}ニュース`,
     description: `${genre.name}の最新ニュースと話題を、主要メディアからまとめてお届けします。`,
     alternates: { canonical: `/genre/${genre.slug}` },
+    // 2ページ目以降と新着順の続き。1ページ目（/genre/[slug]）と内容が重なるため検索エンジンには登録しない
+    robots: { index: false, follow: true },
   };
 }
 
-export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) {
+export default async function GenrePage({ params, searchParams }: PageProps<"/genre/[slug]/more">) {
   const { slug } = await params;
+  const sp = await searchParams;
   const genre = await getGenre(slug);
   if (!genre) notFound();
 
-  const [trending, latest, trendingTotal, latestTotal, buzz] = await Promise.all([
-    getTrendingTopics({ genreId: genre.id, take: PER_PAGE }),
-    getLatestTopics({ genreId: genre.id, take: PER_PAGE }),
-    countTrendingTopics(genre.id),
-    countTopics(genre.id),
+  const sort = sp.sort === "latest" ? "latest" : "trending";
+  const page = parsePage(sp.page);
+  const skip = (page - 1) * PER_PAGE;
+
+  const [topics, total, buzz] = await Promise.all([
+    sort === "latest"
+      ? getLatestTopics({ genreId: genre.id, skip, take: PER_PAGE })
+      : getTrendingTopics({ genreId: genre.id, skip, take: PER_PAGE }),
+    sort === "latest" ? countTopics(genre.id) : countTrendingTopics(genre.id),
     getSocialBuzz(8, genre.id),
   ]);
   // SNS の話題シグナルがないジャンルは、代わりに新着記事を表示する
   const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
   // 経済のページだけ、話題の企業への入口を出す（企業を追いたい人が多いジャンル）
   const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
-  const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
-  // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
-  const href = (sort: "trending" | "latest") => (p: number) =>
-    p === 1 ? `/genre/${genre.slug}${sort === "latest" ? "#latest" : ""}` : `/genre/${genre.slug}/more?${new URLSearchParams({ ...(sort === "latest" ? { sort } : {}), page: String(p) })}`;
-  const total = trendingTotal;
+  const totalPages = Math.min(50, Math.ceil(total / PER_PAGE));
+  if (page > 1 && topics.length === 0) notFound();
+
+  const href = (p: number, s = sort) => {
+    const q = new URLSearchParams();
+    if (s === "latest") q.set("sort", "latest");
+    if (p > 1) q.set("page", String(p));
+    const qs = q.toString();
+    // 1ページ目は、話題順・新着順をその場で切り替えられる /genre/[slug] に戻す
+    if (p === 1) return `/genre/${genre.slug}${s === "latest" ? "#latest" : ""}`;
+    return `/genre/${genre.slug}/more${qs ? `?${qs}` : ""}`;
+  };
+
+  const tab = (value: "trending" | "latest", label: string) => (
+    <Link
+      href={href(1, value)}
+      aria-current={sort === value ? "page" : undefined}
+      className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
+        sort === value ? "bg-white text-black" : "text-white/85 hover:text-white"
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   const color = `var(--g-${genre.slug})`;
 
@@ -81,7 +97,10 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
             <p className="text-xs opacity-90 sm:text-sm">直近の話題 {total}件</p>
           </div>
         </div>
-        <SortButtons />
+        <div className="flex gap-1 rounded-full bg-black/15 p-1">
+          {tab("trending", "話題順")}
+          {tab("latest", "新着順")}
+        </div>
       </header>
 
       {companies.length > 0 && (
@@ -105,24 +124,10 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
-          <SortPanels
-            trending={
-              <>
-                <TopicList topics={trending} showGenre={false} />
-                <div className="pb-5">
-                  <Pagination page={1} totalPages={pages(trendingTotal)} href={href("trending")} />
-                </div>
-              </>
-            }
-            latest={
-              <>
-                <TopicList topics={latest} showGenre={false} />
-                <div className="pb-5">
-                  <Pagination page={1} totalPages={pages(latestTotal)} href={href("latest")} />
-                </div>
-              </>
-            }
-          />
+          <TopicList topics={topics} showGenre={false} />
+          <div className="pb-5">
+            <Pagination page={page} totalPages={totalPages} href={(p) => href(p)} />
+          </div>
         </section>
         <aside className="min-w-0">
           <section className="card p-4">

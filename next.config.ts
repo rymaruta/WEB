@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 86_400,
     maximumRedirects: 3,
   },
+  async redirects() {
+    return [
+      // ジャンルの2ページ目以降は /genre/[slug]/more に移した（以前の ?page= の URL を引き継ぐ。クエリはそのまま渡る）
+      { source: "/genre/:slug", has: [{ type: "query", key: "page" }], destination: "/genre/:slug/more", permanent: true },
+    ];
+  },
   experimental: {
     serverActions: {
       // CloudFront 経由だと x-forwarded-host が Lightsail のホスト名になり、
