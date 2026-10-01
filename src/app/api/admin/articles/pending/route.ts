@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { ArticleSchema, buildPrompt, SYSTEM } from "@/lib/ai/prompt";
-import { findDueTopics, loadTopicSources } from "@/lib/ai/store";
+import { findDueTopics, findUpgradeTopics, loadTopicSources } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,9 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const limit = Math.min(10, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 5));
-  const topics = await findDueTopics(limit);
+  // ?upgrade=1 は、今の形式になる前に書いた記事の書き直しだけを返す（臨時でまとめて書き直すとき）
+  const upgrade = new URL(request.url).searchParams.get("upgrade") === "1";
+  const topics = upgrade ? await findUpgradeTopics(limit) : await findDueTopics(limit);
 
   return Response.json({
     instructions: SYSTEM,
