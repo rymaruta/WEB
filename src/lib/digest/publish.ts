@@ -28,7 +28,7 @@ export async function publishEdition(editionId: string) {
 type Plan = { position: number; cards: number[]; text: string }[];
 
 /** 投稿するカードと、投稿の分け方。速報は1枚のカードを1件で投稿する */
-async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string }; cards: Card[]; plan: Plan } | null> {
+export async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string }; cards: Card[]; plan: Plan } | null> {
   const row = await prisma.edition.findUnique({
     where: { id: editionId },
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
@@ -115,5 +115,7 @@ async function publish(editionId: string) {
     prisma.eventThread.updateMany({ where: { id: { in: threads } }, data: { lastPublishedAt: now } }),
   ]);
   await logEvent("info", "x.publish", `${edition.key}: 投稿しました`, editionId, { posts: pub.parts.length, costUsd: cost });
+  // Bluesky にも投稿する。X の結果を待たせず、失敗は定期処理が再試行する（crosspost.ts）
+  void import("./crosspost").then((m) => m.crossPostAll(editionId)).catch(() => {});
   return { status: "published" as const, firstPostId: (await prisma.publicationPart.findFirst({ where: { publicationId: pub.id, position: 0 } }))?.externalId ?? null };
 }

@@ -14,6 +14,8 @@ export const JOBS: Job[] = [
   { name: "stories", path: "/api/cron/stories", intervalMinutes: 15, envKey: "STORIES_INTERVAL_MINUTES" },
   // 速報の確認。解析が終わった出来事を見て、条件に合えば投稿する（src/lib/digest/breaking.ts）
   { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 10, envKey: "BREAKING_INTERVAL_MINUTES" },
+  // Bluesky への同時投稿の再試行と、Threads のトークンの延長（src/lib/digest/crosspost.ts）。認証情報がなければ何もしない
+  { name: "crosspost", path: "/api/cron/crosspost", intervalMinutes: 10, envKey: "CROSSPOST_INTERVAL_MINUTES" },
 ];
 
 /** 環境変数の値（分）を読む。0 以下・数値でない場合は既定値。"off" ならジョブを止める */
@@ -52,6 +54,9 @@ export const DAILY_JOBS: DailyJob[] = [
     timeoutMs: 180_000,
     publish: true,
   })),
+  // Threads への1日1本の投稿（src/lib/digest/threads-daily.ts）。認証情報がなければ何もしない
+  // 時刻は THREADS_DAILY.at と合わせる（DB を使うモジュールをここで読み込まないため直接書く）
+  { name: "threads-daily", path: "/api/cron/threads-daily?run=1", at: "21:00", timeoutMs: 180_000, publish: true },
 ];
 
 /** 起動が投稿の時刻をまたいだときに、取りこぼした投稿を拾う猶予（分） */
