@@ -1,4 +1,5 @@
-import { JOBS, resolveInterval, type Job } from "./jobs";
+import { msUntilJst } from "@/lib/digest/slots";
+import { DAILY_JOBS, JOBS, resolveInterval, type Job } from "./jobs";
 
 /** 起動直後はサーバーの準備が整うまで少し待ってから初回を実行する */
 const FIRST_RUN_DELAY_MS = 60_000;
@@ -20,7 +21,7 @@ function log(level: "info" | "error", job: string, message: string, data?: unkno
   else console.log(line);
 }
 
-async function runJob(job: Job, secret: string, base: string) {
+async function runJob(job: Pick<Job, "name" | "path">, secret: string, base: string) {
   try {
     const res = await fetch(`${base}${job.path}`, {
       headers: { authorization: `Bearer ${secret}` },
@@ -57,5 +58,21 @@ export function startScheduler() {
     }, FIRST_RUN_DELAY_MS);
     first.unref();
     log("info", job.name, `every ${minutes} min`);
+  }
+  // 毎日決まった時刻の処理。DIGEST_ENABLED=false で止められる
+  if (process.env.DIGEST_ENABLED === "false") {
+    log("info", "digest", "disabled");
+    return;
+  }
+  for (const job of DAILY_JOBS) {
+    const schedule = () => {
+      const timer = setTimeout(() => {
+        void runJob(job, secret, base);
+        schedule();
+      }, msUntilJst(job.at, new Date()));
+      timer.unref();
+    };
+    schedule();
+    log("info", job.name, `daily at ${job.at} JST`);
   }
 }
