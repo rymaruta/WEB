@@ -51,3 +51,11 @@ export const DAILY_JOBS: DailyJob[] = [
     publish: true,
   })),
 ];
+
+/** 起動が投稿の時刻をまたいだときに、取りこぼした投稿を拾う猶予（分） */
+export const CATCH_UP_MINUTES = 30;
+
+/** 今が「投稿の時刻を過ぎて CATCH_UP_MINUTES 以内」の投稿ジョブ（再起動で予約が消えた回を拾うため） */
+export function missedPublishJobs(now: Date, msSince: (at: string, now: Date) => number): DailyJob[] {
+  return DAILY_JOBS.filter((j) => j.publish && msSince(j.at, now) >= 0 && msSince(j.at, now) <= CATCH_UP_MINUTES * 60_000);
+}

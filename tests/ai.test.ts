@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readAiArticle } from "@/lib/ai/article";
+import { bodyWithoutLead } from "@/components/ai-article";
 import { buildPrompt, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
 
 const base = {
@@ -85,5 +86,15 @@ describe("checkArticleFacts", () => {
   });
   it("煽り表現があれば採用しない", () => {
     expect(checkArticleFacts({ ...art, title: "【衝撃】米Micronが過去最高の決算" }, src).article).toBeNull();
+  });
+});
+
+describe("bodyWithoutLead", () => {
+  it("本文の最初の段落がリードと同じ書き出しなら省く", () => {
+    const lead = "高市早苗首相がモンゴルのオチラル首相との会食で行った乾杯の様子が、SNS上で波紋を広げている。";
+    const body = ["高市早苗首相がモンゴルのオチラル首相とのワーキングディナーで乾杯した際の様子が、SNS上で波紋を広げている。", "J-CASTニュースなどは…"];
+    expect(bodyWithoutLead({ lead: "高市早苗首相がモンゴルのオチラル首相とのワーキングディナーで乾杯", body })).toEqual(["J-CASTニュースなどは…"]);
+    expect(bodyWithoutLead({ lead: "別の書き出しのリード文です。内容は異なる。", body })).toEqual(body);
+    expect(bodyWithoutLead({ lead, body: [body[0]] })).toEqual([body[0]]);
   });
 });

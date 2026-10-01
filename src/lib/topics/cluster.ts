@@ -118,12 +118,13 @@ export async function refreshTopics(topicIds: number[]) {
     const pool = primary.length ? primary : list;
     const votes = new Map<number, number>();
     for (const a of pool) votes.set(a.genreId, (votes.get(a.genreId) ?? 0) + 1);
+    // 媒体の欄の多数決。AI が判定したジャンル（aiGenreId）があれば、更新時にそちらを優先する
     const genreId = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
     return Prisma.sql`(${topicId}::int, ${pool[0].title}::text, ${genreId}::int)`;
   });
   for (const rows of chunk(updates, 5_000)) {
     await prisma.$executeRaw`
-      UPDATE "Topic" t SET title = v.title, "genreId" = v.gid
+      UPDATE "Topic" t SET title = v.title, "genreId" = COALESCE(t."aiGenreId", v.gid)
       FROM (VALUES ${Prisma.join(rows)}) AS v(id, title, gid)
       WHERE t.id = v.id`;
   }

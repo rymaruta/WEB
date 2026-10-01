@@ -34,6 +34,14 @@ export function DigestSummaryCard({ digest }: { digest: DigestSummary }) {
           </li>
         ))}
       </ol>
+      <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs font-bold">
+        <Link href={digest.href} className="text-accent hover:underline">
+          要点をまとめて読む →
+        </Link>
+        <Link href="/digest" className="text-fg-muted hover:text-fg">
+          過去の配信
+        </Link>
+      </div>
     </section>
   );
 }

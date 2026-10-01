@@ -14,7 +14,7 @@ import { TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
-import { newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
+import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 
 export const revalidate = 60;
 
@@ -62,7 +62,14 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: serializeJsonLd(newsArticleJsonLd(topic.id, ai, topic.articles.map((a) => ({ url: a.url, publisher: a.publisher })))),
+              __html: serializeJsonLd([
+                newsArticleJsonLd(topic.id, ai, topic.articles.map((a) => ({ url: a.url, publisher: a.publisher }))),
+                breadcrumbJsonLd([
+                  { name: "トップ", path: "/" },
+                  { name: topic.genre.name, path: `/genre/${topic.genre.slug}` },
+                  { name: ai.title, path: `/topic/${topic.id}` },
+                ]),
+              ]),
             }}
           />
         )}

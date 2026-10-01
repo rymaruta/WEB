@@ -17,11 +17,19 @@ export type ScheduledResult =
  *   おまかせ投稿でない、または確認待ちが残っている場合は見送る（SKIPPED）
  * - それ以外（投稿済み・見送り済み・失敗）→ 何もしない（失敗は人が確かめてから再実行する）
  */
-export async function runScheduledPublish(slot: Slot, now = new Date()): Promise<ScheduledResult> {
+export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { catchUp?: boolean } = {}): Promise<ScheduledResult> {
   const name = SLOTS[slot].title;
   const edition = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(now), slot) }, select: { id: true, key: true, status: true } });
+  // 起動直後の取りこぼし確認：投稿待ち（承認済み・下書き）の回だけを扱い、それ以外では何もせず知らせもしない
+  if (opts.catchUp && (!edition || (edition.status !== "APPROVED" && edition.status !== "DRAFT"))) {
+    return { result: "noop", editionId: edition?.id, status: edition?.status };
+  }
   if (!edition) {
-    await notifyOwner(`${name}の下書きが作られていなかったため、投稿しませんでした。ログを確認してください。`);
+    await notifyOwner({
+      title: `${name}を投稿できませんでした`,
+      what: `${name}の下書きが作られていなかったため、投稿しませんでした。`,
+      action: "急ぎでは不要です。続くようであれば、管理画面の「ログ」を確認してください。",
+    });
     return { result: "noop" };
   }
 
@@ -45,7 +53,12 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
     } catch (e) {
       // 失敗の記録（FAILED と理由）は publishEdition が残す
       const error = e instanceof Error ? e.message : String(e);
-      await notifyOwner(`${name}の X への投稿に失敗しました。管理画面の「続きを投稿する」で再実行できます（送った分は重複しません）。\n${error.slice(0, 200)}`);
+      await notifyOwner({
+        title: `${name}の投稿に失敗しました`,
+        what: `${name}を X に投稿しようとしましたが、失敗しました。`,
+        action: "管理画面でこの回を開き、「続きを投稿する」を押してください。すでに送った分が重複して投稿されることはありません。",
+        detail: error.slice(0, 300),
+      });
       return { result: "failed", editionId: edition.id, error };
     }
   }
@@ -53,12 +66,20 @@ export async function runScheduledPublish(slot: Slot, now = new Date()): Promise
   if (edition.status === "DRAFT") {
     await prisma.edition.update({ where: { id: edition.id }, data: { status: "SKIPPED" } });
     await logEvent("warn", "digest.skip", `${edition.key}: 承認されなかった（または確認待ちのニュースが残っていた）ため見送りました`, edition.id);
-    await notifyOwner(`${name}は、確認待ちのニュースが残っていた（または承認されなかった）ため見送りました。`);
+    await notifyOwner({
+      title: `${name}を見送りました`,
+      what: `${name}は、確認待ちのニュースが残っていたため投稿を見送りました。内容を確かめていないニュースを出さないための仕組みです。`,
+      action: "不要です。次の回は通常どおり投稿されます。",
+    });
     return { result: "skipped", editionId: edition.id };
   }
 
   if (edition.status === "SKIPPED") {
-    await notifyOwner(`${name}は、載せられるニュースが足りなかったため見送りました。`);
+    await notifyOwner({
+      title: `${name}を見送りました`,
+      what: `${name}は、載せられるニュースが足りなかったため投稿を見送りました。`,
+      action: "不要です。次の回は通常どおり投稿されます。",
+    });
   }
   return { result: "noop", editionId: edition.id, status: edition.status };
 }

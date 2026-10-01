@@ -1,6 +1,6 @@
 import { hasCronSecret } from "@/lib/auth";
 import { buildEdition, currentSlot } from "@/lib/digest/build";
-import { SLOT_ORDER, type Slot } from "@/lib/digest/slots";
+import { SLOT_ORDER, SLOTS, type Slot } from "@/lib/digest/slots";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
 
@@ -21,7 +21,12 @@ export async function GET(request: Request) {
     return Response.json(await buildEdition(slot));
   } catch (e) {
     await logEvent("error", "digest.build", `${slot}: 下書きの作成に失敗`, undefined, String(e));
-    await notifyOwner(`${slot} の下書きの作成に失敗しました。このままだと投稿されません。\n${String(e).slice(0, 200)}`);
+    await notifyOwner({
+      title: `${SLOTS[slot].title}の下書きを作れませんでした`,
+      what: `${SLOTS[slot].title}の下書きの作成に失敗しました。このままだと、この回は投稿されません。`,
+      action: "管理画面のトップで「下書きを今すぐ作る」を押すと、作り直せます。",
+      detail: String(e).slice(0, 300),
+    });
     return Response.json({ error: "build failed" }, { status: 500 });
   }
 }

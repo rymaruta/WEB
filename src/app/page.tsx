@@ -4,9 +4,13 @@ import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-card";
 import { getLatestDigest } from "@/lib/digest/latest";
 import { formatNumber } from "@/lib/format";
+import { serializeJsonLd, siteJsonLd } from "@/lib/structured-data";
 import { getGenres, getLatestArticles, getMostRead, getSiteStats, getSocialBuzz, getTrendingTopics } from "@/lib/queries";
 
 export const revalidate = 60;
+
+/** 一番上の大きな枠に優先して置くジャンル（多くの読者に関わる出来事） */
+const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
 
 export default async function HomePage() {
   const [genres, headline, mostRead, buzz, latest, stats, digest] = await Promise.all([
@@ -28,12 +32,15 @@ export default async function HomePage() {
     })),
   );
 
-  const [lead, ...others] = headline;
+  // 一番上は、まとめ記事があり、多くの読者に関わるジャンルの話題を優先する（なければ話題度の1位）
+  const lead = headline.find((t) => t.aiTitle && HERO_GENRES.has(t.genre.slug)) ?? headline[0];
+  const others = headline.filter((t) => t !== lead);
   const tiles = others.slice(0, 4);
   const rest = others.slice(4);
 
   return (
     <div className="space-y-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
       {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
       {digest && <DigestSummaryCard digest={digest} />}
       <section aria-labelledby="trending">
@@ -118,7 +125,13 @@ export default async function HomePage() {
                     <div className="border-b border-border">
                       <TopicCard topic={top} showGenre={false} />
                     </div>
-                    <TopicList topics={more} variant="compact" showGenre={false} />
+                    <TopicList topics={more.slice(0, 2)} variant="compact" showGenre={false} />
+                    {/* スマホでは各ジャンル3本までにして、トップが縦に長くなりすぎないようにする */}
+                    {more.length > 2 && (
+                      <div className="hidden border-t border-border md:block">
+                        <TopicList topics={more.slice(2)} variant="compact" showGenre={false} />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p className="py-6 text-sm text-fg-subtle">直近のニュースはありません。</p>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
+import { NewBadge } from "./new-badge";
 import type { TopicCardData } from "@/lib/queries";
 import { GenreBadge } from "./genre-badge";
 import { OutboundLink } from "./outbound-link";
@@ -101,7 +102,10 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
         <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-xs text-fg-subtle">
           <PublisherAvatars names={publishers} size="md" />
           <PublisherLine publishers={publishers} max={3} />
-          <time dateTime={topic.lastSeenAt.toISOString()} className="ml-auto">{relativeTime(topic.lastSeenAt)}</time>
+          <span className="ml-auto flex items-center gap-1.5">
+            <NewBadge since={topic.firstSeenAt} />
+            <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
+          </span>
         </div>
       </div>
     </article>
@@ -138,7 +142,10 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
         <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-fg-subtle">
           <PublisherAvatars names={publishers} max={4} />
           <PublisherLine publishers={publishers} max={2} />
-          <time dateTime={topic.lastSeenAt.toISOString()} className="ml-auto shrink-0">{relativeTime(topic.lastSeenAt)}</time>
+          <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            <NewBadge since={topic.firstSeenAt} />
+            <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
+          </span>
         </div>
       </div>
     </article>
@@ -168,6 +175,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
           <CoverageBadge count={topic.publisherCount} />
           {topic.publisherCount > 1 && !compact && <PublisherAvatars names={publishers} max={4} />}
           <PublisherLine publishers={publishers} max={compact ? 2 : 3} />
+          <NewBadge since={topic.firstSeenAt} />
           <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
         </div>
       </div>
