@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatDateTime } from "@/lib/format";
+import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
 import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify";
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
@@ -36,6 +37,14 @@ export const ArticleSchema = z.object({
     .optional()
     .describe(
       "この出来事の当事者である企業の名前（0〜5社）。資料に書かれている表記のまま、「株式会社」「(株)」は付けない（例: トヨタ自動車、ソニーグループ、Micron）。官公庁・自治体・団体・スポーツチーム・媒体名は含めない。単に言及されただけの企業も含めない",
+    ),
+  marketEvent: z
+    .enum(MARKET_EVENT_KEYS)
+    .nullable()
+    // 以前の形式（marketEvent なし）で送られた記事も受け付ける
+    .optional()
+    .describe(
+      "企業の業績・資本に関わる出来事なら種類を選ぶ。earnings=決算発表、forecast=業績予想の修正、deal=買収・合併・資本提携・TOB、shareholder=配当・自社株買い・株式分割、listing=上場・上場廃止。新商品や不祥事などそれ以外は null",
     ),
   body: z
     .array(z.string())
@@ -140,5 +149,6 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
   // 企業名は資料のどこかにそのまま書かれているものだけを残す（AI が補った社名を企業ページに載せない）
   const corpus = all.normalize("NFKC");
   const companies = (a.companies ?? []).filter((c) => corpus.includes(c));
-  return { article: { ...a, body, angles, companies }, missing: bodyMissing, banned };
+  const marketEvent = verifyMarketEvent(a.marketEvent, all);
+  return { article: { ...a, body, angles, companies, marketEvent }, missing: bodyMissing, banned };
 }
