@@ -6,6 +6,14 @@ const REQUEST_TIMEOUT_MS = 30_000;
 
 let started = false;
 
+/**
+ * 自分自身を呼ぶときの宛先。サーバーは HOSTNAME で待ち受ける（Next.js standalone の仕様）。
+ * 0.0.0.0（全アドレス）や未設定なら 127.0.0.1、それ以外（コンテナ名など）はその名前を使う
+ */
+export function selfHost(hostname: string | undefined): string {
+  return !hostname || hostname === "0.0.0.0" || hostname === "::" ? "127.0.0.1" : hostname;
+}
+
 function log(level: "info" | "error", job: string, message: string, data?: unknown) {
   const line = JSON.stringify({ event: "scheduler", level, job, message, data, at: new Date().toISOString() });
   if (level === "error") console.error(line);
@@ -22,7 +30,8 @@ async function runJob(job: Job, secret: string, base: string) {
     if (res.status === 200 || res.status === 202 || res.status === 409) log("info", job.name, `HTTP ${res.status}`);
     else log("error", job.name, `HTTP ${res.status}`, await res.text().catch(() => ""));
   } catch (e) {
-    log("error", job.name, "request failed", String(e));
+    const cause = e instanceof Error && e.cause ? ` (${String(e.cause)})` : "";
+    log("error", job.name, "request failed", `${String(e)}${cause} url=${base}${job.path}`);
   }
 }
 
@@ -35,7 +44,7 @@ export function startScheduler() {
     log("error", "*", "CRON_SECRET が未設定のため、スケジューラーを起動しません");
     return;
   }
-  const base = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+  const base = `http://${selfHost(process.env.HOSTNAME)}:${process.env.PORT ?? 3000}`;
   for (const job of JOBS) {
     const minutes = resolveInterval(job, process.env);
     if (minutes === null) {

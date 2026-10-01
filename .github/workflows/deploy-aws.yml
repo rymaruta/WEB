@@ -123,10 +123,12 @@ jobs:
           AI_MAX_PER_RUN: ${{ vars.AI_MAX_PER_RUN }}
           # 常駐サーバーなので、定期収集はサーバー内のスケジューラーで行う（src/instrumentation.ts）
           SCHEDULER_ENABLED: "true"
+          # コンテナ環境は HOSTNAME をコンテナ名に書き換えるため、全アドレスで待ち受けるよう明示する
+          HOSTNAME: "0.0.0.0"
         run: |
           # 値が空の環境変数は渡さない（DATABASE_URL・CRON_SECRET・ANTHROPIC_API_KEY は Load secrets で設定済み）
           environment=$(jq -n 'env
-            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED")))
+            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED","HOSTNAME")))
             | with_entries(select(.value != ""))')
           containers=$(jq -n --arg image "$IMAGE" --argjson environment "$environment" \
             '{web: {image: $image, environment: $environment, ports: {"3000": "HTTP"}}}')

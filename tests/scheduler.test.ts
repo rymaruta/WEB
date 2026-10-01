@@ -12,3 +12,13 @@ describe("resolveInterval", () => {
     expect(resolveInterval(crawl, { CRAWL_INTERVAL_MINUTES: "abc" })).toBe(15);
   });
 });
+
+import { selfHost } from "@/lib/scheduler/start";
+
+describe("selfHost", () => {
+  it("全アドレス・未設定なら 127.0.0.1", () => {
+    expect(selfHost(undefined)).toBe("127.0.0.1");
+    expect(selfHost("0.0.0.0")).toBe("127.0.0.1");
+  });
+  it("コンテナ名などはそのまま使う", () => expect(selfHost("ip-172-26-1-5")).toBe("ip-172-26-1-5"));
+});
