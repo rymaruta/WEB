@@ -112,6 +112,25 @@ a.headline:visited {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 
+/* ランキングの1〜3位（金・銀・銅）。文字色は背景とのコントラスト比 4.5 以上 */
+.rank-medal {
+  box-shadow:
+    inset 0 -2px 0 rgb(0 0 0 / 0.12),
+    0 1px 2px rgb(0 0 0 / 0.18);
+}
+.rank-gold {
+  background: linear-gradient(135deg, #fbe08a, #e2b237 55%, #c99a1e);
+  color: #3d2a00;
+}
+.rank-silver {
+  background: linear-gradient(135deg, #f1f2f4, #c3c7cd 55%, #a6abb3);
+  color: #25282c;
+}
+.rank-bronze {
+  background: linear-gradient(135deg, #f0c09a, #d08d58 55%, #b8733f);
+  color: #331a07;
+}
+
 .scrollbar-none {
   scrollbar-width: none;
 }

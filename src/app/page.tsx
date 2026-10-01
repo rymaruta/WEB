@@ -50,6 +50,20 @@ export default async function HomePage() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 space-y-4">
               <HeroTopic topic={lead} />
+              {/* スマホではサイドバーが一番下になるため、ランキングをトップ記事の直後に出す */}
+              <section className="card p-4 lg:hidden">
+                {mostRead.length > 0 ? (
+                  <>
+                    <SectionHeading title="よく読まれている" href="/ranking" moreLabel="ランキング" />
+                    <ArticleRanking items={mostRead.slice(0, 5)} metric="clicks" />
+                  </>
+                ) : (
+                  <>
+                    <SectionHeading title="SNSで話題" note="はてなブックマーク数" href="/ranking" moreLabel="ランキング" />
+                    <ArticleRanking items={buzz.slice(0, 5)} metric="social" showGenre />
+                  </>
+                )}
+              </section>
               <div className="grid gap-4 sm:grid-cols-2">
                 {tiles.map((t) => (
                   <TopicTile key={t.id} topic={t} />
@@ -65,7 +79,7 @@ export default async function HomePage() {
             </div>
             <aside className="min-w-0 space-y-6">
               {mostRead.length > 0 && (
-                <section className="card p-4">
+                <section className="card hidden p-4 lg:block">
                   <SectionHeading title="よく読まれている" href="/ranking" moreLabel="ランキング" />
                   <ArticleRanking items={mostRead} metric="clicks" />
                 </section>

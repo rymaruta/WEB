@@ -5,6 +5,7 @@ import type { TopicCardData } from "@/lib/queries";
 import { GenreBadge } from "./genre-badge";
 import { OutboundLink } from "./outbound-link";
 import { PublisherAvatars } from "./publisher-avatars";
+import { RankBadge } from "./rank-badge";
 import { Thumbnail } from "./thumbnail";
 
 type Variant = "standard" | "compact";
@@ -152,13 +153,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
   const compact = variant === "compact";
   return (
     <article className={`group flex gap-3 ${compact ? "py-2.5" : "py-3.5"}`}>
-      {rank !== undefined && (
-        <span
-          className={`w-7 shrink-0 text-center text-xl leading-tight font-black tabular-nums ${rank <= 3 ? "text-accent" : "text-fg-subtle"}`}
-        >
-          {rank}
-        </span>
-      )}
+      {rank !== undefined && <RankBadge rank={rank} size="md" />}
       <div className="min-w-0 flex-1">
         <TopicLink topic={topic} leadId={lead.id} className="headline">
           <span className={`${compact ? "text-sm font-medium" : "text-[15px] font-bold"} leading-snug group-hover:text-accent`}>

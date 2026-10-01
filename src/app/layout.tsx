@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { siteConfig } from "@/config/site";
@@ -30,10 +31,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ja" className={`${noto.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+      {/* スマホでは画面下メニューの高さ分だけ下に余白を取る */}
+      <body className="flex min-h-full flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
         <SiteHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
         <SiteFooter />
+        <BottomNav />
       </body>
     </html>
   );
