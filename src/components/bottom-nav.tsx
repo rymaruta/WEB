@@ -9,6 +9,7 @@ const ITEMS: { href: string; label: string; icon: NavIconName }[] = [
   { href: "/ranking", label: "ランキング", icon: "ranking" },
   { href: "/articles", label: "まとめ記事", icon: "articles" },
   { href: "/search", label: "検索", icon: "search" },
+  { href: "/saved", label: "保存", icon: "saved" },
 ];
 
 /** スマホ用の画面下メニュー。片手で主要なページへ移動できるようにする（sm 以上では表示しない） */
@@ -21,7 +22,7 @@ export function BottomNav() {
       aria-label="メインメニュー"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {ITEMS.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

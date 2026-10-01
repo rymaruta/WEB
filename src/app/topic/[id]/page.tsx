@@ -9,6 +9,7 @@ import { OutboundLink } from "@/components/outbound-link";
 import { PublisherAvatars } from "@/components/publisher-avatars";
 import { Thumbnail } from "@/components/thumbnail";
 import { SectionHeading } from "@/components/section-heading";
+import { SaveButton } from "@/components/save-button";
 import { ShareButtons } from "@/components/share-buttons";
 import { siteConfig } from "@/config/site";
 import { MarketEventBadge, TopicList } from "@/components/topic-card";
@@ -112,6 +113,9 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 </>
               )}
             </span>
+          </div>
+          <div className="mt-3">
+            <SaveButton id={topic.id} title={ai?.title ?? topic.title} />
           </div>
         </header>
 
