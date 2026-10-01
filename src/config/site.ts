@@ -13,4 +13,6 @@ export const siteConfig = {
   url: siteUrl,
   contactEmail: process.env.CONTACT_EMAIL ?? "contact@example.com",
   crawlerUserAgent: `ZenbuNaviBot/1.0 (+${siteUrl}/about)`,
+  /** Google AdSense のサイト運営者 ID（公開情報）。空にすると広告のコードを読み込まない */
+  adsenseClient: process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-pub-7935293964724460",
 } as const;
