@@ -13,7 +13,8 @@ export async function notifyOwner(text: string, env: Record<string, string | und
   const to = env.NOTIFY_EMAIL;
   const accessKeyId = env.SES_ACCESS_KEY_ID;
   const secretAccessKey = env.SES_SECRET_ACCESS_KEY;
-  if (!to || !accessKeyId || !secretAccessKey) return false;
+  // 宛先の枠だけ作った状態（PLACEHOLDER）は未設定として扱う
+  if (!to || to === "PLACEHOLDER" || !to.includes("@") || !accessKeyId || !secretAccessKey) return false;
   const subject = `【ぜんぶナビ】${text.split("\n")[0].slice(0, 60)}`;
   try {
     const aws = new AwsClient({ accessKeyId, secretAccessKey, region: REGION, service: "ses" });
