@@ -434,3 +434,13 @@ model PageDaily {
   @@id([date, path])
   @@index([date, views(sort: Desc)])
 }
+
+/// まとめ記事への読者の評価（件数だけ。誰が押したかは保存しない）
+model TopicFeedback {
+  topicId   Int      @id
+  helpful   Int      @default(0)
+  unclear   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@index([unclear(sort: Desc)])
+}
