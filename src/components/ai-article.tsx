@@ -153,7 +153,7 @@ export function AiArticleView({
                     ? `${h.sources}媒体の報道をもとに作成`
                     : h.sources > article.history[i - 1].sources
                       ? `報じる媒体が${h.sources}媒体に増えたため内容を更新`
-                      : "新しい報道をもとに内容を更新"}
+                      : "内容を見直して更新"}
                 </li>
               ))}
             </ol>
