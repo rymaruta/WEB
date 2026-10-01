@@ -1,5 +1,6 @@
 import { ArticleRanking } from "@/components/article-ranking";
 import { DigestSummaryCard } from "@/components/digest-summary";
+import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-card";
 import { getLatestDigest } from "@/lib/digest/latest";
@@ -42,6 +43,7 @@ export default async function HomePage() {
     <div className="space-y-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
       {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
+      <SinceLastVisit />
       {digest && <DigestSummaryCard digest={digest} />}
       <section aria-labelledby="trending">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
