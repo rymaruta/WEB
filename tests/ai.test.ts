@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readAiArticle } from "@/lib/ai/article";
-import { buildPrompt, sanitizeArticle } from "@/lib/ai/prompt";
+import { buildPrompt, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
 
 const base = {
   title: " 見出し ",
@@ -59,5 +59,31 @@ describe("readAiArticle", () => {
   it("未作成や壊れたデータは null", () => {
     expect(readAiArticle({ ...stored, aiTitle: null })).toBeNull();
     expect(readAiArticle({ ...stored, aiPoints: "broken" })).toBeNull();
+  });
+});
+
+describe("checkArticleFacts", () => {
+  const src = [
+    { publisher: "A新聞", publishedAt: new Date("2026-09-30T03:00:00Z"), title: "米Micron、売上高4.8倍", summary: "純利益は11.8倍に" },
+    { publisher: "B通信", publishedAt: new Date("2026-09-30T04:00:00Z"), title: "Micronが過去最高益", summary: "AI向けメモリが好調" },
+  ];
+  const art = {
+    title: "米Micronが過去最高の決算",
+    lead: "売上高は前年同期比4.8倍。",
+    points: [{ text: "純利益は11.8倍", sources: [1] }],
+    body: ["A新聞によると、AI向けメモリが好調だった。", "株価は20%上昇した。"],
+    sufficient: true,
+  };
+  it("資料にある語だけなら採用し、資料にない数字を含む段落は落とす", () => {
+    const r = checkArticleFacts(art, src);
+    expect(r.article?.body).toEqual(["A新聞によると、AI向けメモリが好調だった。"]);
+    expect(r.missing).toContain("20");
+  });
+  it("見出し・要点に資料にない数字があれば採用しない", () => {
+    expect(checkArticleFacts({ ...art, title: "米Micron、売上高5倍" }, src).article).toBeNull();
+    expect(checkArticleFacts({ ...art, points: [{ text: "純利益は11.8倍", sources: [2] }] }, src).article).toBeNull();
+  });
+  it("煽り表現があれば採用しない", () => {
+    expect(checkArticleFacts({ ...art, title: "【衝撃】米Micronが過去最高の決算" }, src).article).toBeNull();
   });
 });

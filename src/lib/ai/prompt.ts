@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatDateTime } from "@/lib/format";
+import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify";
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
 
@@ -49,4 +50,40 @@ export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): Gener
   const body = a.body.map((b) => b.trim()).filter(Boolean);
   if (!a.title.trim() || points.length === 0 || body.length === 0) return null;
   return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), body };
+}
+
+export type FactSource = { publisher: string; publishedAt: Date; title: string; summary: string | null };
+
+export type FactCheck = { article: GeneratedArticle | null; missing: string[]; banned: string[] };
+
+/**
+ * 資料との照合。AI の文章を信用せず、数字・カギかっこの語・英数字の語が資料にあるかを機械的に確かめる。
+ * - 見出し・リード・要点：資料にない語が1つでもあれば記事を採用しない（要点は、その要点の出典に限って照合する）
+ * - 本文：資料にない語を含む段落だけを落とす（すべて落ちたら採用しない）
+ * - 煽り表現が見出し・リード・要点にあれば採用しない
+ * @param sources 出典番号 1, 2, ... に対応する資料
+ */
+export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): FactCheck {
+  const text = (s: FactSource) => `${s.publisher} ${formatDateTime(s.publishedAt)} ${s.title} ${s.summary ?? ""}`;
+  const all = sources.map(text).join("\n");
+  const missingIn = (t: string, corpus: string) => extractFacts(t).filter((f) => !factInSources(f, corpus));
+
+  const missing = new Set<string>();
+  for (const m of [...missingIn(a.title, all), ...missingIn(a.lead, all)]) missing.add(m);
+  for (const p of a.points) {
+    const cited = p.sources.map((n) => sources[n - 1]).filter(Boolean).map(text).join("\n");
+    for (const m of missingIn(p.text, cited)) missing.add(m);
+  }
+  const visible = [a.title, a.lead, ...a.points.map((p) => p.text)].join("\n");
+  const banned = BANNED_WORDS.filter((w) => visible.includes(w));
+  if (missing.size > 0 || banned.length > 0) return { article: null, missing: [...missing], banned };
+
+  const bodyMissing: string[] = [];
+  const body = a.body.filter((para) => {
+    const m = missingIn(para, all);
+    bodyMissing.push(...m);
+    return m.length === 0;
+  });
+  if (body.length === 0) return { article: null, missing: bodyMissing, banned };
+  return { article: { ...a, body }, missing: bodyMissing, banned };
 }
