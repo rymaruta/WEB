@@ -21,11 +21,11 @@ function log(level: "info" | "error", job: string, message: string, data?: unkno
   else console.log(line);
 }
 
-async function runJob(job: Pick<Job, "name" | "path">, secret: string, base: string) {
+async function runJob(job: Pick<Job, "name" | "path">, secret: string, base: string, timeoutMs = REQUEST_TIMEOUT_MS) {
   try {
     const res = await fetch(`${base}${job.path}`, {
       headers: { authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     // 202 = 受付、409 = 前回が実行中（正常）
     if (res.status === 200 || res.status === 202 || res.status === 409) log("info", job.name, `HTTP ${res.status}`);
@@ -65,9 +65,14 @@ export function startScheduler() {
     return;
   }
   for (const job of DAILY_JOBS) {
+    // 定時の自動投稿は AUTO_PUBLISH=false で止められる（下書き作りは続ける）
+    if (job.publish && process.env.AUTO_PUBLISH === "false") {
+      log("info", job.name, "disabled");
+      continue;
+    }
     const schedule = () => {
       const timer = setTimeout(() => {
-        void runJob(job, secret, base);
+        void runJob(job, secret, base, job.timeoutMs);
         schedule();
       }, msUntilJst(job.at, new Date()));
       timer.unref();
