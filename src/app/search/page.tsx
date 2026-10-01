@@ -3,7 +3,8 @@ import { Pagination, parsePage } from "@/components/pagination";
 import { SearchForm } from "@/components/search-form";
 import { TopicList } from "@/components/topic-card";
 import { formatNumber } from "@/lib/format";
-import { searchTopics } from "@/lib/queries";
+import Link from "next/link";
+import { getTrendingKeywords, searchTopics } from "@/lib/queries";
 
 const PER_PAGE = 20;
 
@@ -20,7 +21,12 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const sp = await searchParams;
   const q = readQuery(sp.q);
   const page = parsePage(sp.page);
-  const { items, total } = q ? await searchTopics(q, (page - 1) * PER_PAGE, PER_PAGE) : { items: [], total: 0 };
+  const [{ items, total }, keywords] = await Promise.all([
+    q ? searchTopics(q, (page - 1) * PER_PAGE, PER_PAGE) : { items: [], total: 0 },
+    getTrendingKeywords(12),
+  ]);
+  // 検索前と、見つからなかったときは、いま話題のキーワードから選べるようにする
+  const showKeywords = keywords.length > 0 && (!q || total === 0);
 
   return (
     <section className="mx-auto max-w-3xl card p-4 sm:p-6">
@@ -39,6 +45,25 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
           />
         </>
       )}
+      {showKeywords && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-bold text-fg-muted">いま話題のキーワード</h2>
+          <ul className="flex flex-wrap gap-2">
+            {keywords.map((k) => (
+              <li key={k}>
+                <Link
+                  href={`/search?${new URLSearchParams({ q: k })}`}
+                  prefetch={false}
+                  className="inline-block rounded-full border border-border bg-surface px-3 py-1.5 text-sm hover:border-accent hover:text-accent"
+                >
+                  {k}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!q && <p className="mt-6 text-xs text-fg-subtle">複数の言葉をスペースで区切ると、すべてを含むニュースに絞り込めます。</p>}
     </section>
   );
 }

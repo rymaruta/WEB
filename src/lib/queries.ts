@@ -1,6 +1,7 @@
 import { cache } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { parseSearchTerms } from "@/lib/search-terms";
 
 /** 「いま話題」の対象期間 */
 export const TRENDING_HOURS = 48;
@@ -124,12 +125,18 @@ export function getLatestArticles(take: number, genreId?: number) {
 }
 
 /** 見出しの部分一致検索（pg_trgm インデックスを利用） */
+/** すべての語を含むトピック（見出し・AI まとめ記事の見出し・各媒体の見出しのどこかに含まれればよい） */
 export async function searchTopics(q: string, skip: number, take: number) {
+  const terms = parseSearchTerms(q);
+  if (terms.length === 0) return { items: [], total: 0 };
   const where: Prisma.TopicWhereInput = {
-    OR: [
-      { title: { contains: q, mode: "insensitive" } },
-      { articles: { some: { title: { contains: q, mode: "insensitive" } } } },
-    ],
+    AND: terms.map((t) => ({
+      OR: [
+        { title: { contains: t, mode: "insensitive" } },
+        { aiTitle: { contains: t, mode: "insensitive" } },
+        { articles: { some: { title: { contains: t, mode: "insensitive" } } } },
+      ],
+    })),
   };
   const [items, total] = await Promise.all([
     prisma.topic.findMany({
@@ -180,3 +187,27 @@ export async function getAiArticles(skip: number, take: number) {
   ]);
   return { items, total };
 }
+
+/** いま話題のキーワード（AI が出来事ごとに付けた短い語。話題の大きい順、重複なし） */
+export const getTrendingKeywords = cache(async (take: number) => {
+  const stories = await prisma.story.findMany({
+    where: {
+      createdAt: { gte: since(TRENDING_HOURS) },
+      keyword: { not: null },
+      status: { in: ["PENDING", "REVIEW_REQUIRED", "APPROVED", "PUBLISHED"] },
+    },
+    orderBy: { score: "desc" },
+    take: take * 4,
+    select: { keyword: true },
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const { keyword } of stories) {
+    const k = keyword!.trim();
+    if (!k || k.length > 20 || seen.has(k)) continue;
+    seen.add(k);
+    out.push(k);
+    if (out.length >= take) break;
+  }
+  return out;
+});
