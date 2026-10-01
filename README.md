@@ -73,7 +73,7 @@ npm run dev                   # http://localhost:3000
 
 ## 公開（デプロイ）
 
-Vercel ＋ Neon での公開手順は [docs/DEPLOY.md](docs/DEPLOY.md) にまとめています。
+Vercel ＋ Neon での公開手順は [docs/DEPLOY.md](docs/DEPLOY.md)、AWS（Lightsail）への移行手順は [docs/DEPLOY-AWS.md](docs/DEPLOY-AWS.md) にまとめています。
 Vercel は `package.json` の `vercel-build`（マイグレーション → マスタ登録 → ビルド）を実行し、`vercel.json` で東京リージョン（`hnd1`）に配置します。
 
 ## 定期収集

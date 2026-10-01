@@ -1,0 +1,150 @@
+# main への push で AWS（Lightsail のコンテナサービス、東京リージョン）へデプロイする。
+# 変数 AWS_DEPLOY_ROLE_ARN が未登録の間は何もせず正常終了する。
+#
+# 必要な設定（Settings → Secrets and variables → Actions）
+#   Variables: AWS_DEPLOY_ROLE_ARN   GitHub OIDC で引き受ける IAM ロール
+#              NEXT_PUBLIC_SITE_URL  公開 URL（ビルド時に埋め込まれる）
+#              CONTACT_EMAIL         問い合わせ先
+#              LIGHTSAIL_SERVICE     コンテナサービス名（既定: zenbu-navi）
+#              NEXT_PUBLIC_RUM_APP_MONITOR_ID  CloudWatch RUM のアプリモニター ID（任意）
+#              AI_MODEL / AI_MIN_PUBLISHERS / AI_MAX_PER_RUN（任意）
+#   Secrets:   DATABASE_URL, CRON_SECRET
+#              DATABASE_URL_UNPOOLED（任意。マイグレーション用の直接接続）
+#              ANTHROPIC_API_KEY（任意）
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-1
+  SERVICE: ${{ vars.LIGHTSAIL_SERVICE || 'zenbu-navi' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE" ]; then
+            echo "AWS_DEPLOY_ROLE_ARN が未設定のためスキップします"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.config.outputs.enabled == 'true'
+
+      - uses: actions/setup-node@v5
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.config.outputs.enabled == 'true'
+        run: npm ci
+
+      - name: Migrate and seed database
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: |
+          # 空のシークレットは未設定として扱う（prisma.config.ts の ?? が空文字を通さないように）
+          [ -n "$DATABASE_URL_UNPOOLED" ] || unset DATABASE_URL_UNPOOLED
+          npm run db:migrate
+          npm run db:seed
+
+      - name: Build
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_RUM_APP_MONITOR_ID: ${{ vars.NEXT_PUBLIC_RUM_APP_MONITOR_ID }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+        run: |
+          npm run build
+          # standalone サーバーが配信できるよう、静的ファイルを同じフォルダーにまとめる
+          cp -r .next/static .next/standalone/.next/
+          if [ -d public ]; then cp -r public .next/standalone/; fi
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install lightsailctl
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          sudo curl -fsSL https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl \
+            -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+
+      - name: Build and push image
+        if: steps.config.outputs.enabled == 'true'
+        id: image
+        run: |
+          docker build -t "zenbu-navi:${GITHUB_SHA}" .
+          out=$(aws lightsail push-container-image --service-name "$SERVICE" --label web --image "zenbu-navi:${GITHUB_SHA}")
+          echo "$out"
+          image=$(echo "$out" | grep -o '":[^"]*"' | tail -1 | tr -d '"')
+          if [ -z "$image" ]; then echo "::error::イメージ名を取得できませんでした"; exit 1; fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_MIN_PUBLISHERS: ${{ vars.AI_MIN_PUBLISHERS }}
+          AI_MAX_PER_RUN: ${{ vars.AI_MAX_PER_RUN }}
+        run: |
+          # 値が空の環境変数は渡さない
+          environment=$(jq -n 'env
+            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN")))
+            | with_entries(select(.value != ""))')
+          containers=$(jq -n --arg image "$IMAGE" --argjson environment "$environment" \
+            '{web: {image: $image, environment: $environment, ports: {"3000": "HTTP"}}}')
+          endpoint='{"containerName":"web","containerPort":3000,"healthCheck":{"path":"/robots.txt","successCodes":"200","intervalSeconds":10,"timeoutSeconds":5,"healthyThreshold":2,"unhealthyThreshold":3}}'
+          version=$(aws lightsail create-container-service-deployment --service-name "$SERVICE" \
+            --containers "$containers" --public-endpoint "$endpoint" \
+            --query 'containerService.nextDeployment.version' --output text)
+          echo "デプロイ v${version} を開始しました"
+
+          # 新しいデプロイが有効になるまで待つ（最大15分）
+          for _ in $(seq 1 90); do
+            read -r current state <<< "$(aws lightsail get-container-services --service-name "$SERVICE" \
+              --query 'containerServices[0].[currentDeployment.version, nextDeployment.state]' --output text)"
+            if [ "$current" = "$version" ]; then echo "デプロイ v${version} が有効になりました"; exit 0; fi
+            if [ "$state" = "FAILED" ]; then echo "::error::デプロイ v${version} が失敗しました。Lightsail のログを確認してください"; exit 1; fi
+            sleep 10
+          done
+          echo "::error::デプロイ v${version} が15分以内に有効になりませんでした"
+          exit 1
+
+      - name: Show URL
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          aws lightsail get-container-services --service-name "$SERVICE" --query 'containerServices[0].url' --output text
