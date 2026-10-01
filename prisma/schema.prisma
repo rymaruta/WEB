@@ -103,6 +103,13 @@ model Topic {
   aiMarketEvent  String?
   /// まとめ記事の作成・更新の記録: [{ at: ISO 文字列, sources: その時点の媒体数 }]（古い順）
   aiHistory      Json?
+  /// ゲームの話題の情報（src/lib/game.ts）。タイトル・発売日（YYYY-MM-DD か YYYY-MM）・種類・機種
+  aiGameTitle     String?
+  aiGameRelease   String?
+  aiGameKind      String?
+  aiGamePlatforms String[]  @default([])
+  /// ゲームの情報を読み取る形式で書いたか（以前の記事を書き直す対象を見分ける）
+  aiGameChecked   Boolean   @default(false)
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?
@@ -121,6 +128,7 @@ model Topic {
   @@index([lastSeenAt(sort: Desc)])
   @@index([aiGeneratedAt(sort: Desc)])
   @@index([aiCompanies], type: Gin)
+  @@index([aiGameRelease])
 }
 
 // ---------------------------------------------------------------------------

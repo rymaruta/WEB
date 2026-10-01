@@ -6,12 +6,15 @@ import { GenreIcon } from "@/components/genre-icon";
 import { Pagination } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
+import { GameHighlights } from "@/components/game-highlights";
 import { companyPath } from "@/lib/company";
 import {
   countTopics,
   getTopCompanies,
   countTrendingTopics,
+  getGameReleases,
   getGenre,
+  getNewGames,
   getLatestArticles,
   getLatestTopics,
   getSocialBuzz,
@@ -57,6 +60,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
   // 経済のページだけ、話題の企業への入口を出す（企業を追いたい人が多いジャンル）
   const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
+  // ゲームのページだけ、発売スケジュール（今月・来月）と新着ゲームを出す
+  const game = genre.slug === "game" ? await loadGameHighlights() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -103,6 +108,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
         </nav>
       )}
 
+      {game && <GameHighlights {...game} />}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
           <SortPanels
@@ -142,4 +149,33 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       </div>
     </div>
   );
+}
+
+/** 日本時間の今月・来月（YYYY-MM） */
+function jstMonths(now = new Date()) {
+  const jst = new Date(now.getTime() + 9 * 3_600_000);
+  const y = jst.getUTCFullYear();
+  const m = jst.getUTCMonth() + 1;
+  const next = m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 };
+  const key = (yy: number, mm: number) => `${yy}-${String(mm).padStart(2, "0")}`;
+  return { year: y, thisKey: key(y, m), nextKey: key(next.y, next.m), labels: [`今月（${m}月）`, `来月（${next.m}月）`] as [string, string] };
+}
+
+async function loadGameHighlights() {
+  const [releases, newGames] = await Promise.all([getGameReleases(), getNewGames(7, 6)]);
+  const { year, thisKey, nextKey, labels } = jstMonths();
+  const pick = (r: (typeof releases)[number]) => ({ topicId: r.topicId, title: r.title, release: r.release, platforms: r.platforms });
+  return {
+    thisMonth: releases.filter((r) => r.release.startsWith(thisKey)).map(pick),
+    nextMonth: releases.filter((r) => r.release.startsWith(nextKey)).map(pick),
+    newGames: newGames.map((t) => ({
+      topicId: t.id,
+      headline: t.aiTitle ?? t.title,
+      kind: t.aiGameKind,
+      release: t.aiGameRelease,
+      platforms: t.aiGamePlatforms,
+    })),
+    thisYear: year,
+    monthLabels: labels,
+  };
 }
