@@ -59,7 +59,7 @@ jobs:
           GH_X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: |
           # GitHub Secrets を優先し、なければ Parameter Store から読む。値はログに出さない
-          for name in DATABASE_URL DATABASE_URL_UNPOOLED CRON_SECRET ANTHROPIC_API_KEY ADMIN_PASSWORD ADMIN_SESSION_SECRET X_CONSUMER_KEY X_CONSUMER_SECRET X_ACCESS_TOKEN X_ACCESS_TOKEN_SECRET SES_ACCESS_KEY_ID SES_SECRET_ACCESS_KEY NOTIFY_EMAIL; do
+          for name in DATABASE_URL DATABASE_URL_UNPOOLED CRON_SECRET ANTHROPIC_API_KEY ADMIN_PASSWORD ADMIN_SESSION_SECRET X_CONSUMER_KEY X_CONSUMER_SECRET X_ACCESS_TOKEN X_ACCESS_TOKEN_SECRET SES_ACCESS_KEY_ID SES_SECRET_ACCESS_KEY NOTIFY_EMAIL GSC_SERVICE_ACCOUNT_JSON; do
             gh_var="GH_${name}"
             value="${!gh_var}"
             source="GitHub Secrets"
@@ -71,6 +71,11 @@ jobs:
             if [ -z "$value" ] || [ "$value" = "None" ]; then
               echo "${name}: 未登録"
               continue
+            fi
+            # 複数行の値（Search Console の鍵の JSON）は1行にまとめてから伏せ字にする（伏せ字は行単位で効くため）
+            if [ "$name" = "GSC_SERVICE_ACCOUNT_JSON" ]; then
+              value=$(printf '%s' "$value" | jq -c . 2>/dev/null || true)
+              if [ -z "$value" ]; then echo "${name}: JSON として読めないため使いません"; continue; fi
             fi
             echo "::add-mask::${value}"
             { echo "${name}<<__ZENBU_EOF__"; echo "$value"; echo "__ZENBU_EOF__"; } >> "$GITHUB_ENV"
@@ -135,7 +140,7 @@ jobs:
         run: |
           # 値が空の環境変数は渡さない（DATABASE_URL・CRON_SECRET・ANTHROPIC_API_KEY は Load secrets で設定済み）
           environment=$(jq -n 'env
-            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","ADMIN_PASSWORD","ADMIN_SESSION_SECRET","X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET","SES_ACCESS_KEY_ID","SES_SECRET_ACCESS_KEY","NOTIFY_EMAIL","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED","HOSTNAME")))
+            | with_entries(select(.key | IN("DATABASE_URL","CRON_SECRET","ANTHROPIC_API_KEY","ADMIN_PASSWORD","ADMIN_SESSION_SECRET","X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET","SES_ACCESS_KEY_ID","SES_SECRET_ACCESS_KEY","NOTIFY_EMAIL","GSC_SERVICE_ACCOUNT_JSON","NEXT_PUBLIC_SITE_URL","CONTACT_EMAIL","AI_MODEL","AI_MIN_PUBLISHERS","AI_MAX_PER_RUN","SCHEDULER_ENABLED","HOSTNAME")))
             | with_entries(select(.value != ""))')
           containers=$(jq -n --arg image "$IMAGE" --argjson environment "$environment" \
             '{web: {image: $image, environment: $environment, ports: {"3000": "HTTP"}}}')
