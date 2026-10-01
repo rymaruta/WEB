@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiArticleView } from "@/components/ai-article";
+import { EventTimeline } from "@/components/event-timeline";
 import { GenreBadge } from "@/components/genre-badge";
 import { GenreIcon } from "@/components/genre-icon";
 import { OutboundLink } from "@/components/outbound-link";
@@ -14,6 +15,7 @@ import { TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
+import { getEventTimeline } from "@/lib/topics/timeline";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 
 export const revalidate = 60;
@@ -52,7 +54,10 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const topic = id ? await getTopic(id) : null;
   if (!topic) notFound();
 
-  const related = await getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] });
+  const [related, timeline] = await Promise.all([
+    getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] }),
+    getEventTimeline(topic.id),
+  ]);
   const ai = readAiArticle(topic);
 
   return (
@@ -124,6 +129,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </div>
             </div>
           )}
+          <EventTimeline entries={timeline} currentId={topic.id} />
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
         <ol className="relative border-l-2 border-border pl-5">
           {topic.articles.map((a) => (
