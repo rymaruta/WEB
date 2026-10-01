@@ -10,7 +10,7 @@ import { findDueTopics, loadTopicSources, markAttempted, saveArticle } from "./s
 
 const MODEL = process.env.AI_MODEL ?? "claude-opus-5-5";
 /** 1回の収集で作成する最大本数（費用の上限管理） */
-const MAX_PER_RUN = Number(process.env.AI_MAX_PER_RUN ?? 5);
+const MAX_PER_RUN = Number(process.env.AI_MAX_PER_RUN ?? 10);
 
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
