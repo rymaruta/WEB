@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diversifyRising } from "@/lib/topics/rising";
+import { countReports, diversifyRising } from "@/lib/topics/rising";
 
 const SPORTS = 1;
 const IT = 2;
@@ -42,5 +42,34 @@ describe("diversifyRising", () => {
       10,
     );
     expect(out.map((c) => c.id)).toEqual([1, 3]);
+  });
+});
+
+describe("countReports", () => {
+  const since = new Date("2026-10-01T22:00:00+09:00");
+  const at = (hhmm: string) => new Date(`2026-10-01T${hhmm}:00+09:00`);
+  const title = "「とにかく思い切り蹴った」前田大然のPKが日本代表を勝利に導く！";
+
+  it("同じ見出しの転載は、媒体が違っても1つの報道として数える", () => {
+    const c = countReports(
+      [
+        { topicId: 1, publisher: "soccer-king.jp", first: at("23:34"), title },
+        { topicId: 1, publisher: "news.mynavi.jp", first: at("23:34"), title: `${title} - マイナビニュース` },
+      ],
+      since,
+    ).get(1)!;
+    expect(c).toEqual({ recent: 1, before: 0, publishers: 2 });
+  });
+
+  it("別々に書かれた記事は、それぞれ1つの報道として数える", () => {
+    const c = countReports(
+      [
+        { topicId: 1, publisher: "a", first: at("22:10"), title: "日本代表、エクアドルにPK戦で勝利" },
+        { topicId: 1, publisher: "b", first: at("22:30"), title: "日本代表がPK戦制しキリンカップ決勝へ" },
+        { topicId: 1, publisher: "c", first: at("20:00"), title: "日本代表、エクアドル戦の先発発表" },
+      ],
+      since,
+    ).get(1)!;
+    expect(c).toEqual({ recent: 2, before: 1, publishers: 2 });
   });
 });

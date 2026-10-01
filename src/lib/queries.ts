@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { releaseSortKey } from "@/lib/game";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
-import { diversifyRising } from "@/lib/topics/rising";
+import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
 
 /** 「いま話題」の対象期間 */
 export const TRENDING_HOURS = 48;
@@ -294,24 +294,23 @@ export async function findCompaniesByName(q: string, take: number) {
 
 /** 急上昇：直近 hours 時間に新しく報じた媒体の数が多い話題（それ以前と比べて伸びているほど上） */
 export const getRisingTopics = cache(async (hours: number, take: number) => {
-  const rows = await prisma.$queryRaw<{ topicId: number; recent: bigint; before: bigint }[]>`
+  const rows = await prisma.$queryRaw<RisingRow[]>`
     WITH a AS (
-      SELECT ar."topicId", ar.publisher, MIN(ar."publishedAt") AS first
+      SELECT ar."topicId", ar.publisher, MIN(ar."publishedAt") AS first,
+        (ARRAY_AGG(ar.title ORDER BY ar."publishedAt"))[1] AS title
       FROM "Article" ar
       JOIN "Source" s ON s.id = ar."sourceId"
       WHERE ar."topicId" IS NOT NULL AND s.kind = 'NEWS' AND ar."publishedAt" >= ${since(TRENDING_HOURS)}
       GROUP BY ar."topicId", ar.publisher
     )
-    SELECT "topicId",
-      COUNT(*) FILTER (WHERE first >= ${since(hours)}) AS recent,
-      COUNT(*) FILTER (WHERE first < ${since(hours)}) AS before
-    FROM a
-    GROUP BY "topicId"
-    HAVING COUNT(*) FILTER (WHERE first >= ${since(hours)}) >= 2`;
-  const pool = rows
-    .map((r) => ({ id: r.topicId, recent: Number(r.recent), before: Number(r.before) }))
-    // 新しく報じた媒体の数に、それ以前と比べた伸びを加える（以前から大きい話題より、いま広がっている話題を上に）
-    .map((r) => ({ ...r, rise: r.recent + r.recent / (r.before + 1) }))
+    SELECT * FROM a
+    WHERE "topicId" IN (SELECT "topicId" FROM a WHERE first >= ${since(hours)} GROUP BY "topicId" HAVING COUNT(*) >= 2)`;
+  const pool = [...countReports(rows, since(hours))]
+    // 転載を除いて、直近に2つ以上の報道がある話題だけ
+    .filter(([, c]) => c.recent >= 2)
+    .map(([id, c]) => ({ id, recent: c.publishers, reports: c.recent, before: c.before }))
+    // 新しい報道の数に、それ以前と比べた伸びを加える（以前から大きい話題より、いま広がっている話題を上に）
+    .map((r) => ({ ...r, rise: r.reports + r.reports / (r.before + 1) }))
     .sort((a, b) => b.rise - a.rise)
     // 同じ出来事やジャンルの偏りを除くので、多めに候補を取る
     .slice(0, take * 5);
