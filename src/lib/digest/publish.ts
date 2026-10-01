@@ -53,6 +53,8 @@ export async function loadForPublish(editionId: string): Promise<{ edition: { ke
 async function publish(editionId: string) {
   const creds = credentialsFromEnv();
   if (!creds) throw new PublishError("X の認証情報が設定されていません");
+  // 速報は、投稿文とカードの時刻を実際に投稿する時刻に合わせる
+  await (await import("./breaking")).stampBreakingTime(editionId);
   const loaded = await loadForPublish(editionId);
   if (!loaded) throw new PublishError("配信回が見つかりません");
   const { edition, cards, plan } = loaded;
