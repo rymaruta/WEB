@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { jstDate } from "@/lib/digest/slots";
 import { SLOTS, type Slot } from "@/lib/digest/slots";
 import { SOURCE_LABELS, SOURCES, type TrafficSource } from "@/lib/traffic";
+import { SearchConsoleSection } from "./search-console";
 
 const DAYS = 14;
 
@@ -93,6 +94,8 @@ export default async function AnalyticsPage() {
         </ul>
       </section>
 
+      <SearchConsoleSection />
+
       <section className="card p-4">
         <h2 className="mb-3 text-sm font-bold text-fg-muted">よく見られたページ</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -138,7 +141,7 @@ export default async function AnalyticsPage() {
       </section>
 
       <p className="text-xs text-fg-subtle">
-        訪問は、ページが開かれたときにブラウザーから届く記録を日ごとに合計したものです。個人を特定できる情報は保存していません。検索からの表示回数・クリック数は、Search Console の連携を設定すると表示できます。
+        訪問は、ページが開かれたときにブラウザーから届く記録を日ごとに合計したものです。個人を特定できる情報は保存していません。
       </p>
     </div>
   );
