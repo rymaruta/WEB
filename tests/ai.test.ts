@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readAiArticle } from "@/lib/ai/article";
 import { bodyWithoutLead } from "@/components/ai-article";
-import { buildPrompt, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
+import { buildPrompt, checkArticleFacts, normalizeCompany, sanitizeArticle } from "@/lib/ai/prompt";
 
 const base = {
   title: " 見出し ",
@@ -96,6 +96,9 @@ describe("checkArticleFacts", () => {
     const r = checkArticleFacts({ ...art, angles }, src);
     expect(r.article?.angles?.map((p) => p.text)).toEqual([angles[0].text, angles[2].text]);
   });
+  it("企業名は資料に書かれているものだけを残す", () => {
+    expect(checkArticleFacts({ ...art, companies: ["Micron", "SKハイニックス"] }, src).article?.companies).toEqual(["Micron"]);
+  });
   it("報じ方の違いがない記事も採用する", () => {
     expect(checkArticleFacts(art, src).article?.angles).toEqual([]);
   });
@@ -108,5 +111,12 @@ describe("bodyWithoutLead", () => {
     expect(bodyWithoutLead({ lead: "高市早苗首相がモンゴルのオチラル首相とのワーキングディナーで乾杯", body })).toEqual(["J-CASTニュースなどは…"]);
     expect(bodyWithoutLead({ lead: "別の書き出しのリード文です。内容は異なる。", body })).toEqual(body);
     expect(bodyWithoutLead({ lead, body: [body[0]] })).toEqual([body[0]]);
+  });
+});
+
+describe("normalizeCompany", () => {
+  it("法人格と全角を整える", () => {
+    expect(normalizeCompany("トヨタ自動車株式会社")).toBe("トヨタ自動車");
+    expect(normalizeCompany("（株）ＫＤＤＩ")).toBe("KDDI");
   });
 });

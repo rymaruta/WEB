@@ -97,6 +97,8 @@ model Topic {
   aiPoints       Json?
   /// 各媒体の報じ方の違い: [{ text: string, sources: number[] }]。違いがなければ空配列か null
   aiAngles       Json?
+  /// 記事で取り上げた企業名（AI が資料から抜き出し、資料にあることを確かめたもの）。企業ページ（/company/[name]）に使う
+  aiCompanies    String[]  @default([])
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?
@@ -114,6 +116,7 @@ model Topic {
   @@index([genreId, score(sort: Desc)])
   @@index([lastSeenAt(sort: Desc)])
   @@index([aiGeneratedAt(sort: Desc)])
+  @@index([aiCompanies], type: Gin)
 }
 
 // ---------------------------------------------------------------------------

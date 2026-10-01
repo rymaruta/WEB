@@ -1,4 +1,6 @@
 import type { AiArticle } from "@/lib/ai/article";
+import Link from "next/link";
+import { companyPath } from "@/lib/company";
 import { formatDateTime } from "@/lib/format";
 import { OutboundLink } from "./outbound-link";
 
@@ -98,6 +100,22 @@ export function AiArticleView({
           <p key={i}>{para}</p>
         ))}
       </div>
+
+      {article.companies.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs font-bold text-fg-muted">関連する企業</span>
+          {article.companies.map((c) => (
+            <Link
+              key={c}
+              href={companyPath(c)}
+              prefetch={false}
+              className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs hover:border-accent hover:text-accent"
+            >
+              {c}のニュース
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="mt-5 border-t border-border pt-3 text-xs text-fg-subtle">
         <p className="mb-1 font-bold">出典</p>
