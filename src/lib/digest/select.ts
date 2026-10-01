@@ -29,8 +29,12 @@ export type Scored = { id: string; score: number; parts: ScoreParts };
  * PUBLISHED は、夜の「今日これだけ」が今日の配信を振り返る場合だけ候補に渡される
  */
 export const ELIGIBLE_STATUSES = new Set(["PENDING", "REVIEW_REQUIRED", "APPROVED", "PUBLISHED"]);
-/** これより低い点数のストーリーは載せない（本数が足りなくても埋めない） */
+/** これより低い点数のストーリーは、ふだんは載せない */
 export const MIN_SCORE = 25;
+/** 1回の配信は必ずこの本数にする（運営者の方針。足りない回は投稿しない） */
+export const REQUIRED_ITEMS = 3;
+/** 本数が足りないときに埋めに使える点数の下限 */
+export const FILL_MIN_SCORE = 10;
 const HARD_NEWS = new Set<Category>(["POLITICS", "ECONOMY", "WORLD"]);
 const SOFT_NEWS = new Set<Category>(["ENTERTAINMENT", "SPORTS"]);
 /** 同じカテゴリーは1回に2本まで */
@@ -69,7 +73,7 @@ export type Selection = {
   main: Scored[];
   followups: Scored[];
   /** 選定の記録（管理画面で「なぜ載らなかったか」を見せる） */
-  notes: { candidates: number; eligible: number; belowMinScore: number; excludedThreads: number };
+  notes: { candidates: number; eligible: number; belowMinScore: number; excludedThreads: number; filled: number };
 };
 
 /**
@@ -112,6 +116,34 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     }
   }
 
+  // 3本に足りなければ埋める。まず点数の基準をゆるめ、それでも足りなければカテゴリーの上限もゆるめる。
+  // ゴシップ・宣伝と、人の確認が要るもの（verifiedOnly のとき）は使わない
+  const need = () => REQUIRED_ITEMS - main.length - followups.length;
+  if (need() > 0) {
+    const usedThreads = new Set([...main, ...followups].map((p) => p.candidate.threadId).filter((t): t is string => !!t));
+    const filler = eligible
+      .filter(
+        (s) =>
+          s.candidate.kind === "NEW" &&
+          !main.includes(s) &&
+          s.score >= FILL_MIN_SCORE &&
+          !s.candidate.assessment?.gossip &&
+          !s.candidate.assessment?.promotional &&
+          !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
+      )
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    for (const relaxCategories of [false, true]) {
+      for (const s of filler) {
+        if (need() <= 0) break;
+        if (main.includes(s)) continue;
+        if (s.candidate.threadId && usedThreads.has(s.candidate.threadId)) continue;
+        if (!relaxCategories && !fits(main, s.candidate)) continue;
+        main.push(s);
+        if (s.candidate.threadId) usedThreads.add(s.candidate.threadId);
+      }
+    }
+  }
+
   const strip = ({ id, score, parts }: Picked): Scored => ({ id, score, parts });
   return {
     main: main.sort((a, b) => b.score - a.score).map(strip),
@@ -121,6 +153,8 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
       eligible: eligible.length,
       belowMinScore: eligible.length - strong.length,
       excludedThreads: excluded.length,
+      // 基準点に届かない候補で埋めた本数
+      filled: main.filter((m) => m.score < MIN_SCORE).length,
     },
   };
 }

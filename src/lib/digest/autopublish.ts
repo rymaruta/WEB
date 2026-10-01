@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
 import { publishEdition } from "./publish";
+import { REQUIRED_ITEMS } from "./select";
 import { autoApproveEnabled, editionKey, jstDate, SLOTS, type Slot } from "./slots";
 
 export type ScheduledResult =
@@ -39,7 +40,8 @@ export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { 
       where: { editionId: edition.id, confirmed: false, story: { status: "REVIEW_REQUIRED" } },
     });
     const items = await prisma.editionItem.count({ where: { editionId: edition.id } });
-    if (unconfirmed === 0 && items > 0) {
+    // 1回の配信は必ず3本（REQUIRED_ITEMS）。そろっていない回は自動では出さない
+    if (unconfirmed === 0 && items === REQUIRED_ITEMS) {
       await prisma.edition.update({ where: { id: edition.id }, data: { status: "APPROVED" } });
       await logEvent("info", "digest.auto-approve", `${edition.key}: おまかせ投稿で承認しました`, edition.id);
       edition.status = "APPROVED";
@@ -64,12 +66,23 @@ export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { 
   }
 
   if (edition.status === "DRAFT") {
+    const items = await prisma.editionItem.count({ where: { editionId: edition.id } });
+    const short = items !== REQUIRED_ITEMS;
     await prisma.edition.update({ where: { id: edition.id }, data: { status: "SKIPPED" } });
-    await logEvent("warn", "digest.skip", `${edition.key}: 承認されなかった（または確認待ちのニュースが残っていた）ため見送りました`, edition.id);
+    await logEvent(
+      "warn",
+      "digest.skip",
+      short ? `${edition.key}: ${REQUIRED_ITEMS}本そろわなかった（${items}本）ため見送りました` : `${edition.key}: 承認されなかった（または確認待ちのニュースが残っていた）ため見送りました`,
+      edition.id,
+    );
     await notifyOwner({
       title: `${name}を見送りました`,
-      what: `${name}は、確認待ちのニュースが残っていたため投稿を見送りました。内容を確かめていないニュースを出さないための仕組みです。`,
-      action: "不要です。次の回は通常どおり投稿されます。",
+      what: short
+        ? `${name}は、載せられるニュースが${items}本しかなく、${REQUIRED_ITEMS}本そろわなかったため投稿を見送りました。`
+        : `${name}は、確認待ちのニュースが残っていたため投稿を見送りました。内容を確かめていないニュースを出さないための仕組みです。`,
+      action: short
+        ? `出す場合は、管理画面でこの回を開き、候補から足して${REQUIRED_ITEMS}本にしてから「この内容で今すぐ投稿する」を押してください。カードの時刻は投稿した時刻になります。`
+        : "不要です。次の回は通常どおり投稿されます。",
     });
     return { result: "skipped", editionId: edition.id };
   }
