@@ -105,14 +105,19 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         <div className="px-5 pb-5 sm:px-6">
           {ai && (
             <div className="mb-6">
-              <AiArticleView article={ai} sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))} showTitle={false} />
+              <AiArticleView
+                article={ai}
+                sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))}
+                showTitle={false}
+                reportHref={`mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent(`【誤りの報告】${ai.title}`)}&body=${encodeURIComponent(`${siteConfig.url}/topic/${topic.id}\n\n誤っている箇所：\n正しい内容（分かれば出典も）：\n`)}`}
+              />
               {/* 共有は読み終えた位置に置く（本文より先に並べると、読む前に場所を取る） */}
               <div className="mt-4">
                 <ShareButtons title={ai.title} url={`${siteConfig.url}/topic/${topic.id}`} />
               </div>
             </div>
           )}
-        <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">各媒体の報道（古い順）</h2>
+        <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
         <ol className="relative border-l-2 border-border pl-5">
           {topic.articles.map((a) => (
             <li key={a.id} className="relative my-3 flex gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
@@ -129,7 +134,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
                   {a.title}
                 </OutboundLink>
-                {a.summary && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
+                {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
+                {a.summary && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
                 <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
                   {a.publisher}で続きを読む ↗
                 </OutboundLink>
