@@ -54,6 +54,8 @@ export async function renderOgCard({ title, label, genreSlug, note }: Props) {
               lineHeight: 1.35,
               color: "#1c1c1a",
               fontWeight: 700,
+              // 改行を入れた見出し（配信ページの見出しの一覧など）は、その位置で折り返す
+              whiteSpace: "pre-wrap",
             }}
           >
             {font ? clipped : ""}

@@ -13,7 +13,7 @@ export default async function Image({ params }: { params: Promise<{ date: string
   const d = slot && isDate(date) ? await getPublishedDigest(date, slot) : null;
   if (!d) return renderOgCard({ title: "" });
   return renderOgCard({
-    title: d.items.map((i) => `・${i.headline}`).join("　"),
+    title: d.items.map((i) => `・${i.headline}`).join("\n"),
     label: `${d.dateLabel} ${d.title}`,
     note: `大事なニュース${d.items.length}本`,
   });
