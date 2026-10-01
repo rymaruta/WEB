@@ -36,5 +36,6 @@ describe("notifyOwner", () => {
     const { notifyOwner } = await import("@/lib/notify");
     expect(await notifyOwner("test", {})).toBe(false);
     expect(await notifyOwner("test", { NOTIFY_EMAIL: "a@example.com" })).toBe(false);
+    expect(await notifyOwner("test", { NOTIFY_EMAIL: "PLACEHOLDER", SES_ACCESS_KEY_ID: "x", SES_SECRET_ACCESS_KEY: "y" })).toBe(false);
   });
 });
