@@ -73,6 +73,7 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
           src={image}
           genreSlug={topic.genre.slug}
           priority
+          sizes="(max-width: 1024px) 100vw, 800px"
           iconClassName="h-16 w-16"
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
         />

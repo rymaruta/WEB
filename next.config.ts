@@ -3,6 +3,18 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // AWS（Lightsail のコンテナ）では .next/standalone の最小構成を Docker イメージに入れて動かす
   output: "standalone",
+  images: {
+    // 媒体の画像（https のみ）を縮小して配信する。媒体は数が多く入れ替わるためホストは限定しない
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // 作る大きさと画質を絞り、縮小の処理と保存を増やしすぎない
+    deviceSizes: [640, 828, 1080],
+    imageSizes: [256, 384],
+    qualities: [60],
+    formats: ["image/webp"],
+    // 縮小版を1日保存する（CDN もこの期間キャッシュする）
+    minimumCacheTTL: 86_400,
+    maximumRedirects: 3,
+  },
   experimental: {
     serverActions: {
       // CloudFront 経由だと x-forwarded-host が Lightsail のホスト名になり、

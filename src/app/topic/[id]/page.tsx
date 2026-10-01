@@ -136,7 +136,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </div>
               {a.imageUrl && (
                 <OutboundLink articleId={a.id} className="relative hidden w-36 shrink-0 self-start overflow-hidden rounded-lg sm:block">
-                  <Thumbnail src={a.imageUrl} genreSlug={topic.genre.slug} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
+                  <Thumbnail src={a.imageUrl} genreSlug={topic.genre.slug} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" sizes="144px" />
                 </OutboundLink>
               )}
             </li>
