@@ -121,21 +121,14 @@ function List({ items, title }: { items: CompanyItem[]; title: string }) {
             <Link
               href={c.href}
               prefetch={false}
-              className="group flex items-center gap-3 py-3"
+              className="group flex items-center gap-3 py-2.5"
             >
-              <div className="min-w-0 flex-1">
-                <p className="flex items-baseline gap-2">
-                  <span className="font-bold group-hover:text-accent">
-                    {c.name}
-                  </span>
-                  <span className="shrink-0 text-xs text-fg-subtle">
-                    ニュース{c.topics}件・{c.ago}
-                  </span>
-                </p>
-                <p className="mt-0.5 truncate text-[13px] text-fg-muted">
-                  最新：{c.latest}
-                </p>
-              </div>
+              <span className="min-w-0 flex-1 truncate font-bold group-hover:text-accent">
+                {c.name}
+              </span>
+              <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
+                {c.topics}件・{c.ago}
+              </span>
               <span
                 aria-hidden
                 className="shrink-0 text-fg-subtle group-hover:text-accent"

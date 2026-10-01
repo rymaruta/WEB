@@ -272,3 +272,12 @@ export const getCompanyIndex = cache(async (days: number, take: number): Promise
     genreName: genres.get(r.genreId)?.name ?? "",
   }));
 });
+
+/** 検索語に名前が当てはまる企業（直近の話題がある企業から、話題の多い順） */
+export async function findCompaniesByName(q: string, take: number) {
+  const fold = (s: string) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+  const key = fold(q);
+  if (key.length < 2) return [];
+  const all = await getTopCompanies(90, 2000);
+  return all.filter((c) => fold(c.name).includes(key)).slice(0, take);
+}
