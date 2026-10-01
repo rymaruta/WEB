@@ -402,3 +402,24 @@ model EventLog {
   @@index([scope, at(sort: Desc)])
   @@index([ref])
 }
+
+/// 日ごと・流入元ごとの閲覧数（個人を特定する情報は持たない。合計だけ）
+model TrafficDaily {
+  /// 日本時間の日付（YYYY-MM-DD）
+  date   String
+  /// x / google / google_news / yahoo / bing / social / direct / other
+  source String
+  views  Int    @default(0)
+
+  @@id([date, source])
+}
+
+/// 日ごと・ページごとの閲覧数（パスは /topic/123 のように、クエリを除いて記録する）
+model PageDaily {
+  date  String
+  path  String
+  views Int    @default(0)
+
+  @@id([date, path])
+  @@index([date, views(sort: Desc)])
+}
