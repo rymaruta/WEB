@@ -1,17 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_JP } from "next/font/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
-
-const noto = Noto_Sans_JP({
-  weight: ["400", "500", "700", "900"],
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-noto",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -31,11 +23,19 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" className={`${noto.variable} h-full antialiased`}>
+    <html lang="ja" className="h-full antialiased">
       {/* スマホでは画面下メニューの高さ分だけ下に余白を取る */}
       <body className="flex min-h-full flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-md bg-accent px-4 py-2 font-bold text-accent-fg focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        >
+          本文へスキップ
+        </a>
         <SiteHeader />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+          {children}
+        </main>
         <SiteFooter />
         <BottomNav />
       </body>
