@@ -6,7 +6,7 @@ import { textWidth } from "@/lib/stories/text";
 import { checkOverride } from "./check";
 import { buildEdition, loadCandidates, loadEntries, type ItemOverride } from "./build";
 import { altText, buildCards, composePostText, replyText, splitParts } from "./compose";
-import { scoreCandidate } from "./select";
+import { REQUIRED_ITEMS, scoreCandidate } from "./select";
 import { MAX_ITEMS, SLOTS, type Slot } from "./slots";
 
 /**
@@ -166,6 +166,7 @@ export async function setPostText(editionId: string, lines: string[] | null) {
 export async function approveEdition(editionId: string, now = new Date(), opts: { afterTime?: boolean } = {}) {
   const e = await editableEdition(editionId);
   if (e.items.length === 0) throw new AdminError("載せるニュースがありません");
+  if (e.items.length !== REQUIRED_ITEMS) throw new AdminError(`1回の配信は${REQUIRED_ITEMS}本にしてください（いまは${e.items.length}本）。候補から追加してください`);
   if (now >= e.scheduledAt && !opts.afterTime) throw new AdminError("投稿の時刻を過ぎています。「この内容で今すぐ投稿する」を使ってください");
   const stories = await prisma.story.findMany({ where: { id: { in: e.items.map((i) => i.storyId) } }, select: { id: true, status: true } });
   const review = new Set(stories.filter((s) => s.status === "REVIEW_REQUIRED").map((s) => s.id));

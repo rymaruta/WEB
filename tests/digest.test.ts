@@ -87,10 +87,28 @@ describe("selectForEdition", () => {
     expect(r.main.filter((m) => byId.get(m.id)!.category === "TECH").length).toBeLessThanOrEqual(2);
   });
 
-  it("芸能とスポーツは合わせて1本まで", () => {
-    const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), cand({ category: "ECONOMY" })];
+  it("芸能とスポーツは合わせて1本まで（ほかの候補で3本にできるとき）", () => {
+    const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), cand({ category: "ECONOMY" }), cand({ category: "TECH" })];
     const r = selectForEdition(cs, SLOTS.MORNING, new Set());
-    expect(r.main).toHaveLength(2);
+    expect(r.main).toHaveLength(3);
+    const soft = r.main.filter((m) => ["ENTERTAINMENT", "SPORTS"].includes(cs.find((c) => c.id === m.id)!.category!));
+    expect(soft).toHaveLength(1);
+  });
+
+  it("3本に足りないときは、基準点やカテゴリーの上限をゆるめて3本にする", () => {
+    const low = cand({ category: "LIFE", assessment: assess({ impact: 0, longevity: 0 }) });
+    const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), low];
+    const r = selectForEdition(cs, SLOTS.LUNCH, new Set());
+    expect(r.main).toHaveLength(3);
+    expect(r.notes.filled).toBeGreaterThanOrEqual(1);
+  });
+
+  it("埋めるときも、ゴシップ・宣伝と同じ出来事は使わない", () => {
+    const a = cand({ category: "ECONOMY" });
+    const same = cand({ category: "ECONOMY", threadId: a.threadId });
+    const promo = cand({ category: "LIFE", assessment: assess({ promotional: true, impact: 0, longevity: 0 }) });
+    const r = selectForEdition([a, same, promo], SLOTS.LUNCH, new Set());
+    expect(r.main.map((m) => m.id)).toEqual([a.id]);
   });
 
   it("ゴシップは本数が足りなくても載せない", () => {

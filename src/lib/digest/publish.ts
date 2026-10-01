@@ -4,6 +4,7 @@ import { createPost, credentialsFromEnv, PRICES, setAltText, uploadImage, XApiEr
 import { getEditionView, loadEntries } from "./build";
 import { renderCard } from "./cards";
 import { altText, buildBreakingCard, buildCards, replyText, splitParts, type Card } from "./compose";
+import { REQUIRED_ITEMS } from "./select";
 
 /**
  * 承認済みの配信回を X に投稿する。本投稿 → 自分へのリプライ の順に送る。
@@ -49,7 +50,7 @@ export async function stampPostTime(editionId: string, now = new Date()) {
 type Plan = { position: number; cards: number[]; text: string }[];
 
 /** 投稿するカードと、投稿の分け方。速報は1枚のカードを1件で投稿する */
-export async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string }; cards: Card[]; plan: Plan } | null> {
+export async function loadForPublish(editionId: string): Promise<{ edition: { key: string; status: string; slot: string }; cards: Card[]; plan: Plan } | null> {
   const row = await prisma.edition.findUnique({
     where: { id: editionId },
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
@@ -85,6 +86,10 @@ async function publish(editionId: string) {
   // FAILED は途中で失敗した回の再実行（送ったパートは飛ばす）
   if (edition.status !== "APPROVED" && edition.status !== "FAILED") throw new PublishError("承認済みの配信回だけを投稿できます");
   if (plan.length === 0) throw new PublishError("載せるニュースがありません");
+  // 定時の回は必ず3本（速報は1本）
+  if (edition.slot !== "BREAKING" && cards.length - 1 !== REQUIRED_ITEMS) {
+    throw new PublishError(`定時の配信は${REQUIRED_ITEMS}本にしてください（いまは${Math.max(0, cards.length - 1)}本）`);
+  }
 
   const pub = await prisma.publication.upsert({
     where: { editionId_channel: { editionId, channel: "X" } },
