@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -155,7 +156,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                   {a.source.kind === "PRESS" && <span className="rounded border border-border px-1">プレスリリース</span>}
                 </div>
                 <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
-                  {a.title}
+                  {cleanTitle(a.title)}
                 </OutboundLink>
                 {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
                 {a.summary && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}

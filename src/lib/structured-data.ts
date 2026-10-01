@@ -34,12 +34,15 @@ export function newsArticleJsonLd(topicId: number, article: AiArticle, sources: 
 }
 
 /** サイトと運営者（トップに付ける）。検索結果でサイト名や公式アカウントとの結び付きを伝える */
+const SITE_ALT_NAMES = ["全部ナビ", "ぜんぶなび", "zenbu-navi", "ZENBU NAVI"];
+
 export function siteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "WebSite", "@id": `${siteConfig.url}/#website`, url: siteConfig.url, name: siteConfig.name, description: siteConfig.description, inLanguage: "ja", publisher: { "@id": `${siteConfig.url}/#org` } },
-      { ...publisher(), "@id": `${siteConfig.url}/#org`, sameAs: [siteConfig.xUrl], publishingPrinciples: `${siteConfig.url}/about` },
+      // alternateName: 「全部ナビ」などの別表記で検索されたときも、このサイトの名前だと Google に伝える
+      { "@type": "WebSite", "@id": `${siteConfig.url}/#website`, url: siteConfig.url, name: siteConfig.name, alternateName: SITE_ALT_NAMES, description: siteConfig.description, inLanguage: "ja", publisher: { "@id": `${siteConfig.url}/#org` } },
+      { ...publisher(), "@id": `${siteConfig.url}/#org`, alternateName: SITE_ALT_NAMES, sameAs: [siteConfig.xUrl], publishingPrinciples: `${siteConfig.url}/about` },
     ],
   };
 }

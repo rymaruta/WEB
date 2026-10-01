@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
@@ -21,9 +22,11 @@ function describe(topic: TopicCardData) {
   const summary =
     topic.aiLead || ((primary.find((a) => a.summary) ?? topic.articles.find((a) => a.summary))?.summary ?? null);
   const publishers = [...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))];
-  const image = (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl))?.imageUrl ?? null;
+  // 画像は報道機関の記事から選ぶ。SNS 経由の記事は、名前の分かる媒体のものだけ（企業や個人のサイトの画面写真を大きく出さない）
+  const image =
+    (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && publisherLabel(a.publisher) !== a.publisher))?.imageUrl ?? null;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
-  const title = topic.aiTitle || topic.title;
+  const title = topic.aiTitle || cleanTitle(topic.title);
   return { lead, title, summary, publishers, image, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
 }
 
