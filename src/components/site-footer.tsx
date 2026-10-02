@@ -12,6 +12,7 @@ const GROUPS: { title: string; links: { href: string; label: string; external?: 
       { href: "/prices", label: "値上げ・値下げデータベース" },
       { href: "/compare", label: "報道くらべ" },
       { href: "/company", label: "企業別ニュース" },
+      { href: "/youtube", label: "YouTube 新着動画" },
     ],
   },
   {

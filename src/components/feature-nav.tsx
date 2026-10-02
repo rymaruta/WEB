@@ -19,6 +19,7 @@ export function FeatureNav({ current, className = "mt-4" }: { current?: { kind: 
     { href: `/weekly/${weekKey()}`, label: "今週の10大ニュース", active: false },
     { href: "/prices", label: "値上げ・値下げデータベース", active: false },
     { href: "/compare", label: "報道くらべ", active: false },
+    { href: "/youtube", label: "YouTube 新着動画", active: false },
   ];
   const groups = [
     { key: "data", label: "データで見る", links: data },

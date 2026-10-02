@@ -547,3 +547,40 @@ model AnimeListing {
   @@unique([title, start])
   @@index([start])
 }
+
+/// YouTube の動画（決めたチャンネルの公式の新着情報 RSS から取り込む。src/lib/youtube.ts）。動画そのものは保存しない
+model YouTubeVideo {
+  videoId     String    @id
+  channelId   String
+  title       String
+  /// 説明文（チャンネルが書いたもの）
+  description String    @default("")
+  publishedAt DateTime
+  /// 取り込んだ時点の再生回数
+  views       Int       @default(0)
+  /// ショート動画か
+  isShort     Boolean   @default(false)
+  thumbnail   String
+  /// AI の紹介文（題名と説明文に書かれていることだけで書く）。書けなかったときは null
+  aiSummary   String?
+  /// 紹介文を書くかを確かめたか
+  aiChecked   Boolean   @default(false)
+  /// 動画のジャンル（src/lib/youtube-channels.ts の VIDEO_CATEGORIES）。題名と説明文から AI が判定する
+  aiCategory  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([channelId, publishedAt(sort: Desc)])
+  @@index([publishedAt(sort: Desc)])
+}
+
+/// 動画の日ごとの再生回数（日本時間の日付ごとに、その日最後に取り込んだ値）。伸びのランキングに使う
+model YouTubeViewDaily {
+  videoId String
+  /// 日本時間の日付（YYYY-MM-DD）
+  date    String
+  views   Int
+
+  @@id([videoId, date])
+  @@index([date])
+}
