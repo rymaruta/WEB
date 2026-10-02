@@ -83,7 +83,7 @@ export async function getCalendar(now = new Date(), days = CALENDAR_DAYS): Promi
       href: a.topicId ? workPath("anime", workKey(a.title)) : null,
       external: false,
     })),
-    ...movies.map((m) => ({ date: m.release, category: "movie" as const, title: m.title, note: m.country, href: null, external: false })),
+    ...movies.map((m) => ({ date: m.release, category: "movie" as const, title: m.title, note: m.country, href: workPath("movie", workKey(m.title)), external: false })),
     ...products.map((p) => ({
       date: p.date,
       category: "products" as const,
