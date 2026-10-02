@@ -43,6 +43,16 @@ export default function AboutPage() {
       </section>
 
       <section>
+        <h2 className="mb-2 text-lg font-bold">訂正と更新の方針</h2>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>新しい報道が加わると、まとめ記事を書き直します。書き直した記事には「更新」と日時を表示し、黙って書き換えることはしません。</li>
+          <li>誤りのご指摘を受けた場合は、元の報道と照らし合わせて確認し、誤りであれば速やかに訂正します。各記事の「誤りを報告」からお知らせください。</li>
+          <li>見出しの数字が媒体によって異なる場合は、どの媒体がどの数字を報じたかを並べて表示し、どちらかに決めつけません。</li>
+          <li>まとめ記事のうち、3つ以上の媒体の報道を突き合わせたもの、各社の報じ方の違いや経緯を示したものだけを検索エンジンに登録しています。</li>
+        </ul>
+      </section>
+
+      <section>
         <h2 className="mb-2 text-lg font-bold">X（旧 Twitter）での定時配信について</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>毎日 7:00・12:00・20:00 に、その時点で大事なニュースを最大3本選んで配信しています。</li>

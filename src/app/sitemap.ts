@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { FEATURE_KINDS, featurePath, jstMonth } from "@/lib/features";
 import { recentWeeks } from "@/lib/weekly";
+import { isIndexableArticle, jsonLength } from "@/lib/indexing";
 import { siteConfig } from "@/config/site";
 import { companyPath } from "@/lib/company";
 import { prisma } from "@/lib/db";
@@ -15,11 +16,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.genre.findMany({ orderBy: { sortOrder: "asc" } }),
     // AI まとめ記事があるトピックのみ（それ以外のトピックは noindex）
     prisma.topic.findMany({
-      // 別の話題にまとめたページ（まとめた先へ移す）は載せない
+      // 別の話題にまとめたページ（まとめた先へ移す）は載せない。登録の基準は話題のページと同じ（src/lib/indexing.ts）
       where: { aiGeneratedAt: { not: null }, mergedIntoId: null },
       orderBy: { aiGeneratedAt: "desc" },
-      take: 5000,
-      select: { id: true, aiGeneratedAt: true },
+      take: 8000,
+      select: { id: true, aiGeneratedAt: true, publisherCount: true, aiAngles: true, aiBackground: true },
     }),
     // 定時配信の回（投稿済みのもの）
     prisma.edition.findMany({
@@ -53,7 +54,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...companies.map((c) => ({ url: `${base}${companyPath(c.name)}`, changeFrequency: "daily" as const, priority: 0.5 })),
     ...tags.map((t) => ({ url: `${base}${tagPath(t)}`, changeFrequency: "daily" as const, priority: 0.5 })),
     ...genres.map((g) => ({ url: `${base}/genre/${g.slug}`, changeFrequency: "hourly" as const, priority: 0.8 })),
-    ...topics.map((t) => ({ url: `${base}/topic/${t.id}`, lastModified: t.aiGeneratedAt ?? undefined, priority: 0.6 })),
+    ...topics
+      .filter((t) => isIndexableArticle({ publisherCount: t.publisherCount, hasAi: true, angles: jsonLength(t.aiAngles), background: jsonLength(t.aiBackground) }))
+      .slice(0, 5000)
+      .map((t) => ({ url: `${base}/topic/${t.id}`, lastModified: t.aiGeneratedAt ?? undefined, priority: 0.6 })),
     { url: `${base}/sources`, changeFrequency: "weekly", priority: 0.3 },
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
