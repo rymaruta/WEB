@@ -508,3 +508,24 @@ export const getRecentEarnings = cache(async (days = 7, take = 30): Promise<Earn
   }
   return out;
 });
+
+/**
+ * 報道の比べ方のページ用。直近の、3媒体以上が報じた話題の記事（報じた時刻と見出し）。
+ * 速報ランキング（最初に報じた回数）と、見出しの数字が分かれたニュースに使う
+ */
+export async function getCoverageTopics(days: number, take = 800) {
+  return prisma.topic.findMany({
+    where: { lastSeenAt: { gte: since(days * 24) }, publisherCount: { gte: 3 }, mergedIntoId: null, aiNotNews: false },
+    orderBy: { score: "desc" },
+    take,
+    select: {
+      id: true,
+      title: true,
+      aiTitle: true,
+      publisherCount: true,
+      firstSeenAt: true,
+      genre: { select: { slug: true, name: true } },
+      articles: { select: { id: true, publisher: true, publishedAt: true, title: true, source: { select: { kind: true } } } },
+    },
+  });
+}

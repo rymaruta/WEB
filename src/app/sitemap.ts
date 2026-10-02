@@ -41,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/digest`, changeFrequency: "hourly", priority: 0.8 },
     ...digests.map((d) => ({ url: `${base}/digest/${d.date}/${d.slot.toLowerCase()}`, lastModified: d.publishedAt ?? undefined, priority: 0.7 })),
     { url: `${base}/calendar`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${base}/compare`, changeFrequency: "daily", priority: 0.6 },
     { url: `${base}/feature`, changeFrequency: "daily", priority: 0.7 },
     ...[jstMonth(), jstMonth(new Date(), 1)].flatMap((m) =>
       FEATURE_KINDS.map((k) => ({ url: `${base}${featurePath(k, m)}`, changeFrequency: "daily" as const, priority: 0.7 })),
