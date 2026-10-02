@@ -5,8 +5,19 @@ import { RisingList } from "@/components/rising-list";
 import { TopicList } from "@/components/topic-card";
 import { getMostRead, getRisingTopics, getSocialBuzz, getTrendingTopics, TRENDING_HOURS } from "@/lib/queries";
 
-/** 急上昇の対象期間 */
-const RISING_HOURS = 3;
+/** 急上昇の対象期間。報道が少ない時間帯（深夜・早朝）に3件に満たなければ、順に広げる */
+const RISING_HOURS = [3, 6, 12];
+const RISING_MIN_ITEMS = 3;
+
+/** 急上昇：直近3時間で足りなければ6時間、12時間と広げる。使った時間も返す */
+async function loadRising() {
+  let last = { hours: RISING_HOURS[0], items: [] as Awaited<ReturnType<typeof getRisingTopics>> };
+  for (const hours of RISING_HOURS) {
+    last = { hours, items: await getRisingTopics(hours, 10) };
+    if (last.items.length >= RISING_MIN_ITEMS) break;
+  }
+  return last;
+}
 
 export const revalidate = 60;
 
@@ -18,7 +29,7 @@ export const metadata: Metadata = {
 
 export default async function RankingPage() {
   const [rising, topics, mostRead, buzz] = await Promise.all([
-    getRisingTopics(RISING_HOURS, 10),
+    loadRising(),
     getTrendingTopics({ minPublishers: 2, take: 20 }),
     getMostRead(20),
     getSocialBuzz(20),
@@ -28,9 +39,9 @@ export default async function RankingPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-extrabold">ランキング</h1>
       <section className="card p-4">
-        <SectionHeading title={`急上昇（直近${RISING_HOURS}時間）`} />
+        <SectionHeading title={`急上昇（直近${rising.hours}時間）`} />
         <p className="mb-1 text-xs text-fg-subtle">いま報じる媒体が急に増えている話題。同じ出来事は1件にまとめ、1つのジャンルに偏らないように並べています</p>
-        <RisingList items={rising} hours={RISING_HOURS} />
+        <RisingList items={rising.items} hours={rising.hours} />
       </section>
       <p className="text-sm text-fg-muted">ここから下は、直近{TRENDING_HOURS}時間のニュースが対象です。</p>
       <div className="grid gap-6 lg:grid-cols-3">
