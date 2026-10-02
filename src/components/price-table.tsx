@@ -81,7 +81,7 @@ export function PriceTable({ items, today }: { items: PriceChange[]; today: stri
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="会社名・品目で探す（例：たばこ、ドコモ）"
-          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-base"
+          className="min-w-0 basis-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:flex-1 sm:basis-auto"
         />
         <div className="flex gap-1.5" role="group" aria-label="種類">
           <button type="button" className={chip(kind === "all")} onClick={() => setKind("all")}>
