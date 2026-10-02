@@ -223,6 +223,10 @@ describe("投稿文", () => {
       "画像をスワイプで詳しく👉",
     ]);
   });
+  it("続報のカードの見出し（◯◯／結局どうなった）は「◯◯のその後」にする", () => {
+    const es = [entry(), entry({ position: 2, role: "FOLLOWUP", headline: ["広島戦力外", "結局どうなった"] })];
+    expect(composePostText("EVENING", "2026-10-02", es)[3]).toBe("・続報：広島戦力外のその後");
+  });
   it("X の文字数上限（全角140字）に収まるよう、後ろの行を削る", () => {
     const es = [1, 2, 3, 4, 5, 6, 7, 8].map((p) => entry({ position: p, headline: ["あいうえおかきくけこさし", "たちつてとなにぬねのはひ"] }));
     const text = composePostText("LUNCH", "2026-10-01", es);
