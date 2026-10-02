@@ -7,8 +7,9 @@ const nextConfig: NextConfig = {
   // 自動でページを読み直して、部品の食い違いによるエラーを防ぐ（https://nextjs.org/docs/app/guides/self-hosting#version-skew）
   deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   images: {
-    // 媒体の画像（https のみ）を縮小して配信する。媒体は数が多く入れ替わるためホストは限定しない
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // 媒体の画像は加工・保存せず、媒体から直接表示する（thumbnail.tsx）。外部の画像を縮小する機能は使わない
+    // （どの URL でも縮小できる設定は、第三者に当サイトのサーバーを画像の変換に使われるおそれがある）
+    remotePatterns: [],
     // 作る大きさと画質を絞り、縮小の処理と保存を増やしすぎない
     deviceSizes: [640, 828, 1080],
     imageSizes: [256, 384],
