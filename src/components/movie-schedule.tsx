@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { MovieItem } from "@/lib/movie-listings";
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
+import { KindBadge } from "./kind-badge";
 
 /** エンタメのページの「映画の公開スケジュール」。月ごとに開け閉めでき、最初は今月だけ開く。作品名を押すとサイト内の関連ニュースを探す */
 export function MovieSchedule({ months, sourceUrl }: { months: { month: number; items: MovieItem[] }[]; sourceUrl: string }) {
@@ -43,9 +44,7 @@ export function MovieSchedule({ months, sourceUrl }: { months: { month: number; 
                 render={(f) => (
                   <Link href={`/search?q=${encodeURIComponent(f.title)}`} prefetch={false} className="group flex items-center gap-2 py-1.5">
                     <span className="w-10 shrink-0 text-xs font-bold text-[var(--g-entertainment)] tabular-nums">{day(f.release)}</span>
-                    <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 font-bold text-fg-muted">
-                      {f.country === "日本" ? "邦画" : "洋画"}
-                    </span>
+                    <KindBadge label={f.country === "日本" ? "邦画" : "洋画"} />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={f.country ? `${f.title}（${f.country}）` : f.title}>
                       {f.title}
                     </span>

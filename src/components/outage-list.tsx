@@ -4,6 +4,7 @@ import Link from "next/link";
 import { OUTAGE_STATUS_LABELS, type OutageItem } from "@/lib/outages";
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
+import { KindBadge } from "./kind-badge";
 
 /** IT のページの「障害・不具合情報」。発生中は目立つ色、復旧済みは控えめに出す。5件を超える分は開いて見る */
 export function OutageList({ items }: { items: OutageItem[] }) {
@@ -28,11 +29,11 @@ export function OutageList({ items }: { items: OutageItem[] }) {
           keyOf={(o) => `${o.topicId}`}
           render={(o) => (
             <Link href={`/topic/${o.topicId}`} data-topic-id={o.topicId} prefetch={false} className="group flex items-center gap-2 py-1.5">
-              <span
-                className={`shrink-0 rounded px-1 text-[10px] leading-4 font-bold ${o.status === "ongoing" ? "bg-[var(--g-tech)] text-white" : "border border-border text-fg-muted"}`}
-              >
-                {OUTAGE_STATUS_LABELS[o.status]}
-              </span>
+              {o.status === "ongoing" ? (
+                <span className="shrink-0 rounded bg-[var(--g-tech)] px-1 text-[10px] leading-4 font-bold text-white">{OUTAGE_STATUS_LABELS[o.status]}</span>
+              ) : (
+                <KindBadge label={OUTAGE_STATUS_LABELS[o.status]} />
+              )}
               <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={o.title}>
                 {o.title}
               </span>

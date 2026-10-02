@@ -34,6 +34,18 @@ const TONE_OF: Record<string, Tone> = {
   "家電・ガジェット": "blue",
   コスメ: "pink",
   ファッション: "amber",
+  // 映画
+  邦画: "orange",
+  洋画: "blue",
+  // 経済
+  決算: "blue",
+  業績予想: "violet",
+  "M&A・提携": "orange",
+  株主還元: "green",
+  上場: "amber",
+  // 障害・記事の種類
+  復旧: "green",
+  プレスリリース: "amber",
   // ゲーム
   新作発表: "violet",
   新作: "violet",

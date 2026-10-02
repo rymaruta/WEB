@@ -4,6 +4,23 @@ import { CALENDAR_COLORS, CALENDAR_LABELS, type CalendarItem } from "@/lib/calen
 /** 1日に出す件数（多い日は「ほか◯件」にまとめる） */
 const PER_DAY = 4;
 
+/**
+ * 少しだけ見せる予定の選び方。ニュースになっている（話題のページがある）ものを先にし、分野が偏らないよう1分野ずつ順に取る
+ * （ストアに並ぶだけのゲームが何十本もある日に、それだけで埋まらないように）
+ */
+export function pickHighlights(items: CalendarItem[], n = PER_DAY): CalendarItem[] {
+  const covered = (it: CalendarItem) => (it.href && !it.external ? 0 : 1);
+  const queues = new Map<string, CalendarItem[]>();
+  for (const it of [...items].sort((a, b) => covered(a) - covered(b))) queues.set(it.category, [...(queues.get(it.category) ?? []), it]);
+  // ニュースになっているものがある分野から順に回る
+  const order = [...queues.entries()].sort((a, b) => covered(a[1][0]) - covered(b[1][0])).map(([, q]) => q);
+  const out: CalendarItem[] = [];
+  while (out.length < n && order.some((q) => q.length)) {
+    for (const q of order) if (q.length && out.length < n) out.push(q.shift()!);
+  }
+  return out;
+}
+
 function DayRow({ title, items }: { title: string; items: CalendarItem[] }) {
   return (
     <div>
@@ -15,7 +32,7 @@ function DayRow({ title, items }: { title: string; items: CalendarItem[] }) {
         <p className="text-sm text-fg-subtle">予定はありません</p>
       ) : (
         <ul className="space-y-1">
-          {items.slice(0, PER_DAY).map((it, i) => {
+          {pickHighlights(items).map((it, i) => {
             const body = (
               <>
                 <span className="shrink-0 rounded px-1.5 text-[10px] leading-4 font-bold text-white" style={{ backgroundColor: CALENDAR_COLORS[it.category] }}>

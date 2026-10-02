@@ -24,6 +24,7 @@ import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
+import { kindTone } from "@/components/kind-badge";
 
 export const revalidate = 60;
 
@@ -193,7 +194,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                   {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
                     <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
                   )}
-                  {a.source.kind === "PRESS" && <span className="rounded border border-border px-1">プレスリリース</span>}
+                  {a.source.kind === "PRESS" && <span className={`rounded border px-1 ${kindTone("プレスリリース")}`}>プレスリリース</span>}
                 </div>
                 <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
                   {cleanTitle(a.title)}

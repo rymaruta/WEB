@@ -12,6 +12,7 @@ import { OutboundLink } from "./outbound-link";
 import { PublisherAvatars } from "./publisher-avatars";
 import { RankBadge } from "./rank-badge";
 import { Thumbnail } from "./thumbnail";
+import { kindTone } from "./kind-badge";
 
 type Variant = "standard" | "compact";
 
@@ -125,7 +126,7 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
 export function MarketEventBadge({ event }: { event: string | null | undefined }) {
   const label = marketEventLabel(event);
   if (!label) return null;
-  return <span className="rounded border border-fg-muted/40 bg-surface px-1.5 py-px text-[11px] font-bold text-fg">{label}</span>;
+  return <span className={`rounded border px-1.5 py-px text-[11px] font-bold ${kindTone(label)}`}>{label}</span>;
 }
 
 /** 噂・リーク（公式の発表ではない）の印。事実と見分けられるようにする */
