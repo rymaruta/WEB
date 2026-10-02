@@ -43,13 +43,27 @@ const PUBLISHER_NAMES: Record<string, string> = {
   "prtimes.jp": "PR TIMES",
 };
 
-/** 媒体の表示名。ドメイン名なら読者に分かる名前にする（www3.nhk.or.jp → NHK のように、上位のドメインでも探す） */
+/**
+ * 媒体の表示名。ドメイン名なら読者に分かる名前にする（www3.nhk.or.jp → NHK のように、上位のドメインでも探す）。
+ * 名前の分からないドメインは、先頭の www・www2 などを外して短くする（www2.sagawa-exp.co.jp → sagawa-exp.co.jp）
+ */
 export function publisherLabel(publisher: string): string {
-  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(publisher)) return publisher;
-  const parts = publisher.toLowerCase().replace(/^www\d*\./, "").split(".");
+  if (!isDomain(publisher)) return publisher;
+  return knownName(publisher) ?? publisher.toLowerCase().replace(/^www\d*\./, "");
+}
+
+/** 読者に分かる名前の媒体か（媒体名で登録した媒体と、名前を登録したドメイン）。名前の分からないサイトなら false */
+export function hasPublisherName(publisher: string): boolean {
+  return !isDomain(publisher) || knownName(publisher) !== null;
+}
+
+const isDomain = (publisher: string) => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(publisher);
+
+function knownName(domain: string): string | null {
+  const parts = domain.toLowerCase().replace(/^www\d*\./, "").split(".");
   for (let i = 0; i < parts.length - 1; i++) {
     const name = PUBLISHER_NAMES[parts.slice(i).join(".")];
     if (name) return name;
   }
-  return publisher;
+  return null;
 }

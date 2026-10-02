@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cleanTitle } from "@/lib/feed/text";
-import { publisherLabel } from "@/lib/publisher";
+import { hasPublisherName, publisherLabel } from "@/lib/publisher";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -24,7 +24,7 @@ function describe(topic: TopicCardData) {
   const publishers = [...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))];
   // 画像は報道機関の記事から選ぶ。SNS 経由の記事は、名前の分かる媒体のものだけ（企業や個人のサイトの画面写真を大きく出さない）
   const image =
-    (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && publisherLabel(a.publisher) !== a.publisher))?.imageUrl ?? null;
+    (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && hasPublisherName(a.publisher)))?.imageUrl ?? null;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || cleanTitle(topic.title);
   return { lead, title, summary, publishers, image, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
@@ -86,8 +86,9 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         <div className="absolute bottom-0 left-0 flex items-end gap-3 p-4 text-white">
+          {/* 写真に文字の多い画面（サイトの画面写真など）でも読めるよう、数字は暗い下地の上に置く */}
           {topic.publisherCount > 1 && (
-            <p className="leading-none drop-shadow">
+            <p className="rounded-xl bg-black/65 px-3 py-2 leading-none backdrop-blur-sm">
               <span className="text-5xl font-black tabular-nums">{topic.publisherCount}</span>
               <span className="ml-1 text-sm font-bold">媒体が報道</span>
             </p>

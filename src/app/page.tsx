@@ -1,6 +1,7 @@
 import { ArticleRanking } from "@/components/article-ranking";
 import { DigestSummaryCard } from "@/components/digest-summary";
 import { Fold } from "@/components/fold";
+import { SideFold } from "@/components/side-fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
@@ -102,14 +103,13 @@ export default async function HomePage() {
                   <ArticleRanking items={mostRead} metric="clicks" />
                 </section>
               )}
-              <section className="card p-4">
-                <SectionHeading title="SNSで話題" note="はてなブックマーク数" href="/ranking" moreLabel="ランキング" />
+              {/* スマホでは一番下に来るため、最初は閉じておく（見出しを押すと開く） */}
+              <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
                 <ArticleRanking items={buzz} metric="social" showGenre />
-              </section>
-              <section className="card p-4">
-                <SectionHeading title="新着" />
+              </SideFold>
+              <SideFold id="home-latest" title="新着">
                 <ArticleRanking items={latest} showGenre />
-              </section>
+              </SideFold>
             </aside>
           </div>
         ) : (
@@ -147,12 +147,14 @@ export default async function HomePage() {
       )}
 
       <section aria-labelledby="by-genre">
-        <h2 id="by-genre" className="mb-4 text-xl font-black tracking-tight">ジャンル別ニュース</h2>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <h2 id="by-genre" className="mb-1 text-xl font-black tracking-tight">ジャンル別ニュース</h2>
+        <p className="mb-3 text-xs text-fg-subtle md:hidden">横にスワイプすると、ほかのジャンルが見られます</p>
+        {/* スマホでは横に並べてスワイプで見る（縦に10ジャンル並べるとトップが長くなりすぎるため）。広い画面では格子に並べる */}
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 scrollbar-none md:mx-0 md:grid md:snap-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-3">
           {sections.map(({ genre, topics }) => {
             const [top, ...more] = topics;
             return (
-              <section key={genre.id} aria-label={genre.name} className="card flex min-w-0 flex-col p-4">
+              <section key={genre.id} aria-label={genre.name} className="card flex w-[85%] min-w-0 shrink-0 snap-start flex-col p-4 md:w-auto">
                 <SectionHeading title={genre.name} href={`/genre/${genre.slug}`} genreSlug={genre.slug} />
                 {top ? (
                   <>
