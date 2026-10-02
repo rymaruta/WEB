@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { imageVariants } from "@/lib/image-variants";
 import { GenreIcon } from "./genre-icon";
 
 type Props = {
@@ -11,7 +12,7 @@ type Props = {
   iconClassName?: string;
   /** 画面の最初に見える画像は遅延読み込みしない */
   priority?: boolean;
-  /** 互換のために残す（画像は加工せず、媒体の配信する画像をそのまま表示する） */
+  /** 表示される幅。媒体が大きさ違いの画像を用意しているときに、どれを読み込むかの目安 */
   sizes?: string;
   /** 画像の出典（媒体名）。マウスを重ねたときに表示する */
   credit?: string;
@@ -21,7 +22,7 @@ type Props = {
  * 記事のサムネイル。媒体が RSS で配信する画像を、当サイトで保存・加工せず、そのまま媒体から表示する（出典を明記する）。
  * 画像がない・読み込めない場合はジャンル色とアイコンの代替表示にする。
  */
-export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit }: Props) {
+export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // サーバー描画された画像が、React の準備前に読み込みに失敗していた場合も代替表示にする
@@ -46,7 +47,11 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
-      src={src}
+      // 媒体が大きさ違いの画像を用意していれば、表示の大きさに合ったものを選ぶ（数 MB の画像を小さな枠に読み込まない）
+      {...(() => {
+        const v = imageVariants(src);
+        return v ? { src: v[0].url, srcSet: v.map((x) => `${x.url} ${x.width}w`).join(", "), sizes } : { src };
+      })()}
       alt=""
       title={credit ? `画像：${credit}` : undefined}
       fetchPriority={priority ? "high" : undefined}
