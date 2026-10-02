@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { countNewDueTopics } from "@/lib/ai/store";
 import { logEvent } from "@/lib/events";
 import { fireRoutine, routineReady, ROUTINES, type RoutineName } from "./routine";
+import { jstAt, jstDate, SLOT_ORDER, SLOTS } from "./slots";
 
 /**
  * 仕事がたまったときだけ、Claude Code の定期実行をサーバーから起動する（無料。決まった時刻を待たず、空振りもしない）。
@@ -19,6 +20,18 @@ export const DISPATCH_RULES: Record<Exclude<RoutineName, "breaking" | "tasks">, 
 const QUIET = { from: 1, until: 6 };
 
 export const FIRE_SCOPE = "routine.fire";
+
+/**
+ * 定時の配信の下書きを作る前（25〜70分前）か。この時間は、解析待ちが少なくても・深夜でも、ダイジェスト用の解析を起動する
+ * （解析済みの候補が少ないと、1つの分野に偏った回になるため。例：昼のニュースが3本ともサッカー）
+ */
+export function beforeBuild(now: Date): boolean {
+  const date = jstDate(now);
+  return SLOT_ORDER.some((slot) => {
+    const minutes = (jstAt(date, SLOTS[slot].buildAt).getTime() - now.getTime()) / 60_000;
+    return minutes >= 25 && minutes <= 70;
+  });
+}
 
 /** 起動するか（純粋な判断。テスト用） */
 export function shouldFire(rule: { minPending: number; minIntervalMinutes: number; staleMinutes: number }, pending: number, minutesSinceLast: number | null, jstHour: number): boolean {
@@ -49,7 +62,8 @@ export async function dispatchRoutines(now = new Date()) {
       prisma.eventLog.findFirst({ where: { scope: FIRE_SCOPE, ref: name }, orderBy: { at: "desc" }, select: { at: true } }),
     ]);
     const since = last ? (now.getTime() - last.at.getTime()) / 60_000 : null;
-    if (!shouldFire(DISPATCH_RULES[name], pending, since, jstHour(now))) {
+    const preBuild = name === "digest" && pending > 0 && (since ?? Infinity) >= 30 && beforeBuild(now);
+    if (!preBuild && !shouldFire(DISPATCH_RULES[name], pending, since, jstHour(now))) {
       results[name] = `wait (${pending})`;
       continue;
     }

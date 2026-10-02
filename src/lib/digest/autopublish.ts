@@ -40,8 +40,21 @@ export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { 
       where: { editionId: edition.id, confirmed: false, story: { status: "REVIEW_REQUIRED" } },
     });
     const items = await prisma.editionItem.count({ where: { editionId: edition.id } });
+    // 3本とも同じ分野（例：全部サッカー）の回は、世の中の主なニュースを伝えられないため自動では出さない
+    const categories = (await prisma.editionItem.findMany({ where: { editionId: edition.id }, select: { story: { select: { category: true } } } })).map(
+      (i) => i.story.category,
+    );
+    const oneSided = items > 1 && categories.every((c) => c && c === categories[0]);
+    if (oneSided) {
+      await logEvent("warn", "digest.one-sided", `${edition.key}: ${items}本とも同じ分野（${categories[0]}）のため、自動では出しません`, edition.id);
+      await notifyOwner({
+        title: `${name}が1つの分野に偏ったため、自動では投稿しません`,
+        what: `${name}の${items}本がすべて同じ分野（${categories[0]}）でした。`,
+        action: "出す場合は、管理画面でこの回を開き、ほかの分野のニュースに入れ替えてから投稿してください。",
+      });
+    }
     // 1回の配信は必ず3本（REQUIRED_ITEMS）。そろっていない回は自動では出さない
-    if (unconfirmed === 0 && items === REQUIRED_ITEMS) {
+    if (unconfirmed === 0 && items === REQUIRED_ITEMS && !oneSided) {
       await prisma.edition.update({ where: { id: edition.id }, data: { status: "APPROVED" } });
       await logEvent("info", "digest.auto-approve", `${edition.key}: おまかせ投稿で承認しました`, edition.id);
       edition.status = "APPROVED";
