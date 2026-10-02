@@ -72,7 +72,7 @@ describe("pickHotTopics", () => {
   const t = (id: number, publisherCount: number, minutesAgo: number) => ({ id, publisherCount, firstSeenAt: new Date(now.getTime() - minutesAgo * 60_000) });
 
   it("一斉に報じられた新しい出来事を、媒体の多い順に選ぶ", () => {
-    expect(pickHotTopics([t(1, 5, 30), t(2, 8, 60), t(3, 4, 10)], new Set(), now, 0).map((x) => x.id)).toEqual([2, 1]);
+    expect(pickHotTopics([t(1, 5, 30), t(2, 8, 60), t(3, 3, 10)], new Set(), now, 0).map((x) => x.id)).toEqual([2, 1]);
   });
 
   it("知らせ済み・古い出来事は選ばない", () => {

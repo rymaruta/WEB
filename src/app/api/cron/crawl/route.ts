@@ -25,7 +25,8 @@ export async function GET(request: Request) {
   after(async () => {
     try {
       const summary = await runCrawl();
-      revalidatePath("/", "layout");
+      // 新しい記事がなければ作り直さない（5分ごとに回すため、ページの作り直しを減らす）
+      if (summary.inserted > 0) revalidatePath("/", "layout");
       console.log(
         JSON.stringify({
           event: "crawl",

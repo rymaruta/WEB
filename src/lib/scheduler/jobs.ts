@@ -10,10 +10,11 @@ export type Job = {
 };
 
 export const JOBS: Job[] = [
-  { name: "crawl", path: "/api/cron/crawl", intervalMinutes: 15, envKey: "CRAWL_INTERVAL_MINUTES" },
-  { name: "stories", path: "/api/cron/stories", intervalMinutes: 15, envKey: "STORIES_INTERVAL_MINUTES" },
-  // 速報の確認。解析が終わった出来事を見て、条件に合えば投稿する（src/lib/digest/breaking.ts）
-  { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 10, envKey: "BREAKING_INTERVAL_MINUTES" },
+  // 収集は1回20〜30秒で終わるため、速報を早く拾えるよう5分ごとに回す（前の回が終わっていなければ飛ばす）
+  { name: "crawl", path: "/api/cron/crawl", intervalMinutes: 5, envKey: "CRAWL_INTERVAL_MINUTES" },
+  { name: "stories", path: "/api/cron/stories", intervalMinutes: 5, envKey: "STORIES_INTERVAL_MINUTES" },
+  // 速報の確認。解析が終わった出来事を見て、条件に合えば投稿する。一斉に報じられた出来事の知らせも出す（src/lib/digest/breaking.ts）
+  { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 5, envKey: "BREAKING_INTERVAL_MINUTES" },
   // Bluesky への同時投稿の再試行と、Threads のトークンの延長（src/lib/digest/crosspost.ts）。認証情報がなければ何もしない
   { name: "crosspost", path: "/api/cron/crosspost", intervalMinutes: 10, envKey: "CROSSPOST_INTERVAL_MINUTES" },
   // YouTube の新着動画と再生回数の取り込み（src/lib/youtube.ts）

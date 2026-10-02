@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
+import { HOT_QUERY, isHot } from "@/lib/stories/hot";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
 import { editionKey, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
@@ -214,35 +215,28 @@ export function draftHeadline(topic: { title: string; aiTitle: string | null }):
 // ---------------------------------------------------------------------------
 
 export const HOT_RULES = {
-  /** この媒体数以上が報じたら知らせる */
-  minPublishers: 5,
-  /** 最初の報道から、この時間以内の出来事だけ */
-  maxAgeHours: 3,
   /** 24時間に知らせる上限 */
   maxPerDay: 6,
 } as const;
 
-type HotTopic = { id: number; publisherCount: number; firstSeenAt: Date };
+type HotTopic = { id: number; publisherCount: number; firstSeenAt: Date; lastSeenAt?: Date | null };
 
-/** 知らせる出来事を選ぶ（まだ知らせていない・新しい・多くの媒体が報じている） */
+/** 知らせる出来事を選ぶ（まだ知らせていない・一斉に報じられている。判定は src/lib/stories/hot.ts） */
 export function pickHotTopics<T extends HotTopic>(topics: T[], notified: Set<number>, now: Date, sentToday: number): T[] {
   const room = Math.max(0, HOT_RULES.maxPerDay - sentToday);
   return topics
-    .filter(
-      (t) =>
-        !notified.has(t.id) && t.publisherCount >= HOT_RULES.minPublishers && now.getTime() - t.firstSeenAt.getTime() <= HOT_RULES.maxAgeHours * 3_600_000,
-    )
+    .filter((t) => !notified.has(t.id) && isHot(t, now.getTime()))
     .sort((a, b) => b.publisherCount - a.publisherCount)
     .slice(0, room);
 }
 
 /** 速報の確認のたびに呼ぶ。多くの媒体が一斉に報じた出来事があれば、運営者に知らせる（深夜も知らせる） */
 export async function notifyHotTopics(now = new Date()) {
-  const since = new Date(now.getTime() - HOT_RULES.maxAgeHours * 3_600_000);
+  const since = new Date(now.getTime() - HOT_QUERY.withinHours * 3_600_000);
   const [topics, logs] = await Promise.all([
     prisma.topic.findMany({
-      where: { firstSeenAt: { gte: since }, publisherCount: { gte: HOT_RULES.minPublishers }, mergedIntoId: null, aiNotNews: false, stories: { some: { kind: "NEW" } } },
-      select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true, stories: { where: { kind: "NEW" }, select: { id: true }, take: 1 } },
+      where: { firstSeenAt: { gte: since }, publisherCount: { gte: HOT_QUERY.minPublishers }, mergedIntoId: null, aiNotNews: false, stories: { some: { kind: "NEW" } } },
+      select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true, stories: { where: { kind: "NEW" }, select: { id: true }, take: 1 } },
     }),
     prisma.eventLog.findMany({ where: { scope: "breaking.hot", at: { gte: new Date(now.getTime() - 24 * 3_600_000) } }, select: { ref: true } }),
   ]);
