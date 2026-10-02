@@ -323,6 +323,10 @@ export const getRisingTopics = cache(async (hours: number, take: number) => {
   return diversifyRising(candidates, take).map((c) => ({ topic: c.topic, recent: c.recent }));
 });
 
+/** 同じ作品をまとめる目印（英語表記とカタカナ表記の違いは、読み取り時に付けた呼び名でまとめる） */
+const gameKey = (t: { aiGameTitle: string | null; aiGameKey: string | null }) =>
+  (t.aiGameKey || t.aiGameTitle || "").normalize("NFKC").toLowerCase().replace(/[\s・:：\-－]+/g, "");
+
 export type GameRelease = { topicId: number; title: string; release: string; platforms: string[]; kind: string | null };
 
 /**
@@ -335,13 +339,13 @@ export const getGameReleases = cache(async (now = new Date()): Promise<GameRelea
     where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { in: ["announce", "release_date", "release"] }, lastSeenAt: { gte: since(24 * 365) } },
     orderBy: { lastSeenAt: "desc" },
     take: 2000,
-    select: { id: true, aiGameTitle: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
+    select: { id: true, aiGameTitle: true, aiGameKey: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
   });
   const today = new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
   const seen = new Set<string>();
   const out: GameRelease[] = [];
   for (const t of topics) {
-    const key = t.aiGameTitle!.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+    const key = gameKey(t);
     if (seen.has(key)) continue;
     seen.add(key);
     const r = t.aiGameRelease!;
@@ -363,7 +367,7 @@ export const getNewGames = cache(async (days: number, take: number) => {
   const seen = new Set<string>();
   return topics
     .filter((t) => {
-      const key = t.aiGameTitle!.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+      const key = gameKey(t);
       return seen.has(key) ? false : (seen.add(key), true);
     })
     .slice(0, take);

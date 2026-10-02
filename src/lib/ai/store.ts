@@ -112,6 +112,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiCompanies: article.companies ?? [],
       aiMarketEvent: article.marketEvent ?? null,
       aiGameTitle: article.game?.title ?? null,
+      aiGameKey: article.game?.titleKey?.trim() || null,
       aiGameRelease: article.game?.releaseDate ?? null,
       aiGameKind: article.game?.kind ?? null,
       aiGamePlatforms: article.game?.platforms ?? [],

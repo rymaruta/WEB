@@ -105,6 +105,8 @@ model Topic {
   aiHistory      Json?
   /// ゲームの話題の情報（src/lib/game.ts）。タイトル・発売日（YYYY-MM-DD か YYYY-MM）・種類・機種
   aiGameTitle     String?
+  /// 同じ作品をまとめるための呼び名（英語表記とカタカナ表記の違いなどを吸収する。画面には出さない）
+  aiGameKey       String?
   aiGameRelease   String?
   aiGameKind      String?
   aiGamePlatforms String[]  @default([])
