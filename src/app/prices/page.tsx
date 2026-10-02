@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { PriceTable } from "@/components/price-table";
-import { getPriceChanges, priceRate } from "@/lib/changes";
+import { getPriceChanges } from "@/lib/changes";
+import { jstDate } from "@/lib/calendar";
 import { jstMonth } from "@/lib/features";
+import { isUpcoming } from "@/lib/price-dates";
 
 export const revalidate = 900;
 
@@ -15,9 +17,9 @@ export const metadata: Metadata = {
 export default async function PricesPage() {
   const start = jstMonth(new Date(), -3);
   const items = await getPriceChanges(start);
+  const today = jstDate();
   const ups = items.filter((p) => p.kind === "price_up");
-  const rates = ups.map(priceRate).filter((r): r is number => r !== null && r > 0);
-  const avg = rates.length ? Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 10) / 10 : null;
+  const upcoming = items.filter((p) => isUpcoming(p.date, today)).length;
   // 月ごとの件数（値上げ・値下げ）
   const months = [-3, -2, -1, 0, 1, 2].map((o) => jstMonth(new Date(), o));
   const byMonth = months.map((m) => ({
@@ -32,7 +34,7 @@ export default async function PricesPage() {
       <header className="card p-5 sm:p-6">
         <h1 className="text-2xl font-black">値上げ・値下げデータベース</h1>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-          ニュースで報じられた値上げ・値下げを、始まる日・会社・変更前後の値段とともに集めています。値段や率は、記事に書かれているものだけを載せています。
+          多くの人に関わる、有名な会社・ブランド・料金の値上げ・値下げを、始まる日・変更前後の値段とともにまとめています。値段や率は、記事に書かれているものだけを載せています。
         </p>
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-lg bg-surface-muted p-2">
@@ -44,8 +46,8 @@ export default async function PricesPage() {
             <dd className="text-xl font-black text-blue-600 tabular-nums dark:text-blue-400">{items.length - ups.length}件</dd>
           </div>
           <div className="rounded-lg bg-surface-muted p-2">
-            <dt className="text-[11px] text-fg-subtle">値上げ幅の平均</dt>
-            <dd className="text-xl font-black tabular-nums">{avg !== null ? `${avg}%` : "—"}</dd>
+            <dt className="text-[11px] text-fg-subtle">これから変わる</dt>
+            <dd className="text-xl font-black tabular-nums">{upcoming}件</dd>
           </div>
         </dl>
         <figure className="mt-4" aria-label="月ごとの件数">
@@ -64,7 +66,7 @@ export default async function PricesPage() {
           <figcaption className="mt-1 text-[11px] text-fg-subtle">始まる月ごとの件数（赤：値上げ、青：値下げ）</figcaption>
         </figure>
       </header>
-      <PriceTable items={items} />
+      <PriceTable items={items} today={today} />
       <p className="text-xs leading-relaxed text-fg-subtle">
         ニュースの見出しと要約から自動で読み取っています。値段は税込み・税抜きが記事によって異なります。最新の情報は各社の発表でご確認ください。
       </p>
