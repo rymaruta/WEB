@@ -114,15 +114,47 @@ export async function getAnimeSchedule(months: string[]): Promise<AnimeItem[]> {
     take: 500,
     select: { id: true, aiAnimeTitle: true, aiAnimeDate: true, aiAnimeKind: true, aiAnimeChannel: true },
   });
-  return sortAnime(
-    topics.map((t) => ({
+  return sortAnime([
+    ...topics.map((t) => ({
       topicId: t.id,
       title: t.aiAnimeTitle!,
       date: t.aiAnimeDate!,
       kind: (t.aiAnimeKind ?? "other") as AnimeKind,
       channel: t.aiAnimeChannel,
     })),
-  );
+    ...(await getAnimeFilms(months)),
+  ]);
+}
+
+/** 映画の題名を、アニメの話題の見出しと比べるための形。題名全体と、最初の区切りまで（5字以上のとき） */
+export function filmKeys(title: string): string[] {
+  const full = fold(title);
+  const head = fold(title.split(/[\s　\-－―~〜:：]/)[0] ?? "");
+  return [...new Set([full, ...(head.length >= 5 ? [head] : [])])].filter((k) => k.length >= 4);
+}
+
+/**
+ * 映画の公開予定（src/lib/movie-listings.ts）のうち、アニメの映画。
+ * 一覧にはアニメかどうかが書かれていないため、アニメ・漫画のジャンルの話題の見出しに題名が出てくる作品をアニメの映画とみなす
+ */
+async function getAnimeFilms(months: string[]): Promise<AnimeItem[]> {
+  const films = await prisma.movieListing.findMany({
+    where: { OR: months.map((m) => ({ release: { startsWith: m } })) },
+    select: { title: true, release: true },
+  });
+  if (films.length === 0) return [];
+  const topics = await prisma.topic.findMany({
+    where: { genre: { slug: "anime" }, lastSeenAt: { gte: new Date(Date.now() - 180 * 86_400_000) } },
+    orderBy: { score: "desc" },
+    take: 3000,
+    select: { id: true, title: true, aiTitle: true },
+  });
+  const heads = topics.map((t) => ({ id: t.id, text: fold(`${t.title} ${t.aiTitle ?? ""}`) }));
+  return films.flatMap((f) => {
+    const keys = filmKeys(f.title);
+    const hit = heads.find((h) => keys.some((k) => h.text.includes(k)));
+    return hit ? [{ topicId: hit.id, title: f.title, date: f.release, kind: "movie" as const, channel: null }] : [];
+  });
 }
 
 /** 同じ作品・同じ種類は1件に（話題の大きいものを残す。月だけのものより、日まで分かるものを優先する）して、日付順に並べる */
