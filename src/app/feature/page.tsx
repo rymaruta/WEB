@@ -20,6 +20,11 @@ export default async function FeatureIndexPage() {
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
           ニュースで報じられた日付をもとに、今月・来月に始まることを1ページにまとめました。毎日自動で更新しています。
         </p>
+        <p className="mt-3 text-sm">
+          <Link href="/calendar" prefetch={false} className="font-bold text-accent hover:underline">
+            すべての分野を1つにまとめた「ぜんぶカレンダー」 →
+          </Link>
+        </p>
       </header>
       <ul className="grid gap-3 sm:grid-cols-2">
         {features.map((f) => (
