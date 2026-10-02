@@ -481,3 +481,24 @@ model TopicFeedback {
 
   @@index([unclear(sort: Desc)])
 }
+
+/// 公式ストアの発売予定（任天堂・Steam）。発売スケジュールの網羅性を上げるため、毎日取り込む（src/lib/game-listings.ts）
+model GameListing {
+  id         Int      @id @default(autoincrement())
+  /// nintendo | steam
+  source     String
+  /// ストアでの ID（任天堂は nsuid、Steam は appid）
+  externalId String
+  title      String
+  /// 発売日（YYYY-MM-DD か YYYY-MM）
+  release    String
+  platforms  String[] @default([])
+  maker      String?
+  /// 公式ストアのページ
+  url        String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([source, externalId])
+  @@index([release])
+}
