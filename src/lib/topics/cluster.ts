@@ -134,10 +134,11 @@ export async function refreshTopics(topicIds: number[]) {
 export async function rescoreTopics(now = new Date()) {
   const since = hoursAgo(SCORE_WINDOW_HOURS, now);
   const rows = await prisma.$queryRaw<
-    { id: number; newsPublishers: number; articleCount: number; lastSeenAt: Date; social: number; clicks: number; genre: string | null }[]
+    { id: number; newsPublishers: number; newsArticles: number; articleCount: number; lastSeenAt: Date; social: number; clicks: number; genre: string | null }[]
   >`
     SELECT t.id, t."articleCount", t."lastSeenAt", g.slug AS genre,
            count(DISTINCT a.publisher) FILTER (WHERE s.kind <> 'PRESS')::int AS "newsPublishers",
+           count(a.id) FILTER (WHERE s.kind = 'NEWS')::int AS "newsArticles",
            coalesce(sum(a."socialCount"), 0)::int AS social,
            coalesce(sum(a.clicks), 0)::int AS clicks
     FROM "Topic" t
@@ -158,6 +159,7 @@ export async function rescoreTopics(now = new Date()) {
           clicks: r.clicks,
           lastSeenAt: r.lastSeenAt,
           genreSlug: r.genre ?? undefined,
+          newsArticles: r.newsArticles,
         }, now)}::float8)`,
     );
     await prisma.$executeRaw`
