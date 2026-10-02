@@ -1,4 +1,5 @@
 import type { MarketPoint, MarketSnapshot } from "@/lib/market";
+import { Fold } from "./fold";
 
 function Item({ label, point, unit, digits, note }: { label: string; point: MarketPoint; unit: string; digits: number; note: string }) {
   const diff = point.prev === null ? null : point.value - point.prev;
@@ -32,11 +33,13 @@ export function MarketBar({ data }: { data: MarketSnapshot }) {
   if (!data.usdjpy && !data.jgb10) return null;
   return (
     <section aria-label="市況" className="card p-4">
-      <div className="flex gap-4">
-        {data.usdjpy && <Item label="ドル円" point={data.usdjpy} unit="円" digits={2} note="17時" />}
-        {data.jgb10 && <Item label="長期金利（10年国債）" point={data.jgb10} unit="%" digits={3} note="" />}
-      </div>
-      <p className="mt-2 text-[10px] text-fg-subtle">出典：日本銀行「時系列統計データ」、財務省「国債金利情報」</p>
+      <Fold id="market" summary={<h2 className="text-base font-extrabold">市況</h2>}>
+        <div className="mt-2 flex gap-4">
+          {data.usdjpy && <Item label="ドル円" point={data.usdjpy} unit="円" digits={2} note="17時" />}
+          {data.jgb10 && <Item label="長期金利（10年国債）" point={data.jgb10} unit="%" digits={3} note="" />}
+        </div>
+        <p className="mt-2 text-[10px] text-fg-subtle">出典：日本銀行「時系列統計データ」、財務省「国債金利情報」</p>
+      </Fold>
     </section>
   );
 }
