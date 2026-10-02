@@ -36,8 +36,8 @@ function dayLabel(date: string): { label: string; weekend: "sat" | "sun" | null 
   return { label: `${m}月${d}日（${"日月火水木金土"[dow]}）`, weekend: dow === 0 ? "sun" : dow === 6 ? "sat" : null };
 }
 
-/** 最初に出す日数。続きは「もっと見る」で */
-const FIRST_DAYS = 14;
+/** 最初に出す日数。続きは「もっと見る」で（閉じた日は1行なので、多めに出す） */
+const FIRST_DAYS = 21;
 
 export function CalendarView({ items, counts }: { items: CalendarItem[]; counts: Record<string, number> }) {
   const saved = useSyncExternalStore(subscribe, read, () => "");
@@ -96,51 +96,74 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
         <p className="card p-6 text-sm text-fg-subtle">この期間の予定はまだありません。</p>
       ) : (
         <ol className="card divide-y divide-border px-4 sm:px-5">
-          {visible.map(([date, list]) => {
+          {visible.map(([date, list], dayIndex) => {
             const { label, weekend } = dayLabel(date);
+            // 分野ごとにまとめる（分野の名前は1回だけ出し、1件は1行にする）
+            const byCat = CALENDAR_CATEGORIES.map((c) => [c, list.filter((it) => it.category === c)] as const).filter(([, l]) => l.length > 0);
             return (
-              <li key={date} className="py-3">
-                <h2 className={`text-sm font-black ${weekend === "sun" ? "text-red-600 dark:text-red-400" : weekend === "sat" ? "text-blue-600 dark:text-blue-400" : ""}`}>
-                  {label}
-                  <span className="ml-2 text-xs font-normal text-fg-subtle">{list.length}件</span>
-                </h2>
-                <ul className="mt-1">
-                  {list.map((it, i) => {
-                    const body = (
-                      <>
-                        <span
-                          className="mt-0.5 w-[4.5rem] shrink-0 rounded px-1 text-center text-[10px] leading-4 font-bold text-white"
-                          style={{ backgroundColor: CALENDAR_COLORS[it.category] }}
-                        >
-                          {CALENDAR_LABELS[it.category]}
+              <li key={date}>
+                {/* 日付ごとに開け閉めできる。最初は今日と明日だけ開き、ほかの日は分野ごとの件数だけを見せる */}
+                <details open={dayIndex < 2} className="group/day py-2.5">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden className="inline-block text-fg-subtle transition-transform group-open/day:rotate-90">
+                      ›
+                    </span>
+                    <h2
+                      className={`shrink-0 text-sm font-black ${weekend === "sun" ? "text-red-600 dark:text-red-400" : weekend === "sat" ? "text-blue-600 dark:text-blue-400" : ""}`}
+                    >
+                      {label}
+                    </h2>
+                    <span className="flex min-w-0 flex-wrap gap-1">
+                      {byCat.map(([c, l]) => (
+                        <span key={c} className="rounded px-1.5 text-[10px] leading-4 font-bold text-white" style={{ backgroundColor: CALENDAR_COLORS[c] }}>
+                          {CALENDAR_LABELS[c]} {l.length}
                         </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm leading-snug font-bold group-hover:text-accent">
-                            {it.title}
-                            {it.external && <span className="ml-1 text-[10px] font-normal text-fg-subtle">↗</span>}
-                          </span>
-                          {it.note && <span className="block truncate text-[11px] text-fg-subtle">{it.note}</span>}
-                        </span>
-                      </>
-                    );
-                    const cls = "group flex items-start gap-2 py-1.5";
-                    return (
-                      <li key={`${it.category}-${it.title}-${i}`}>
-                        {it.href && !it.external ? (
-                          <Link href={it.href} prefetch={false} className={cls}>
-                            {body}
-                          </Link>
-                        ) : it.href ? (
-                          <a href={it.href} target="_blank" rel="noopener nofollow" className={cls}>
-                            {body}
-                          </a>
-                        ) : (
-                          <div className={cls}>{body}</div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                      ))}
+                    </span>
+                  </summary>
+                  <div className="mt-1.5 space-y-2 pl-4">
+                    {byCat.map(([c, l]) => (
+                      <section key={c} aria-label={CALENDAR_LABELS[c]}>
+                        <h3 className="text-[11px] font-bold" style={{ color: CALENDAR_COLORS[c] }}>
+                          {CALENDAR_LABELS[c]}
+                        </h3>
+                        <ul>
+                          {l.map((it, i) => {
+                            const body = (
+                              <>
+                                <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={it.title}>
+                                  {it.title}
+                                  {it.external && <span className="ml-1 text-[10px] font-normal text-fg-subtle">↗</span>}
+                                </span>
+                                {it.note && (
+                                  <span className="max-w-[38%] shrink-0 truncate text-[11px] text-fg-subtle" title={it.note}>
+                                    {it.note}
+                                  </span>
+                                )}
+                              </>
+                            );
+                            const cls = "group flex items-center gap-2 py-1";
+                            return (
+                              <li key={`${it.title}-${i}`}>
+                                {it.href && !it.external ? (
+                                  <Link href={it.href} prefetch={false} className={cls}>
+                                    {body}
+                                  </Link>
+                                ) : it.href ? (
+                                  <a href={it.href} target="_blank" rel="noopener nofollow" className={cls}>
+                                    {body}
+                                  </a>
+                                ) : (
+                                  <div className={cls}>{body}</div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </details>
               </li>
             );
           })}
