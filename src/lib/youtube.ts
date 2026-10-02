@@ -60,13 +60,13 @@ async function fetchChannel(c: YouTubeChannel): Promise<FeedVideo[]> {
   return parseYouTubeFeed(await res.text()).filter((v) => v.channelId === c.id);
 }
 
-/** 定期処理。全チャンネルの新着を取り込み、再生回数を日ごとに記録する */
+/** 定期処理。全チャンネルの新着を取り込み、再生回数を日ごとに記録する。ショート動画は載せないため取り込まない */
 export async function syncYouTube(now = new Date()) {
   const date = jstDate(now);
   const results: Record<string, number | string> = {};
   for (const c of YOUTUBE_CHANNELS) {
     try {
-      const videos = await fetchChannel(c);
+      const videos = (await fetchChannel(c)).filter((v) => !v.isShort);
       for (const v of videos) {
         const { videoId, ...data } = v;
         await prisma.youTubeVideo.upsert({ where: { videoId }, create: { videoId, ...data }, update: { title: data.title, description: data.description, views: data.views, isShort: data.isShort } });
@@ -76,6 +76,14 @@ export async function syncYouTube(now = new Date()) {
     } catch (e) {
       results[c.slug] = `error: ${e instanceof Error ? e.message : String(e)}`;
     }
+  }
+  // 以前に取り込んだショート動画を消す
+  const shorts = await prisma.youTubeVideo.findMany({ where: { isShort: true }, select: { videoId: true } });
+  if (shorts.length) {
+    const ids = shorts.map((s) => s.videoId);
+    await prisma.youTubeViewDaily.deleteMany({ where: { videoId: { in: ids } } });
+    await prisma.youTubeVideo.deleteMany({ where: { videoId: { in: ids } } });
+    results.removedShorts = ids.length;
   }
   return results;
 }

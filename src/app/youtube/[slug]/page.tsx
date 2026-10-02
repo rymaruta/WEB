@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FollowButton } from "@/components/follow-button";
-import { GroupTabs } from "@/components/group-tabs";
 import { TopicList } from "@/components/topic-card";
 import { VideoGrid } from "@/components/youtube/video-card";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
@@ -24,8 +23,6 @@ export default async function ChannelPage({ params }: PageProps<"/youtube/[slug]
   const c = findChannel((await params).slug);
   if (!c) notFound();
   const [videos, news] = await Promise.all([getChannelVideos(c.id, 60), getChannelNews(c, 20)]);
-  const long = videos.filter((v) => !v.isShort);
-  const shorts = videos.filter((v) => v.isShort);
   const follow = c.keywords.split("|")[0];
 
   return (
@@ -62,15 +59,11 @@ export default async function ChannelPage({ params }: PageProps<"/youtube/[slug]
           </a>
         </div>
       </header>
-      <section className="card p-4 sm:p-5" aria-label="動画">
-        <GroupTabs
-          id={`yt-${c.slug}`}
-          label="動画の種類"
-          groups={[
-            { key: "videos", label: "動画", note: String(long.length), content: long.length ? <VideoGrid videos={long} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">まだありません</p> },
-            { key: "shorts", label: "ショート", note: String(shorts.length), content: shorts.length ? <VideoGrid videos={shorts} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">まだありません</p> },
-          ]}
-        />
+      <section className="card p-4 sm:p-5" aria-labelledby="channel-videos">
+        <h2 id="channel-videos" className="mb-3 text-lg font-black">
+          最新の動画<span className="ml-2 text-sm font-bold text-fg-subtle">{videos.length}本</span>
+        </h2>
+        {videos.length ? <VideoGrid videos={videos} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。しばらくお待ちください。</p>}
       </section>
       {news.length > 0 && (
         <section className="card px-4 sm:px-5">

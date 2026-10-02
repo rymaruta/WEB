@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
 import { VideoGrid, VideoRow } from "@/components/youtube/video-card";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
@@ -112,12 +111,27 @@ export default async function YouTubePage() {
         </section>
       )}
 
-      {channels.map(({ c, videos }) => (
-        <section key={c.slug} className="card p-4 sm:p-5">
-          <SectionHeading title={c.name} href={`/youtube/${c.slug}`} moreLabel="すべての動画" />
-          {videos.length ? <VideoGrid videos={videos} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。しばらくお待ちください。</p>}
-        </section>
-      ))}
+      <section className="card p-4 sm:p-5" aria-labelledby="yt-channels">
+        <h2 id="yt-channels" className="mb-3 text-lg font-black">
+          YouTuber 別の最新動画
+        </h2>
+        <GroupTabs
+          id="yt-channels"
+          label="YouTuber"
+          groups={channels.map(({ c, videos }) => ({
+            key: c.slug,
+            label: c.name.replace(/（.*）/, ""),
+            content: (
+              <>
+                {videos.length ? <VideoGrid videos={videos} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>}
+                <Link href={`/youtube/${c.slug}`} prefetch={false} className="mt-3 inline-block text-xs font-bold text-accent hover:underline">
+                  {c.name.replace(/（.*）/, "")}のすべての動画とニュース →
+                </Link>
+              </>
+            ),
+          }))}
+        />
+      </section>
 
       {news.length > 0 && (
         <section className="card px-4 sm:px-5">

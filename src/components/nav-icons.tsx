@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type NavIconName = "home" | "ranking" | "articles" | "search" | "saved" | "company";
+export type NavIconName = "home" | "ranking" | "articles" | "search" | "saved" | "company" | "video";
 
 /** メニュー用の線画アイコン（24x24, stroke） */
 const PATHS: Record<NavIconName, ReactNode> = {
@@ -37,6 +37,12 @@ const PATHS: Record<NavIconName, ReactNode> = {
       <path d="M7.5 11h4" />
       <path d="M7.5 15h4" />
       <path d="M9 21v-3h2v3" />
+    </>
+  ),
+  video: (
+    <>
+      <rect x="3" y="5.5" width="18" height="13" rx="3.5" />
+      <path d="M10.5 9.5v5l4.2-2.5-4.2-2.5z" />
     </>
   ),
   search: (

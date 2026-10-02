@@ -25,11 +25,12 @@ export function GenreNav({ genres }: Props) {
     { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true, icon: null },
     { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true, icon: null },
     ...genres.flatMap((g) => {
-      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | null };
+      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | "video" | null };
       // 企業別ニュースは、経済の隣に置く（気になる企業のニュースだけを追いたい人が多いため）
-      return g.slug === "business"
-        ? [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }]
-        : [genre];
+      if (g.slug === "business") return [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }];
+      // YouTube の新着動画は、エンタメの隣に置く
+      if (g.slug === "entertainment") return [genre, { href: "/youtube", label: "YouTube", slug: null, featured: false, desktopOnly: false, icon: "video" as const }];
+      return [genre];
     }),
   ];
   return (
