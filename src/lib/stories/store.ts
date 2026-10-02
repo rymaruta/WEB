@@ -124,24 +124,30 @@ const HARD_NEWS_BOOST = 1.5;
  * 完全に国内・国際・経済を先にすると、話題性の高い芸能・スポーツの出来事がいつまでも解析されないため、倍率で優先する。
  */
 export async function findQueued(limit: number) {
-  const now = Date.now();
   const select = { id: true, topicId: true, score: true, topic: { select: { genre: { select: { slug: true } } } } } as const;
   const [rows, hot] = await Promise.all([
     prisma.story.findMany({ where: { status: "QUEUED" }, orderBy: { score: "desc" }, take: limit * 5, select }),
-    // 一斉に報じられている出来事（速報になりうる）は、分野や話題度の数値によらず先に解析する（src/lib/stories/hot.ts）
-    prisma.story.findMany({
-      where: {
-        status: "QUEUED",
-        topic: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) } },
-      },
-      orderBy: { topic: { publisherCount: "desc" } },
-      take: 200,
-      select: { ...select, topic: { select: { ...select.topic.select, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } } },
-    }).then((r) => r.filter((s) => isHot(s.topic, now)).slice(0, limit)),
+    // 速報になりうる出来事は、分野や話題度の数値によらず先に解析する
+    findHotQueued(limit),
   ]);
   const priority = (r: (typeof rows)[number]) => r.score * (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? HARD_NEWS_BOOST : 1);
   const first = new Set(hot.map((r) => r.id));
   return [...hot, ...rows.filter((r) => !first.has(r.id)).sort((a, b) => priority(b) - priority(a))]
+    .slice(0, limit)
+    .map(({ id, topicId }) => ({ id, topicId }));
+}
+
+/** 解析待ちのうち、速報になりうる出来事（src/lib/stories/hot.ts）。速報用の解析はこれだけを先に解析する */
+export async function findHotQueued(limit: number) {
+  const now = Date.now();
+  const rows = await prisma.story.findMany({
+    where: { status: "QUEUED", topic: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) } } },
+    orderBy: { topic: { publisherCount: "desc" } },
+    take: 200,
+    select: { id: true, topicId: true, topic: { select: { title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } } },
+  });
+  return rows
+    .filter((s) => isHot(s.topic, now))
     .slice(0, limit)
     .map(({ id, topicId }) => ({ id, topicId }));
 }

@@ -3,7 +3,7 @@ import { siteConfig } from "@/config/site";
 import { hasCronSecret } from "@/lib/auth";
 import { buildFollowupPrompt, buildStoryPrompt, FOLLOWUP_SYSTEM, STORY_SYSTEM } from "@/lib/stories/prompt";
 import { FollowupAnalysisSchema, StoryAnalysisSchema } from "@/lib/stories/schema";
-import { findDeltaQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
+import { findDeltaQueued, findHotQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,11 @@ export async function GET(request: Request) {
   if (!hasCronSecret(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limit = Math.min(10, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 5));
-  const [queued, deltas] = await Promise.all([findQueued(limit), findDeltaQueued(limit)]);
+  const params = new URL(request.url).searchParams;
+  const limit = Math.min(10, Math.max(1, Number(params.get("limit")) || 5));
+  // hot=1: 速報になりうる出来事だけ（速報用のこまめな解析が使う。続報は定時の解析に任せる）
+  const hotOnly = params.get("hot") === "1";
+  const [queued, deltas] = await Promise.all([hotOnly ? findHotQueued(limit) : findQueued(limit), hotOnly ? Promise.resolve([]) : findDeltaQueued(limit)]);
   const followups = await Promise.all(
     deltas.map(async (s) => {
       const previous = await loadPreviousCoverage(s.id);
