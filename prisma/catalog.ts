@@ -104,6 +104,10 @@ export const sources: SourceSeed[] = [
   { name: "インサイド", publisher: "インサイド", siteUrl: "https://www.inside-games.jp/", feedUrl: "https://www.inside-games.jp/rss/index.rdf", genre: "game" },
   { name: "Game*Spark", publisher: "Game*Spark", siteUrl: "https://www.gamespark.jp/", feedUrl: "https://www.gamespark.jp/rss/index.rdf", genre: "game" },
   { name: "4Gamer.net", publisher: "4Gamer.net", siteUrl: "https://www.4gamer.net/", feedUrl: "https://www.4gamer.net/rss/index.xml", genre: "game" },
+  // ゲーム機メーカーの公式ニュース（発売日の告知が多い。ゲームの発売スケジュールの読み取りに使う）
+  { name: "PlayStation.Blog", publisher: "PlayStation.Blog", siteUrl: "https://blog.ja.playstation.com/", feedUrl: "https://blog.ja.playstation.com/feed/", genre: "game", kind: "PRESS" },
+  { name: "任天堂 更新情報", publisher: "任天堂", siteUrl: "https://www.nintendo.co.jp/", feedUrl: "https://www.nintendo.co.jp/news/whatsnew.xml", genre: "game", kind: "PRESS" },
+  { name: "Xbox Wire", publisher: "Xbox Wire", siteUrl: "https://news.xbox.com/ja-jp/", feedUrl: "https://news.xbox.com/ja-jp/feed/", genre: "game", kind: "PRESS" },
   { name: "GAME Watch", publisher: "Impress Watch", siteUrl: "https://game.watch.impress.co.jp/", feedUrl: "https://game.watch.impress.co.jp/data/rss/1.0/gmw/feed.rdf", genre: "game" },
   { name: "AUTOMATON", publisher: "AUTOMATON", siteUrl: "https://automaton-media.com/", feedUrl: "https://automaton-media.com/feed/", genre: "game" },
   { name: "IGN Japan", publisher: "IGN Japan", siteUrl: "https://jp.ign.com/", feedUrl: "https://jp.ign.com/feed.xml", genre: "game", ...BLOCKED },
