@@ -33,3 +33,11 @@ describe("isGameReleaseCandidate", () => {
     expect(isGameReleaseCandidate("新作RPGの発売が決定")).toBe(false);
   });
 });
+
+describe("GameSchema", () => {
+  it("作品をまとめる呼び名（titleKey）は省略できる", async () => {
+    const { GameSchema } = await import("@/lib/game");
+    expect(GameSchema.safeParse({ title: "ACE COMBAT 8", releaseDate: "2026-10-02", platforms: ["PS5"], kind: "release" }).success).toBe(true);
+    expect(GameSchema.safeParse({ title: "ACE COMBAT 8", titleKey: "エースコンバット8", releaseDate: null, platforms: [], kind: "release" }).success).toBe(true);
+  });
+});

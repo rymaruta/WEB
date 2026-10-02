@@ -7,7 +7,13 @@ export const GAME_KINDS = ["announce", "release_date", "release", "update", "sal
 export type GameKind = (typeof GAME_KINDS)[number];
 
 export const GameSchema = z.object({
-  title: z.string().describe("ゲームの正式なタイトル。資料に書かれている表記のまま（例: ポケモンレジェンズ Z-A、モンスターハンターワイルズ）"),
+  title: z
+    .string()
+    .describe("ゲーム作品の正式なタイトル。資料に書かれている表記のまま（例: ポケモンレジェンズ Z-A、モンスターハンターワイルズ）。ゲーム機・技術・サービス・会社の名前は作品ではないので入れない"),
+  titleKey: z
+    .string()
+    .optional()
+    .describe("同じ作品を見分けるための呼び名。日本語の通称をカタカナと数字で（例: ACE COMBAT 8 → エースコンバット8、Abyss Ring → アビスリング）。画面には出さない"),
   releaseDate: z
     .string()
     .nullable()
