@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 
-const { isAnimeCandidate, sortAnime, verifyAnime } = await import("@/lib/anime");
+const { filmKeys, isAnimeCandidate, sortAnime, verifyAnime } = await import("@/lib/anime");
 
 describe("isAnimeCandidate", () => {
   it("始まる月・日がある放送・配信の記事を候補にする", () => {
@@ -45,5 +45,13 @@ describe("sortAnime", () => {
       [3, "2026-10-10", "TOKYO MX"],
       [4, "2026-10-12", null],
     ]);
+  });
+});
+
+describe("filmKeys", () => {
+  it("題名全体と、最初の区切りまで（5字以上）で探す", () => {
+    expect(filmKeys("ガールズ&パンツァー 最終章 第5話")).toEqual(["ガールズ&パンツァー最終章第5話", "ガールズ&パンツァー"]);
+    expect(filmKeys("映画 ひつじのショーン かぼちゃ畑の怪物!")).toEqual(["映画ひつじのショーンかぼちゃ畑の怪物!"]);
+    expect(filmKeys("鴉")).toEqual([]);
   });
 });

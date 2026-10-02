@@ -91,7 +91,10 @@ export async function saveProductExtract(topicId: number, result: ProductExtract
   return { saved: product };
 }
 
-/** from〜to（YYYY-MM-DD、両端を含む）に発売される商品。同じ商品名は1件にまとめ、話題の大きい順 */
+/** 食べ物・スイーツ・飲み物を先に並べる（新商品・グルメのページを見に来る人の関心が高いため。家電などはその後） */
+const FOOD_KINDS: ReadonlySet<ProductKind> = new Set(["food", "sweets", "drink"]);
+
+/** from〜to（YYYY-MM-DD、両端を含む）に発売される商品。同じ商品名は1件にまとめ、食べ物を先に、その中は話題の大きい順 */
 export async function getProducts(from: string, to: string): Promise<ProductItem[]> {
   const topics = await prisma.topic.findMany({
     where: { aiProductName: { not: null }, aiProductDate: { gte: from, lte: to } },
@@ -107,7 +110,8 @@ export async function getProducts(from: string, to: string): Promise<ProductItem
     seen.add(key);
     out.push({ topicId: t.id, name: t.aiProductName!, maker: t.aiProductMaker, date: t.aiProductDate!, kind: (t.aiProductKind ?? "other") as ProductKind });
   }
-  return out;
+  const rank = (p: ProductItem) => (FOOD_KINDS.has(p.kind) ? 0 : 1);
+  return out.sort((a, b) => rank(a) - rank(b));
 }
 
 /** 日本時間の今週・来週（月曜はじまり）の範囲 YYYY-MM-DD */

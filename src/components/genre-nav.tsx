@@ -11,11 +11,17 @@ export function GenreNav({ genres }: Props) {
   const pathname = usePathname();
   const items = [
     // トップ・ランキング・まとめ記事は、スマホでは下のメニューにあるため PC でだけ出す
-    { href: "/", label: "トップ", slug: null, featured: false, desktopOnly: true },
+    { href: "/", label: "トップ", slug: null, featured: false, desktopOnly: true, icon: null },
     // ランキングはよく見られるため、トップの次に置いてアクセント色で目立たせる
-    { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true },
-    { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true },
-    ...genres.map((g) => ({ href: `/genre/${g.slug}`, label: g.name, slug: g.slug, featured: false, desktopOnly: false })),
+    { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true, icon: null },
+    { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true, icon: null },
+    ...genres.flatMap((g) => {
+      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | null };
+      // 企業別ニュースは、経済の隣に置く（気になる企業のニュースだけを追いたい人が多いため）
+      return g.slug === "business"
+        ? [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }]
+        : [genre];
+    }),
   ];
   return (
     <nav aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
@@ -40,6 +46,7 @@ export function GenreNav({ genres }: Props) {
           >
             {item.slug && <GenreIcon slug={item.slug} className="h-4 w-4" />}
             {item.featured && <NavIcon name="ranking" className="h-4 w-4" />}
+            {item.icon && <NavIcon name={item.icon} className="h-4 w-4" />}
             {item.label}
           </Link>
         );

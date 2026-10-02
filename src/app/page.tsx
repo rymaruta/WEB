@@ -6,7 +6,9 @@ import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-c
 import { getLatestDigest } from "@/lib/digest/latest";
 import { formatNumber } from "@/lib/format";
 import { serializeJsonLd, siteJsonLd } from "@/lib/structured-data";
-import { getGenres, getLatestArticles, getMostRead, getSiteStats, getSocialBuzz, getTrendingTopics } from "@/lib/queries";
+import Link from "next/link";
+import { companyPath } from "@/lib/company";
+import { getGenres, getLatestArticles, getMostRead, getSiteStats, getSocialBuzz, getTopCompanies, getTrendingTopics } from "@/lib/queries";
 
 export const revalidate = 60;
 
@@ -14,13 +16,14 @@ export const revalidate = 60;
 const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
 
 export default async function HomePage() {
-  const [genres, headline, mostRead, buzz, latest, stats, digest] = await Promise.all([
+  const [genres, headline, mostRead, buzz, latest, stats, companies, digest] = await Promise.all([
     getGenres(),
     getTrendingTopics({ minPublishers: 2, take: 11 }),
     getMostRead(8),
     getSocialBuzz(8),
     getLatestArticles(8),
     getSiteStats(),
+    getTopCompanies(7, 8),
     // 配信の失敗でトップ全体を止めない
     getLatestDigest().catch(() => null),
   ]);
@@ -113,6 +116,28 @@ export default async function HomePage() {
           <p className="card p-6 text-sm text-fg-subtle">ニュースを準備しています。しばらくしてから再度お越しください。</p>
         )}
       </section>
+
+      {/* 企業別ニュースへの入口。この1週間によく取り上げられた企業を並べる */}
+      {companies.length > 0 && (
+        <nav aria-label="話題の企業" className="card flex items-center gap-2 overflow-x-auto p-3 scrollbar-none">
+          <Link href="/company" prefetch={false} className="shrink-0 text-sm font-extrabold hover:text-accent">
+            企業別ニュース
+          </Link>
+          {companies.map((c) => (
+            <Link
+              key={c.name}
+              href={companyPath(c.name)}
+              prefetch={false}
+              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
+            >
+              {c.name}
+            </Link>
+          ))}
+          <Link href="/company" prefetch={false} className="shrink-0 text-xs font-bold text-accent hover:underline">
+            すべて見る →
+          </Link>
+        </nav>
+      )}
 
       <section aria-labelledby="by-genre">
         <h2 id="by-genre" className="mb-4 text-xl font-black tracking-tight">ジャンル別ニュース</h2>
