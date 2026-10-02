@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { releaseSortKey } from "@/lib/game";
 import { titleKey } from "@/lib/game-listings";
+import { isOutage, outageStatus, type OutageItem } from "@/lib/outages";
 import { COUNTRIES, countTags, TAG_GENRES, TEAMS, type Tag, type TagKind } from "@/lib/tags";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
@@ -444,4 +445,23 @@ export const getTagCounts = cache(async (kind: TagKind, genreId: number, days = 
     take: 5000,
   });
   return countTags(kind === "country" ? COUNTRIES : TEAMS, topics.map((t) => `${t.title} ${t.aiTitle ?? ""}`));
+});
+
+/** IT のページの「障害・不具合情報」：直近 hours 時間に報じられた、通信・アプリなどの障害の話題（新しい順） */
+export const getOutages = cache(async (hours = 72, take = 15): Promise<OutageItem[]> => {
+  const topics = await prisma.topic.findMany({
+    where: {
+      firstSeenAt: { gte: since(hours) },
+      genre: { slug: { in: ["tech", "domestic", "business", "life", "game"] } },
+      OR: [{ title: { contains: "障害" } }, { title: { contains: "不具合" } }, { title: { contains: "つなが" } }, { title: { contains: "繋が" } }, { title: { contains: "復旧" } }, { title: { contains: "できない" } }, { title: { contains: "停止" } }, { title: { contains: "ダウン" } }, { aiTitle: { contains: "障害" } }, { aiTitle: { contains: "不具合" } }],
+    },
+    orderBy: { firstSeenAt: "desc" },
+    take: 200,
+    select: { id: true, title: true, aiTitle: true, firstSeenAt: true },
+  });
+  return topics
+    .map((t) => ({ t, title: t.aiTitle ?? t.title }))
+    .filter(({ t, title }) => isOutage(title) || isOutage(t.title))
+    .slice(0, take)
+    .map(({ t, title }) => ({ topicId: t.id, title, status: outageStatus(`${t.title} ${t.aiTitle ?? ""}`), at: t.firstSeenAt.toISOString() }));
 });
