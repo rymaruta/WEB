@@ -61,6 +61,8 @@ const RULES: Rule[] = [
  */
 const BOOSTS: { when: RegExp; genre: GenreSlug; w: number }[] = [
   { when: /選手.*(結婚|熱愛|離婚)|(結婚|熱愛|離婚).*選手/, genre: "entertainment", w: 4 },
+  // 結婚・熱愛・離婚の発表は、スポーツ選手でも話題の中心は私生活（例：「久保建英が結婚発表」）
+  { when: /結婚(を)?発表|結婚報告|熱愛|離婚(を)?発表|交際(を)?宣言/, genre: "entertainment", w: 6 },
   { when: /(グッズ|配布|発売).*(サンリオ|ポケモン|ちいかわ|キャラクター)|(サンリオ|ポケモン|ちいかわ|キャラクター).*(グッズ|配布|発売)/, genre: "products", w: 4 },
   // アニメのキャラクターでも、グッズ・特別カラーの商品の話題は新商品（作品の話題ではない）
   { when: /グッズ|特別カラー|フィギュア/, genre: "products", w: 3 },
@@ -85,7 +87,17 @@ export type GenreJudgement = {
   reason: string;
   /** 配信元のジャンルから変えたか */
   moved: boolean;
+  /** 1位のジャンルに効いた手がかり（語・媒体・組み合わせ）の数。1つの語だけで動かさないために使う */
+  evidence: number;
 };
+
+/**
+ * 配信元のジャンルから変えてよいか。手がかりが1つだけ（例：「韓国」「優勝」「攻略」）では、よほど差がない限り動かさない。
+ * 実データでの試算（2026-10-02、48時間・3000話題）で、1語だけの判定は誤りが多かったため
+ */
+export function confidentMove(j: GenreJudgement, minConfidence = 0.5): boolean {
+  return j.moved && ((j.evidence >= 2 && j.confidence >= minConfidence) || j.confidence >= 0.75);
+}
 
 function count(re: RegExp, text: string): string[] {
   re.lastIndex = 0;
@@ -112,12 +124,18 @@ export function judgeGenre(title: string, summary: string | null | undefined, fe
   if ((GENRES as readonly string[]).includes(feedGenre)) add(feedGenre as GenreSlug, FEED_PRIOR);
 
   const ranked = [...score.entries()].sort((a, b) => b[1] - a[1]);
-  if (ranked.length === 0) return { genre: (feedGenre as GenreSlug) ?? "domestic", confidence: 0, reason: "手がかりなし", moved: false };
+  if (ranked.length === 0) return { genre: (feedGenre as GenreSlug) ?? "domestic", confidence: 0, reason: "手がかりなし", moved: false, evidence: 0 };
   const [top, second] = ranked;
   const confidence = Math.max(0, Math.min(1, (top[1] - (second?.[1] ?? 0)) / Math.max(top[1], 1)));
   const reason = ranked
     .slice(0, 3)
     .map(([g, s]) => `${g}:${s}${hits.get(g)?.length ? `(${[...new Set(hits.get(g))].slice(0, 4).join("・")})` : ""}`)
     .join(" ");
-  return { genre: top[0], confidence: Math.round(confidence * 100) / 100, reason, moved: top[0] !== feedGenre };
+  return {
+    genre: top[0],
+    confidence: Math.round(confidence * 100) / 100,
+    reason,
+    moved: top[0] !== feedGenre,
+    evidence: new Set(hits.get(top[0]) ?? []).size,
+  };
 }

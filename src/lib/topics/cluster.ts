@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { chunk } from "@/lib/sql";
 import { assignTopics, type TopicKey } from "./assign";
 import { TOPIC_MIN_CONFIDENCE } from "./genre-apply";
-import { judgeGenre } from "./genre-rules";
+import { confidentMove, judgeGenre } from "./genre-rules";
 import { topicScore } from "./score";
 
 /** この時間内に更新されたトピックだけを割り当て候補にする */
@@ -127,7 +127,7 @@ export async function refreshTopics(topicIds: number[]) {
     const voted = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
     // 多数決のジャンルを、話題の見出しと要約の語で確かめる（総合誌・総合欄の記事が内容と違うジャンルに入らないように）
     const j = judgeGenre(pool[0].title, pool[0].summary, slugOf.get(voted) ?? "domestic", pool[0].publisher);
-    const genreId = j.moved && j.confidence >= TOPIC_MIN_CONFIDENCE ? (idOf.get(j.genre) ?? voted) : voted;
+    const genreId = confidentMove(j, TOPIC_MIN_CONFIDENCE) ? (idOf.get(j.genre) ?? voted) : voted;
     return Prisma.sql`(${topicId}::int, ${pool[0].title}::text, ${genreId}::int)`;
   });
   for (const rows of chunk(updates, 5_000)) {
