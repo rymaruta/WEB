@@ -107,7 +107,7 @@ export function GameHighlights({
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="card p-4">
+        <section className="card min-w-0 p-4">
           <Fold
             id="game-schedule"
             summary={
@@ -168,7 +168,7 @@ export function GameHighlights({
             )}
           </Fold>
         </section>
-        <section className="card p-4">
+        <section className="card min-w-0 p-4">
           <Fold
             id="game-new"
             summary={

@@ -61,6 +61,7 @@ export const GENRE_CHECK_SYSTEM = `あなたはニュースサイトの編集者
 notNews（読み物でない告知）を true にするのは、次のようなものだけ:
 - 占い・運勢、求人や採用イベント、株主・投資家向けの説明会やセミナーの案内、展示会・講演会の出展や登壇の告知
 - 自治体・団体の行事の案内、企業の小さな社内人事・組織変更・提携・受賞・認証取得のお知らせ
+- 企業の統合報告書・IR 資料の公開、寄付・義援金のお知らせ
 事件・事故・新商品・業績・サービスの開始や終了など、読者が知りたい出来事は false にする。迷う場合は false。
 
 sameAs（同じ出来事の話題をまとめる）:
@@ -120,8 +121,9 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
 
 /**
  * 判定の結果を保存する。ジャンルは aiGenreId にも入れ、記事が増えて集計し直しても戻らないようにする。
- * 「読み物でない告知」の印は、報道機関の記事が1本もない話題（企業の発表・SNS だけ）にしか付けない
- * （報じられた出来事を一覧から消してしまわないように）。
+ * 「読み物でない告知」の印は、報じた報道機関が1社までの話題にしか付けない
+ * （複数の媒体が報じた出来事を一覧から消してしまわないように。1社だけなのは、総合ニュースサイトが占いや企業の発表を
+ * そのまま載せることがあるため）。
  * 同じ出来事の話題（sameAs）は1つにまとめる（mergeTopics）
  */
 export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{ saved: number; moved: number; hidden: number; merged: number }> {
@@ -131,7 +133,7 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
   const ids = [...new Set(results.map((r) => r.id))];
   const topics = await prisma.topic.findMany({
     where: { id: { in: ids } },
-    select: { id: true, genreId: true, articles: { where: { source: { kind: "NEWS" } }, take: 1, select: { id: true } } },
+    select: { id: true, genreId: true, articles: { where: { source: { kind: "NEWS" } }, distinct: ["publisher"], take: 2, select: { publisher: true } } },
   });
   const known = new Map(topics.map((t) => [t.id, t]));
   let moved = 0;
@@ -141,7 +143,7 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
     const t = known.get(r.id);
     if (!t) continue;
     const gid = r.genre ? (genreId.get(r.genre) ?? null) : null;
-    const notNews = r.notNews && t.articles.length === 0;
+    const notNews = r.notNews && t.articles.length < 2;
     if (gid && gid !== t.genreId) moved++;
     if (notNews) hidden++;
     rows.push(Prisma.sql`(${t.id}::int, ${gid}::int, ${notNews}::boolean)`);

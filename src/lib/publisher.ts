@@ -8,6 +8,7 @@ const PUBLISHER_NAMES: Record<string, string> = {
   "tokyo-np.co.jp": "東京新聞",
   "jiji.com": "時事通信",
   "kyodonews.jp": "共同通信",
+  "47news.jp": "47NEWS（共同通信）",
   "nhk.or.jp": "NHK",
   "news.yahoo.co.jp": "Yahoo!ニュース",
   "cnn.co.jp": "CNN",
