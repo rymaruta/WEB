@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 
-const { nintendoDate, parseSteamResults, pickNintendo, steamDate, titleKey } = await import("@/lib/game-listings");
+const { nintendoDate, parseSteamResults, pickNintendo, pickPlayStation, psReleaseDate, psTitle, steamDate, titleKey } = await import("@/lib/game-listings");
 
 const item = (over: Partial<Parameters<typeof pickNintendo>[0][number]>) => ({
   nsuid: "1",
@@ -57,5 +57,26 @@ describe("titleKey", () => {
   it("記号・空白・機種名の付け足しの違いを吸収する", () => {
     expect(titleKey("地球防衛軍5 for Nintendo Switch 2")).toBe(titleKey("地球防衛軍５"));
     expect(titleKey("Stellar Blade™ コンプリートエディション")).toBe(titleKey("Stellar Blade コンプリート エディション"));
+  });
+});
+
+describe("PlayStation", () => {
+  it("エディション違いを1件にまとめ、本編を優先し、追加コンテンツは載せない", () => {
+    const p = (npTitleId: string, name: string, kind: string) => ({ id: name, name, npTitleId, storeDisplayClassification: kind, platforms: ["PS5"] });
+    const out = pickPlayStation([
+      p("A", "グランド・セフト・オートVI：アルティメット・エディション", "GAME_BUNDLE"),
+      p("A", "グランド・セフト・オートVI", "GAME_BUNDLE"),
+      p("A", "『グランド・セフト・オートVI：アルティメット・エディション』アップグレード", "ADD_ON_PACK"),
+      p("B", "ゴッド・オブ・ウォー ラウフェイ™ デジタルデラックスエディション", "PREMIUM_EDITION"),
+      p("B", "ゴッド・オブ・ウォー ラウフェイ™", "FULL_GAME"),
+      p("C", "DLC だけ", "ADD_ON_PACK"),
+    ]);
+    expect(out.map((x) => x.name)).toEqual(["グランド・セフト・オートVI", "ゴッド・オブ・ウォー ラウフェイ™"]);
+  });
+  it("発売日は日本の日付にする。機種の付け足しは除く", () => {
+    expect(psReleaseDate('{"releaseDate":"2026-11-18T15:00:00Z"}')).toBe("2026-11-19");
+    expect(psReleaseDate("なし")).toBeNull();
+    expect(psTitle("Fate/EXTRA Record PS4 & PS5")).toBe("Fate/EXTRA Record");
+    expect(psTitle("『Fable』スタンダードエディション")).toBe("Fable");
   });
 });
