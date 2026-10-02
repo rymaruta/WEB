@@ -56,16 +56,28 @@ export class ClaudeProvider implements AIProvider {
 }
 
 /**
- * 使う AI を環境変数 STORY_AI_PROVIDER で選ぶ。
- * - "claude": サーバーが Anthropic API を呼ぶ（ANTHROPIC_API_KEY が必要、従量課金）
- * - 未設定・"external": サーバーは解析しない。外部（Claude Code の定期実行など）が
- *   /api/admin/stories/pending で資料を受け取り、/api/admin/stories/{id} に結果を送る
+ * サーバーで AI 解析する範囲。環境変数 STORY_AI_PROVIDER と ANTHROPIC_API_KEY で決まる。
+ * - "claude": すべての解析待ちをサーバーが解析する（従量課金）
+ * - 未設定でキーがある: 速報になりうる出来事（src/lib/stories/hot.ts）だけをサーバーがすぐ解析する。
+ *   ほかは外部（Claude Code の定期実行）が /api/admin/stories/pending で資料を受け取り、結果を送る
+ * - "external"・キーがない: サーバーは解析しない
  */
-export function getStoryProvider(): AIProvider | null {
-  switch (process.env.STORY_AI_PROVIDER) {
-    case "claude":
-      return process.env.ANTHROPIC_API_KEY ? new ClaudeProvider() : null;
-    default:
-      return null;
-  }
+export type StoryScope = "all" | "hot";
+
+/** キーが入っているか（Parameter Store に置いた仮の値「ここにキーを貼る」などは、キーとして扱わない） */
+export const hasAnthropicKey = (env: Record<string, string | undefined> = process.env) => /^sk-ant-/.test(env.ANTHROPIC_API_KEY ?? "");
+
+export function getStoryScope(env: Record<string, string | undefined> = process.env): StoryScope | null {
+  if (!hasAnthropicKey(env)) return null;
+  if (env.STORY_AI_PROVIDER === "claude") return "all";
+  if (env.STORY_AI_PROVIDER === "external") return null;
+  return "hot";
+}
+
+/** 速報の解析に使う既定のモデル（件数が少なく、急ぐため。STORY_AI_MODEL で変えられる） */
+const HOT_MODEL = "claude-sonnet-5-5";
+
+export function getStoryProvider(scope = getStoryScope()): AIProvider | null {
+  if (!scope) return null;
+  return scope === "hot" ? new ClaudeProvider(process.env.STORY_AI_MODEL ?? HOT_MODEL) : new ClaudeProvider();
 }

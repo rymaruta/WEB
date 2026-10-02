@@ -1,8 +1,9 @@
 import { after } from "next/server";
-import { getStoryProvider } from "@/lib/ai/provider";
+import { getStoryProvider, getStoryScope } from "@/lib/ai/provider";
+import { prisma } from "@/lib/db";
 import { hasCronSecret } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
-import { applyAnalysis, applyFollowup, enqueueCandidates, findDeltaQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
+import { applyAnalysis, applyFollowup, enqueueCandidates, findDeltaQueued, findHotQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
 
 export const maxDuration = 300;
 
@@ -10,6 +11,8 @@ export const maxDuration = 300;
 const ENQUEUE_PER_RUN = 10;
 /** サーバーで AI 解析する場合の1回の最大数（費用の上限管理） */
 const ANALYZE_PER_RUN = Number(process.env.STORY_AI_MAX_PER_RUN ?? 5);
+/** 速報の解析（大きな話題だけ）を API で行う1日の上限（費用の上限管理） */
+const HOT_PER_DAY = Number(process.env.HOT_AI_MAX_PER_DAY ?? 20);
 
 let running = false;
 
@@ -31,14 +34,19 @@ export async function GET(request: Request) {
     await logEvent("error", "story.enqueue", "候補の登録に失敗", undefined, String(e));
     return Response.json({ error: "enqueue failed" }, { status: 500 });
   }
-  const provider = getStoryProvider();
+  const scope = getStoryScope();
+  const provider = getStoryProvider(scope);
   if (!provider) {
     running = false;
     return Response.json({ status: "enqueued", enqueued, analyzer: "external" }, { status: 202 });
   }
   after(async () => {
     try {
-      for (const s of await findQueued(ANALYZE_PER_RUN)) {
+      // 速報だけを解析する設定では、大きな話題だけを1日の上限まで解析する（ほかと続報は外部の定期実行に任せる）
+      const hotUsed = scope === "hot" ? await prisma.eventLog.count({ where: { scope: "story.hot-ai", at: { gte: new Date(Date.now() - 24 * 3_600_000) } } }) : 0;
+      const queued = scope === "hot" ? await findHotQueued(Math.min(ANALYZE_PER_RUN, Math.max(0, HOT_PER_DAY - hotUsed))) : await findQueued(ANALYZE_PER_RUN);
+      for (const s of queued) {
+        if (scope === "hot") await logEvent("info", "story.hot-ai", "速報の候補を API で解析", s.id);
         try {
           const { analysis, model } = await provider.analyzeStory(await loadMaterials(s.id));
           if (!analysis) {
@@ -50,7 +58,7 @@ export async function GET(request: Request) {
           await logEvent("error", "story.analyze", "AI 解析に失敗", s.id, String(e));
         }
       }
-      for (const s of await findDeltaQueued(ANALYZE_PER_RUN)) {
+      for (const s of scope === "hot" ? [] : await findDeltaQueued(ANALYZE_PER_RUN)) {
         try {
           const previous = await loadPreviousCoverage(s.id);
           if (!previous) continue;
