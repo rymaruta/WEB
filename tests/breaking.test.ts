@@ -45,6 +45,8 @@ describe("pickBreaking", () => {
     // 1媒体でも、信頼できる媒体で確度がとても高ければ出す
     expect(pickBreaking([{ ...hot, publisherCount: 1, trusted: true, confidence: 0.95 }], now, 0)?.id).toBe("a");
     expect(pickBreaking([{ ...hot, publisherCount: 1, trusted: true, confidence: 0.88 }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...hot, hot: false }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...hot, assessment: { gossip: true } as never }], now, 0)).toBeNull();
   });
   it("人が求めた出来事は、媒体の数によらず確度が高ければ出す（深夜でも）", () => {
     const req = { ...base, breaking: false, publisherCount: 1, requested: true, confidence: 0.86 };
@@ -53,8 +55,6 @@ describe("pickBreaking", () => {
     expect(pickBreaking([{ ...req, confidence: 0.7 }], now, 0)).toBeNull();
     expect(skipReason({ ...req, confidence: 0.7 })).toContain("70%");
     expect(skipReason({ ...req, riskFlags: ["DEATH"] })).toContain("訃報");
-    expect(pickBreaking([{ ...hot, hot: false }], now, 0)).toBeNull();
-    expect(pickBreaking([{ ...hot, assessment: { gossip: true } as never }], now, 0)).toBeNull();
   });
   it("深夜は災害だけ", () => {
     const night = jst("23:30");
