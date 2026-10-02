@@ -5,7 +5,8 @@ import { ArticleRanking } from "@/components/article-ranking";
 import { GenreIcon } from "@/components/genre-icon";
 import { Pagination } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
-import { TopicList } from "@/components/topic-card";
+import { HeroCarousel } from "@/components/hero-carousel";
+import { HeroTopic, TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
 import { MonthlyChanges } from "@/components/monthly-changes";
 import { WeeklyProducts } from "@/components/weekly-products";
@@ -118,6 +119,9 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const movies = genre.slug === "entertainment" ? await loadMovieSchedule() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
+  // 大きな枠に出す話題（話題度の上位3つ。複数の媒体が報じたものだけ）
+  const heroes = trending.filter((t) => t.publisherCount > 1).slice(0, 3);
+  const heroIds = new Set(heroes.map((t) => t.id));
   const href = (sort: "trending" | "latest") => (p: number) =>
     p === 1 ? `/genre/${genre.slug}${sort === "latest" ? "#latest" : ""}` : `/genre/${genre.slug}/more?${new URLSearchParams({ ...(sort === "latest" ? { sort } : {}), page: String(p) })}`;
   const total = trendingTotal;
@@ -167,6 +171,15 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
         <SortButtons />
       </header>
 
+      {/* このジャンルでいま大きな話題を、写真の大きな枠で横にスライドして見せる（一覧はその次から） */}
+      {heroes.length > 0 && (
+        <HeroCarousel label={`${genre.name}の大きな話題`}>
+          {heroes.map((t, i) => (
+            <HeroTopic key={t.id} topic={t} priority={i === 0} label={i === 0 ? `${genre.name}のトップ` : `${genre.name}の話題`} />
+          ))}
+        </HeroCarousel>
+      )}
+
       {market && <MarketBar data={market} />}
 
       {companies.length > 0 && (
@@ -206,7 +219,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
           <SortPanels
             trending={
               <>
-                <TopicList topics={trending} showGenre={false} />
+                <TopicList topics={trending.filter((t) => !heroIds.has(t.id))} showGenre={false} />
                 <div className="pb-5">
                   <Pagination page={1} totalPages={pages(trendingTotal)} href={href("trending")} />
                 </div>
