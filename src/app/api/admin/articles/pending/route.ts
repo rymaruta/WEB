@@ -3,6 +3,7 @@ import { siteConfig } from "@/config/site";
 import { ArticleSchema, buildPrompt, SYSTEM } from "@/lib/ai/prompt";
 import { countNewDueTopics, findDueTopics, findUpgradeTopics, loadTopicSources } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { buildRelatedPrompt, findRelatedEarlier } from "@/lib/ai/related";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,20 @@ export async function GET(request: Request) {
   const limit = Math.min(30, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 5));
   // ?upgrade=1 は、今の形式になる前に書いた記事の書き直しだけを返す（臨時でまとめて書き直すとき）
   const upgrade = new URL(request.url).searchParams.get("upgrade") === "1";
-  const [topics, backlog] = await Promise.all([upgrade ? findUpgradeTopics(limit) : findDueTopics(limit), countNewDueTopics()]);
+  // ?ids=1,2 は、指定した話題を書き直す（大きな出来事を、そろった報道で厚く書き直すとき）
+  const ids = (new URL(request.url).searchParams.get("ids") ?? "")
+    .split(",")
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0 && n < 2 ** 31)
+    .slice(0, 10);
+  const [topics, backlog] = await Promise.all([
+    ids.length
+      ? prisma.topic.findMany({ where: { id: { in: ids }, mergedIntoId: null }, select: { id: true, publisherCount: true, aiGeneratedAt: true } })
+      : upgrade
+        ? findUpgradeTopics(limit)
+        : findDueTopics(limit),
+    countNewDueTopics(),
+  ]);
 
   return Response.json({
     instructions: SYSTEM,
