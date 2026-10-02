@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
   if (!parsed.success) return Response.json({ error: "invalid body", issues: parsed.error.issues }, { status: 400 });
   const { pinHours, merge } = parsed.data;
 
-  const merged = merge?.length ? await mergeTopics(merge.map((m) => [id, m] as const)) : 0;
+  const merged = merge?.length ? await mergeTopics(merge.map((m) => [id, m] as const), new Date(), { source: "admin" }) : 0;
   // まとめた結果、残った側（まとめ記事のあるほう・媒体の多いほう）を固定する
   const topic = await prisma.topic.findUnique({ where: { id }, select: { id: true, mergedIntoId: true } });
   if (!topic) return Response.json({ error: "topic not found" }, { status: 404 });
