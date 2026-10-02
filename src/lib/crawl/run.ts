@@ -5,6 +5,7 @@ import { genreResolver } from "@/lib/topics/genre-model";
 import { parseFeed, type ParsedItem } from "@/lib/feed/parse";
 import { cleanTitle, displayHost, splitSiteSuffix } from "@/lib/feed/text";
 import { clusterArticles, rescoreTopics } from "@/lib/topics/cluster";
+import { applyTopicGenreRules } from "@/lib/topics/genre-apply";
 import { chunk } from "@/lib/sql";
 import { fetchFeed } from "./fetch-feed";
 
@@ -40,6 +41,8 @@ export type CrawlSummary = {
   assigned: number;
   topicsCreated: number;
   topicsScored: number;
+  /** 話題のジャンルの見直し（見た件数・変えた件数・AI に見直しを頼んだ件数） */
+  genreRules: { checked: number; changed: number; recheck: number } | null;
   pruned: number;
   ai: SummarizeResult;
   durationMs: number;
@@ -73,7 +76,7 @@ function normalizePublishedAt(item: ParsedItem, now: Date): Date | null {
   return d;
 }
 
-type GenreOf = (source: { feedUrl: string; genreId: number }, title: string, summary?: string | null) => number;
+type GenreOf = (source: { feedUrl: string; genreId: number }, title: string, summary?: string | null, publisher?: string) => number;
 
 async function crawlSource(source: SourceRow, hostPublishers: Map<string, string>, genreOf: GenreOf | null): Promise<SourceResult> {
   const base = { sourceId: source.id, name: source.name };
@@ -115,7 +118,7 @@ async function crawlSource(source: SourceRow, hostPublishers: Map<string, string
         socialCount: item.socialCount,
         sourceId: source.id,
         // ジャンルの混ざったフィードは、見出しから判定し直す（src/lib/topics/genre-model.ts）
-        genreId: genreOf ? genreOf(source, title, item.summary) : source.genreId,
+        genreId: genreOf ? genreOf(source, title, item.summary, publisher) : source.genreId,
       }];
     });
 
@@ -184,6 +187,8 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
 
   const { assigned, created } = await clusterArticles();
   const topicsScored = await rescoreTopics();
+  // 話題のジャンルの見直し（判定の記録・AI との食い違いの見直し）。失敗しても収集は続ける
+  const genreRules = await applyTopicGenreRules(2).catch(() => null);
 
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000);
   const { count: pruned } = await prisma.article.deleteMany({ where: { publishedAt: { lt: cutoff } } });
@@ -198,6 +203,7 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
     assigned,
     topicsCreated: created,
     topicsScored,
+    genreRules: genreRules && { checked: genreRules.checked, changed: genreRules.changed, recheck: genreRules.recheck },
     pruned,
     ai,
     durationMs: Date.now() - started,

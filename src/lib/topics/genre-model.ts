@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { classifierText, isTrainingFeed, MIXED_FEEDS, reclassify, trainGenreModel, type GenreModel } from "./genre-classifier";
 import { loadLabeledArticles } from "./genre-eval";
+import { judgeGenre } from "./genre-rules";
+
+/** 記事単位で配信元のジャンルから変える信頼度の下限（ルール層の判定） */
+export const ARTICLE_MIN_CONFIDENCE = 0.35;
 
 /** 学習し直す間隔。記事は日々増えるので、1日1回学習し直す */
 const RETRAIN_MS = 24 * 3_600_000;
@@ -24,33 +28,38 @@ export async function getGenreModel(): Promise<GenreModel | null> {
   }
 }
 
-/** 記事のジャンル（ID）を決める関数。混ざったフィードだけ見出しから判定し直す */
+/**
+ * 記事のジャンル（ID）を決める関数。配信元のジャンルとは別に、記事ごとに見出し・要約・媒体名から判定する。
+ * 1. 混ざったフィードは、学習した分類器でスポーツを判定し直す（従来どおり）
+ * 2. すべての記事を、ルール層（src/lib/topics/genre-rules.ts）で判定し、信頼度が下限以上なら変える
+ */
 export async function genreResolver() {
   const genres = await prisma.genre.findMany({ select: { id: true, slug: true } });
   const slugOf = new Map(genres.map((g) => [g.id, g.slug]));
   const idOf = new Map(genres.map((g) => [g.slug, g.id]));
   const model = await getGenreModel();
-  return (source: { feedUrl: string; genreId: number }, title: string, summary?: string | null): number => {
-    if (!MIXED_FEEDS.has(source.feedUrl)) return source.genreId;
+  return (source: { feedUrl: string; genreId: number }, title: string, summary?: string | null, publisher?: string): number => {
     const feedGenre = slugOf.get(source.genreId) ?? "";
-    const slug = reclassify(model, source.feedUrl, feedGenre, classifierText(title, summary));
+    const base = MIXED_FEEDS.has(source.feedUrl) ? reclassify(model, source.feedUrl, feedGenre, classifierText(title, summary)) : feedGenre;
+    const j = judgeGenre(title, summary, base, publisher);
+    const slug = j.moved && j.confidence >= ARTICLE_MIN_CONFIDENCE ? j.genre : base;
     return idOf.get(slug) ?? source.genreId;
   };
 }
 
 /**
- * 直近 days 日の、混ざったフィードの記事のジャンルを判定し直し、変わった記事の話題のジャンルを数え直す。
+ * 直近 days 日の記事（すべての配信元）のジャンルを判定し直し、変わった記事の話題のジャンルを数え直す。
  * dryRun なら変えずに件数だけ返す。
  */
 export async function reclassifyRecent(days = 7, dryRun = false) {
   const { refreshTopics } = await import("./cluster");
   const genreOf = await genreResolver();
   const articles = await prisma.article.findMany({
-    where: { publishedAt: { gte: new Date(Date.now() - days * 86_400_000) }, source: { feedUrl: { in: [...MIXED_FEEDS] } } },
-    select: { id: true, title: true, summary: true, genreId: true, topicId: true, source: { select: { feedUrl: true, genreId: true } } },
+    where: { publishedAt: { gte: new Date(Date.now() - days * 86_400_000) } },
+    select: { id: true, title: true, summary: true, publisher: true, genreId: true, topicId: true, source: { select: { feedUrl: true, genreId: true } } },
   });
   const changes = articles
-    .map((a) => ({ a, genreId: genreOf(a.source, a.title, a.summary) }))
+    .map((a) => ({ a, genreId: genreOf(a.source, a.title, a.summary, a.publisher) }))
     .filter(({ a, genreId }) => genreId !== a.genreId);
   if (!dryRun) {
     const byGenre = new Map<number, number[]>();
