@@ -39,6 +39,12 @@ export const ChangeSchema = z.object({
   priceBefore: z.number().int().nullable().optional().describe("値上げ・値下げの場合、変更前の値段（円、税込みかどうかは資料のとおり）。1つの商品の値段が書かれているときだけ。なければ null"),
   priceAfter: z.number().int().nullable().optional().describe("変更後の値段（円）。priceBefore と同じ商品。なければ null"),
   rate: z.number().nullable().optional().describe("値上げ・値下げの率（%）。資料に書かれていれば。なければ null"),
+  major: z
+    .boolean()
+    .optional()
+    .describe(
+      "値上げ・値下げの場合、多くの人が知っている会社・ブランド・料金か（全国チェーン、大手メーカー、携帯大手、電気・ガス・郵便・鉄道などの公共料金、たばこ・ビールなど暮らしに身近なもの、多くの品目にわたる値上げの集計）。地方の店、小さな会社、一部の店舗だけの話は false",
+    ),
 });
 export type ChangeInfo = z.infer<typeof ChangeSchema>;
 
@@ -53,7 +59,8 @@ export const CHANGE_EXTRACT_SYSTEM = `あなたはニュースの編集者です
 - 資料に書かれていることだけを使う。何が・いつから・どう変わるかを推測しない。
 - title は20字以内で、資料の言葉を使う。資料にない数字を入れない。
 - startDate は資料に書かれている精度で書く（日まで→YYYY-MM-DD、月まで→YYYY-MM）。始まる日が書かれていなければ isChange を false にする。
-- 値上げ・値下げのときは、会社名・変更前と変更後の値段（円）・率（%）を、資料に書かれているものだけ入れる。書かれていなければ null。複数の商品の値段は入れない。`;
+- 値上げ・値下げのときは、会社名・変更前と変更後の値段（円）・率（%）を、資料に書かれているものだけ入れる。書かれていなければ null。複数の商品の値段は入れない。
+- 値上げ・値下げは、有名なものだけを載せる。多くの人が知っている会社・ブランド・料金なら major を true、地方の店や小さな会社の話なら false にする。`;
 
 export function buildChangePrompt(articles: { publisher: string; publishedAt: Date; title: string; summary: string | null }[]) {
   const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${a.summary ?? "（なし）"}`);
@@ -68,6 +75,8 @@ export function verifyChange(c: Omit<ChangeInfo, "isChange"> | null | undefined,
   if (!c) return null;
   const title = c.title.trim();
   if (!title || [...title].length > 24) return null;
+  // 値上げ・値下げは、有名なもの（多くの人が知っている会社・ブランド・料金）だけを載せる
+  if ((c.kind === "price_up" || c.kind === "price_down") && c.major === false) return null;
   const date = verifyDate(c.startDate, sourceText);
   if (!date || !/^\d{4}-\d{2}(-\d{2})?$/.test(date)) return null;
   const corpus = sourceText.normalize("NFKC");

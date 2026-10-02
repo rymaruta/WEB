@@ -3,31 +3,79 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { PriceChange } from "@/lib/changes";
+import { countdown, isUpcoming } from "@/lib/price-dates";
 
 const yen = (n: number) => `${n.toLocaleString("ja-JP")}円`;
-const dateLabel = (d: string) => {
-  const [y, m, day] = d.split("-").map(Number);
-  return day ? `${y}/${m}/${day}` : `${y}/${m}月中`;
-};
+const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 const rateOf = (p: PriceChange) => (p.before && p.after ? Math.round(((p.after - p.before) / p.before) * 1000) / 10 : p.rate);
 
-/** 値上げ・値下げの一覧。会社名・品目で絞り込める */
-export function PriceTable({ items }: { items: PriceChange[] }) {
+function DateBlock({ date }: { date: string }) {
+  const [y, m, d] = date.split("-").map(Number);
+  return (
+    <span className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-surface-muted py-1 leading-tight">
+      {d ? (
+        <>
+          <span className="text-[10px] text-fg-subtle">{m}月</span>
+          <span className="text-lg font-black tabular-nums">{d}</span>
+          <span className="text-[10px] text-fg-subtle">{WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}</span>
+        </>
+      ) : (
+        <>
+          <span className="text-lg font-black tabular-nums">{m}</span>
+          <span className="text-[10px] text-fg-subtle">月中</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+function Row({ p, today, upcoming }: { p: PriceChange; today: string; upcoming: boolean }) {
+  const r = rateOf(p);
+  const up = p.kind === "price_up";
+  return (
+    <li>
+      <Link href={`/topic/${p.topicId}`} prefetch={false} className="group flex items-start gap-3 py-3">
+        <DateBlock date={p.date} />
+        <span className="min-w-0 flex-1">
+          {p.company && <span className="block text-xs font-bold text-fg-muted">{p.company}</span>}
+          <span className="block text-[15px] leading-snug font-bold group-hover:text-accent">{p.title}</span>
+          {p.before && p.after && (
+            <span className="mt-1 block text-sm tabular-nums">
+              <span className="text-fg-subtle line-through">{yen(p.before)}</span>
+              <span className="mx-1 text-fg-subtle">→</span>
+              <span className={`font-bold ${up ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>{yen(p.after)}</span>
+            </span>
+          )}
+          {upcoming && <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 text-[11px] leading-5 font-bold text-accent">{countdown(p.date, today)}</span>}
+        </span>
+        <span className={`shrink-0 rounded px-1.5 text-[11px] leading-5 font-bold text-white ${up ? "bg-red-500" : "bg-blue-500"}`}>
+          {up ? "値上げ" : "値下げ"}
+          {r !== null && ` ${r > 0 ? "+" : ""}${r}%`}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * 値上げ・値下げの一覧。これから始まるもの（近い順、始まるまでの日数つき）と、すでに始まったもの（新しい順）に分ける。
+ * 会社名・品目で絞り込める。today は日本時間の今日（YYYY-MM-DD）
+ */
+export function PriceTable({ items, today }: { items: PriceChange[]; today: string }) {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<"all" | "price_up" | "price_down">("all");
-  const shown = useMemo(() => {
+  const { upcoming, started } = useMemo(() => {
     const words = q.normalize("NFKC").toLowerCase().split(/\s+/).filter(Boolean);
-    return items
+    const hit = items
       .filter((p) => kind === "all" || p.kind === kind)
-      .filter((p) => words.every((w) => `${p.title} ${p.company ?? ""}`.normalize("NFKC").toLowerCase().includes(w)))
-      .slice()
-      .reverse();
-  }, [items, q, kind]);
+      .filter((p) => words.every((w) => `${p.title} ${p.company ?? ""}`.normalize("NFKC").toLowerCase().includes(w)));
+    return { upcoming: hit.filter((p) => isUpcoming(p.date, today)), started: hit.filter((p) => !isUpcoming(p.date, today)).reverse() };
+  }, [items, q, kind, today]);
   const chip = (on: boolean) => `rounded-full border px-3 py-1 text-xs font-bold ${on ? "border-accent bg-accent text-accent-fg" : "border-border text-fg-muted hover:text-fg"}`;
 
   return (
-    <section className="card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-2">
+    <>
+      <div className="card flex flex-wrap items-center gap-2 p-3">
         <input
           type="search"
           value={q}
@@ -47,36 +95,33 @@ export function PriceTable({ items }: { items: PriceChange[] }) {
           </button>
         </div>
       </div>
-      <p className="mt-2 text-xs text-fg-subtle">{shown.length}件（始まる日が新しい順）</p>
-      <ul className="mt-1 divide-y divide-border">
-        {shown.map((p) => {
-          const r = rateOf(p);
-          return (
-            <li key={p.topicId}>
-              <Link href={`/topic/${p.topicId}`} prefetch={false} className="group flex items-start gap-3 py-2.5">
-                <span className="w-20 shrink-0 text-xs text-fg-muted tabular-nums">{dateLabel(p.date)}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm leading-snug font-bold group-hover:text-accent">{p.title}</span>
-                  <span className="mt-0.5 block text-xs text-fg-subtle">
-                    {p.company && <span className="mr-2">{p.company}</span>}
-                    {p.before && p.after && (
-                      <span className="tabular-nums">
-                        {yen(p.before)} → {yen(p.after)}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 rounded px-1.5 text-[11px] leading-5 font-bold text-white ${p.kind === "price_up" ? "bg-red-500" : "bg-blue-500"}`}
-                >
-                  {p.kind === "price_up" ? "値上げ" : "値下げ"}
-                  {r !== null && ` ${r > 0 ? "+" : ""}${r}%`}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+      <section aria-labelledby="prices-upcoming" className="card p-4 sm:p-5">
+        <h2 id="prices-upcoming" className="text-lg font-black">
+          これから変わる<span className="ml-2 text-sm font-bold text-fg-subtle">{upcoming.length}件</span>
+        </h2>
+        <p className="mt-0.5 text-xs text-fg-subtle">始まる日が近い順。値上げの前に買っておく、値下げを待つ、の目安にどうぞ。</p>
+        {upcoming.length ? (
+          <ul className="mt-1 divide-y divide-border">
+            {upcoming.map((p) => (
+              <Row key={p.topicId} p={p} today={today} upcoming />
+            ))}
+          </ul>
+        ) : (
+          <p className="py-4 text-sm text-fg-subtle">{q || kind !== "all" ? "条件に合うものはありません。" : "いまのところ、これから始まる値上げ・値下げの報道はありません。"}</p>
+        )}
+      </section>
+      {started.length > 0 && (
+        <section aria-labelledby="prices-started" className="card p-4 sm:p-5">
+          <h2 id="prices-started" className="text-lg font-black">
+            すでに変わった<span className="ml-2 text-sm font-bold text-fg-subtle">{started.length}件</span>
+          </h2>
+          <ul className="mt-1 divide-y divide-border">
+            {started.map((p) => (
+              <Row key={p.topicId} p={p} today={today} upcoming={false} />
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
   );
 }

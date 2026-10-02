@@ -36,6 +36,10 @@ describe("verifyChange", () => {
     expect(verifyChange({ title: "はがき90円に値上げ", startDate: "2026-10-01", kind: "price_up" }, src)).toBeNull();
     expect(verifyChange({ title: "電気代の補助終了", startDate: "2026-10-01", kind: "end" }, src)).toBeNull();
   });
+  it("値上げ・値下げは、有名でないもの（major が false）を載せない", () => {
+    expect(verifyChange({ title: "郵便料金の値上げ", startDate: "2026-10-01", kind: "price_up", major: false }, src)).toBeNull();
+    expect(verifyChange({ title: "郵便料金の値上げ", startDate: "2026-10-01", kind: "price_up", major: true }, src)?.title).toBe("郵便料金の値上げ");
+  });
 });
 
 describe("verifyPrice", () => {
