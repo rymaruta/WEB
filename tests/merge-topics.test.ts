@@ -19,7 +19,7 @@ vi.mock("@/lib/db", () => ({
     $transaction: async (ops: unknown[]) => ops,
   },
 }));
-const refresh = vi.fn(async () => {});
+const refresh = vi.fn<(ids: number[]) => Promise<void>>(async () => {});
 vi.mock("@/lib/topics/cluster", () => ({ refreshTopics: (ids: number[]) => refresh(ids) }));
 
 const { mergeTopics } = await import("@/lib/topics/genre-check");
