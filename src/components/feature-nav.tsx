@@ -14,6 +14,13 @@ export function FeatureNav({ current, className = "mt-4" }: { current?: { kind: 
       >
         ぜんぶカレンダー
       </Link>
+      <Link
+        href="/compare"
+        prefetch={false}
+        className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1 text-xs font-bold text-accent hover:bg-accent hover:text-accent-fg"
+      >
+        報道くらべ
+      </Link>
       {links.map(({ kind, month }) => {
         const active = current?.kind === kind && current.month === month;
         return (

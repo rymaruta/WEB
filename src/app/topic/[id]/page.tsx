@@ -3,6 +3,7 @@ import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { coverageTimes, elapsedLabel, numberDiffs } from "@/lib/coverage";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
 import { FeedbackButtons } from "@/components/feedback-buttons";
@@ -65,6 +66,9 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
     getEventTimeline(topic.id),
   ]);
   const ai = readAiArticle(topic);
+  const coverage = topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, title: a.title, kind: a.source.kind }));
+  const times = coverageTimes(coverage);
+  const diffs = numberDiffs(coverage, publisherLabel);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -145,6 +149,20 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           )}
           <EventTimeline entries={timeline} currentId={topic.id} />
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
+        {/* 見出しの数字が媒体で分かれているとき（報じた時点の違いなど）。どの媒体がどの数字かを並べる */}
+        {diffs.length > 0 && (
+          <div className="my-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <p className="font-bold">見出しの数字が媒体によって異なります</p>
+            <ul className="mt-1 space-y-0.5 text-[13px]">
+              {diffs.map((d) => (
+                <li key={d.label}>
+                  {d.values.map((v) => `${v.value}（${v.publishers.join("・")}）`).join(" ／ ")}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-fg-subtle">報じた時点や数え方の違いによることがあります。最新の情報は各社の記事でご確認ください。</p>
+          </div>
+        )}
         <ol className="relative border-l-2 border-border pl-5">
           {topic.articles.map((a) => (
             <li key={a.id} className="relative my-3 flex gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
@@ -153,6 +171,9 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
                   <span className="font-bold text-fg">{publisherLabel(a.publisher)}</span>
                   <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
+                  {/* 最初に報じた媒体と、そこから何分後に報じたか（報道機関の記事だけ） */}
+                  {times.get(a.id)?.first && <span className="rounded bg-accent px-1 font-bold text-accent-fg">最初に報道</span>}
+                  {times.get(a.id) && !times.get(a.id)!.first && <span className="tabular-nums">{elapsedLabel(times.get(a.id)!.minutes)}</span>}
                   {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
                     <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
                   )}
