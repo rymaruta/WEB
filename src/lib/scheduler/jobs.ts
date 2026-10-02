@@ -17,6 +17,8 @@ export const JOBS: Job[] = [
   { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 5, envKey: "BREAKING_INTERVAL_MINUTES" },
   // Bluesky への同時投稿の再試行と、Threads のトークンの延長（src/lib/digest/crosspost.ts）。認証情報がなければ何もしない
   { name: "crosspost", path: "/api/cron/crosspost", intervalMinutes: 10, envKey: "CROSSPOST_INTERVAL_MINUTES" },
+  // 仕事がたまった Claude Code の定期実行（まとめ記事・ダイジェスト用の解析）を起動する（src/lib/digest/dispatch.ts）
+  { name: "routines", path: "/api/cron/routines", intervalMinutes: 5, envKey: "ROUTINES_INTERVAL_MINUTES" },
   // YouTube の新着動画と再生回数の取り込み（src/lib/youtube.ts）
   { name: "youtube", path: "/api/cron/youtube", intervalMinutes: 30, envKey: "YOUTUBE_INTERVAL_MINUTES" },
 ];
