@@ -7,6 +7,13 @@ export function FeatureNav({ current, className = "mt-4" }: { current?: { kind: 
   const links = months.flatMap((month) => FEATURE_KINDS.map((kind) => ({ kind, month })));
   return (
     <nav aria-label="特集" className={`scrollbar-none flex gap-2 overflow-x-auto pb-1 ${className}`}>
+      <Link
+        href="/calendar"
+        prefetch={false}
+        className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1 text-xs font-bold text-accent hover:bg-accent hover:text-accent-fg"
+      >
+        ぜんぶカレンダー
+      </Link>
       {links.map(({ kind, month }) => {
         const active = current?.kind === kind && current.month === month;
         return (
