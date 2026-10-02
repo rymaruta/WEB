@@ -161,7 +161,7 @@ async function fetchPlayStation(): Promise<Listing[]> {
 // ---- Steam ----
 
 /** Steam の人気の近日登場から載せる件数（人気順の上位だけ） */
-const STEAM_TAKE = 20;
+const STEAM_TAKE = 10;
 
 const decode = (s: string) =>
   s
