@@ -51,6 +51,7 @@ export const sources: SourceSeed[] = [
   { name: "WEDGE ONLINE", publisher: "WEDGE ONLINE", siteUrl: "https://wedge.ismedia.jp/", feedUrl: "https://wedge.ismedia.jp/list/feed/rss", genre: "world" },
   { name: "朝日新聞 国際", publisher: "朝日新聞", siteUrl: "https://www.asahi.com/international/", feedUrl: "https://www.asahi.com/rss/asahi/international.rdf", genre: "world", ...BLOCKED },
   { name: "BBCニュース ジャパン", publisher: "BBCニュース", siteUrl: "https://www.bbc.com/japanese", feedUrl: "https://feeds.bbci.co.uk/japanese/rss.xml", genre: "world" },
+  { name: "ライブドアニュース 海外", publisher: "ライブドアニュース", siteUrl: "https://news.livedoor.com/", feedUrl: "https://news.livedoor.com/topics/rss/int.xml", genre: "world" },
 
   // 経済
   { name: "Business Insider Japan", publisher: "Business Insider Japan", siteUrl: "https://www.businessinsider.jp/", feedUrl: "https://www.businessinsider.jp/feed/index.xml", genre: "business" },
