@@ -13,6 +13,21 @@ const EXCLUDE_LOOKBACK_HOURS = 30;
  * 配信の候補。新しい出来事は「最初に報じられた時刻」、続報は登録した時刻で新しさを判断する。
  * 夜の「今日これだけ」は、今日すでに配信した出来事も候補に入れる（1日のまとめのため）
  */
+/** 話題のジャンルから、配信の分野を当てる（分野が読み取れていない出来事に使う） */
+const GENRE_CATEGORY: Record<string, Category> = {
+  domestic: "SOCIETY",
+  world: "WORLD",
+  business: "ECONOMY",
+  tech: "TECH",
+  entertainment: "ENTERTAINMENT",
+  sports: "SPORTS",
+  game: "ENTERTAINMENT",
+  anime: "ENTERTAINMENT",
+  products: "LIFE",
+  life: "LIFE",
+};
+export const categoryOfGenre = (slug: string | undefined): Category | null => (slug ? (GENRE_CATEGORY[slug] ?? null) : null);
+
 export async function loadCandidates(since: Date, includePublished: boolean): Promise<Candidate[]> {
   const statuses = ["PENDING", "REVIEW_REQUIRED", "APPROVED", ...(includePublished ? ["PUBLISHED" as const] : [])] as const;
   const stories = await prisma.story.findMany({
@@ -40,17 +55,19 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
   });
   const topicIds = [...new Set(stories.map((s) => s.topicId))];
   const [topics, clicks] = await Promise.all([
-    prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, publisherCount: true } }),
+    prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, publisherCount: true, genre: { select: { slug: true } } } }),
     prisma.article.groupBy({ by: ["topicId"], where: { topicId: { in: topicIds } }, _sum: { clicks: true, socialCount: true } }),
   ]);
   const publishers = new Map(topics.map((t) => [t.id, t.publisherCount]));
+  const genreOf = new Map(topics.map((t) => [t.id, t.genre.slug]));
   const clickSum = new Map(clicks.map((c) => [c.topicId, c._sum.clicks ?? 0]));
   const socialSum = new Map(clicks.map((c) => [c.topicId, c._sum.socialCount ?? 0]));
   return stories.map((s) => ({
     id: s.id,
     kind: s.kind,
     status: s.status,
-    category: s.category as Category | null,
+    // 分野が読み取れていない出来事は、話題のジャンルから補う（分野が空だと、同じ分野の本数の上限が効かないため）
+    category: (s.category as Category | null) ?? categoryOfGenre(genreOf.get(s.topicId)),
     threadId: s.eventThreadId,
     assessment: s.assessment as Assessment | null,
     publisherCount: publishers.get(s.topicId) ?? 0,

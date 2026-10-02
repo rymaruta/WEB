@@ -17,3 +17,15 @@ describe("shouldFire", () => {
   });
   it("深夜（1〜6時）は起動しない", () => expect(shouldFire(rule, 30, null, 3)).toBe(false));
 });
+
+describe("beforeBuild", () => {
+  it("下書きを作る25〜70分前だけ", async () => {
+    const { beforeBuild } = await import("@/lib/digest/dispatch");
+    // 昼の下書きは 11:10（日本時間）
+    expect(beforeBuild(new Date("2026-10-03T10:20:00+09:00"))).toBe(true);
+    expect(beforeBuild(new Date("2026-10-03T11:00:00+09:00"))).toBe(false);
+    expect(beforeBuild(new Date("2026-10-03T09:30:00+09:00"))).toBe(false);
+    // 朝の下書き 06:10 の前（深夜の時間帯でも）
+    expect(beforeBuild(new Date("2026-10-03T05:20:00+09:00"))).toBe(true);
+  });
+});
