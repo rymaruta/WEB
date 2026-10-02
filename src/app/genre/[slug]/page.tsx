@@ -179,7 +179,7 @@ function jstMonths(now = new Date()) {
 async function loadGameHighlights() {
   const [releases, newGames] = await Promise.all([getGameReleases(), getNewGames(7, 6)]);
   const { year, thisKey, nextKey, labels } = jstMonths();
-  const pick = (r: (typeof releases)[number]) => ({ topicId: r.topicId, title: r.title, release: r.release, platforms: r.platforms });
+  const pick = (r: (typeof releases)[number]) => ({ topicId: r.topicId, title: r.title, release: r.release, platforms: r.platforms, storeUrl: r.storeUrl });
   return {
     thisMonth: releases.filter((r) => r.release.startsWith(thisKey)).map(pick),
     nextMonth: releases.filter((r) => r.release.startsWith(nextKey)).map(pick),

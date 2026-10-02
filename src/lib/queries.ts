@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { releaseSortKey } from "@/lib/game";
+import { titleKey } from "@/lib/game-listings";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
 
@@ -327,23 +328,38 @@ export const getRisingTopics = cache(async (hours: number, take: number) => {
 const gameKey = (t: { aiGameTitle: string | null; aiGameKey: string | null }) =>
   (t.aiGameKey || t.aiGameTitle || "").normalize("NFKC").toLowerCase().replace(/[\s・:：\-－]+/g, "");
 
-export type GameRelease = { topicId: number; title: string; release: string; platforms: string[]; kind: string | null };
+export type GameRelease = {
+  /** 記事のある作品は話題の ID。公式ストアだけの作品は null */
+  topicId: number | null;
+  title: string;
+  release: string;
+  platforms: string[];
+  kind: string | null;
+  /** 公式ストアだけの作品のストアのページ */
+  storeUrl: string | null;
+};
 
 /**
  * ゲームの発売予定。作品ごとに最も新しい報道の発売日を使い（延期などで変わった日付を反映する）、
  * まだ来ていない日付だけを日付順に返す。日付が月・年までのものは、その月・年の終わりまで残す
  */
 export const getGameReleases = cache(async (now = new Date()): Promise<GameRelease[]> => {
-  const topics = await prisma.topic.findMany({
-    // ゲーム本体の発表・発売日の決定・発売の報道だけ（噂・リークは公式の日付ではないので載せない。アップデートやセールの日付も載せない）
-    where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { in: ["announce", "release_date", "release"] }, lastSeenAt: { gte: since(24 * 365) } },
-    orderBy: { lastSeenAt: "desc" },
-    take: 2000,
-    select: { id: true, aiGameTitle: true, aiGameKey: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
-  });
   const today = new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+  const [topics, listings] = await Promise.all([
+    prisma.topic.findMany({
+      // ゲーム本体の発表・発売日の決定・発売の報道だけ（噂・リークは公式の日付ではないので載せない。アップデートやセールの日付も載せない）
+      where: { aiGameRelease: { not: null }, aiGameTitle: { not: null }, aiGameKind: { in: ["announce", "release_date", "release"] }, lastSeenAt: { gte: since(24 * 365) } },
+      orderBy: { lastSeenAt: "desc" },
+      take: 2000,
+      select: { id: true, aiGameTitle: true, aiGameKey: true, aiGameRelease: true, aiGamePlatforms: true, aiGameKind: true },
+    }),
+    // 公式ストアの発売予定（src/lib/game-listings.ts）
+    prisma.gameListing.findMany({ where: { release: { gte: today.slice(0, 7) } }, orderBy: { release: "asc" }, take: 1000 }),
+  ]);
   const seen = new Set<string>();
   const out: GameRelease[] = [];
+  /** 記事から拾った作品の名前（公式ストアの作品と同じものを見分ける） */
+  const byTitle = new Map<string, GameRelease>();
   for (const t of topics) {
     const key = gameKey(t);
     if (seen.has(key)) continue;
@@ -351,7 +367,22 @@ export const getGameReleases = cache(async (now = new Date()): Promise<GameRelea
     const r = t.aiGameRelease!;
     // まだ来ていないか（月・年までの予定は、その期間が終わるまで）
     if (today.slice(0, r.length) > r) continue;
-    out.push({ topicId: t.id, title: t.aiGameTitle!, release: r, platforms: t.aiGamePlatforms, kind: t.aiGameKind });
+    const item = { topicId: t.id, title: t.aiGameTitle!, release: r, platforms: t.aiGamePlatforms, kind: t.aiGameKind, storeUrl: null };
+    out.push(item);
+    byTitle.set(titleKey(t.aiGameTitle!), item);
+  }
+  for (const l of listings) {
+    if (today.slice(0, l.release.length) > l.release) continue;
+    const same = byTitle.get(titleKey(l.title));
+    if (same) {
+      // 記事のある作品は記事を優先し、公式ストアの機種を足す。日付が月までなら、公式の日付（日まで）を使う
+      for (const p of l.platforms) if (!same.platforms.includes(p)) same.platforms = [...same.platforms, p];
+      if (same.release.length < l.release.length && l.release.startsWith(same.release)) same.release = l.release;
+      continue;
+    }
+    const item = { topicId: null, title: l.title, release: l.release, platforms: l.platforms, kind: "release_date", storeUrl: l.url };
+    out.push(item);
+    byTitle.set(titleKey(l.title), item);
   }
   return out.sort((a, b) => releaseSortKey(a.release).localeCompare(releaseSortKey(b.release)));
 });

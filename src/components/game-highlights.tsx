@@ -53,7 +53,8 @@ const subscribe = (l: () => void) => {
 };
 const snapshot = () => memory ?? readPlatform();
 
-export type ReleaseItem = { topicId: number; title: string; release: string; platforms: string[] };
+/** topicId がなければ公式ストアだけの作品（storeUrl はストアのページ） */
+export type ReleaseItem = { topicId: number | null; title: string; release: string; platforms: string[]; storeUrl: string | null };
 export type NewGameItem = { topicId: number; headline: string; kind: string | null; release: string | null; platforms: string[] };
 
 /**
@@ -104,7 +105,7 @@ export function GameHighlights({
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
           <h2 className="text-base font-extrabold">発売スケジュール</h2>
-          <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日（延期は新しい日付）</p>
+          <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日と、任天堂・Steam の公式ストアの発売予定日（↗ は公式ストアのページ）</p>
           {/* 月ごとに開け閉めできる。最初は今月だけ開く */}
           {months.map((m, i) =>
             m.items.length === 0 ? null : (
@@ -116,20 +117,37 @@ export function GameHighlights({
                 </summary>
                 <Expandable
                   items={m.items}
-                  render={(r) => (
-                    <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className="group flex items-center gap-2 py-1.5">
-                      <span className="w-14 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{shortRelease(r.release, thisYear)}</span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={`${releaseLabel(r.release, thisYear)} ${r.title}`}>
-                        {r.title}
-                      </span>
-                      {r.platforms.length > 0 && (
-                        <span className="shrink-0 text-[11px] text-fg-subtle" title={r.platforms.join("・")}>
-                          {shortPlatforms(r.platforms)}
+                  render={(r) => {
+                    const row = (
+                      <>
+                        <span className="w-14 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{shortRelease(r.release, thisYear)}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={`${releaseLabel(r.release, thisYear)} ${r.title}`}>
+                          {r.title}
+                          {!r.topicId && (
+                            <span aria-label="公式ストアのページ" className="ml-1 text-[10px] font-normal text-fg-subtle">
+                              ↗
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </Link>
-                  )}
-                  keyOf={(r) => `${r.topicId}`}
+                        {r.platforms.length > 0 && (
+                          <span className="shrink-0 text-[11px] text-fg-subtle" title={r.platforms.join("・")}>
+                            {shortPlatforms(r.platforms)}
+                          </span>
+                        )}
+                      </>
+                    );
+                    const cls = "group flex items-center gap-2 py-1.5";
+                    return r.topicId ? (
+                      <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className={cls}>
+                        {row}
+                      </Link>
+                    ) : (
+                      <a href={r.storeUrl ?? "#"} target="_blank" rel="noopener nofollow" className={cls}>
+                        {row}
+                      </a>
+                    );
+                  }}
+                  keyOf={(r) => r.storeUrl ?? `${r.topicId}`}
                 />
               </details>
             ),
