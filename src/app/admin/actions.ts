@@ -241,6 +241,18 @@ export async function retryBlueskyAction(editionId: string): Promise<ActionState
 /** 選んだ出来事を、いますぐ速報として X に投稿する（投稿文とカードの時刻は投稿した時刻になる） */
 export async function publishBreakingAction(storyId: string, _: ActionState, form: FormData): Promise<ActionState> {
   await requireAdmin();
+  return doPublishBreaking(storyId, form);
+}
+
+/** メールのリンク（署名付き・期限つき）から、ログインせずに速報を投稿する */
+export async function quickPublishAction(token: string, _: ActionState, form: FormData): Promise<ActionState> {
+  const { verifyActionToken } = await import("@/lib/admin/token");
+  const storyId = verifyActionToken(token);
+  if (!storyId) return { error: "リンクの有効期限が切れました。管理画面から操作してください" };
+  return doPublishBreaking(storyId, form);
+}
+
+async function doPublishBreaking(storyId: string, form: FormData): Promise<ActionState> {
   const { prisma } = await import("@/lib/db");
   const { createManualBreaking } = await import("@/lib/digest/breaking");
   const { checkOverride } = await import("@/lib/digest/check");
@@ -272,6 +284,18 @@ export async function publishBreakingAction(storyId: string, _: ActionState, for
 /** 「AI に確認させて投稿」: 速報用の解析（無料の定期実行）を今すぐ起動し、AI が確かめて問題なければ自動で投稿する */
 export async function requestAiBreakingAction(storyId: string): Promise<ActionState> {
   await requireAdmin();
+  return doRequestAi(storyId);
+}
+
+/** メールのリンク（署名付き・期限つき）から、ログインせずに「AI に確認させて投稿」を頼む */
+export async function quickAiAction(token: string): Promise<ActionState> {
+  const { verifyActionToken } = await import("@/lib/admin/token");
+  const storyId = verifyActionToken(token);
+  if (!storyId) return { error: "リンクの有効期限が切れました。管理画面から操作してください" };
+  return doRequestAi(storyId);
+}
+
+async function doRequestAi(storyId: string): Promise<ActionState> {
   const { prisma } = await import("@/lib/db");
   const { logEvent } = await import("@/lib/events");
   const { REQUEST_SCOPE } = await import("@/lib/digest/breaking");

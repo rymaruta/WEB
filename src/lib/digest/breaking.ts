@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
+import { createActionToken } from "@/lib/admin/token";
 import { HOT, hotReason, isHot } from "@/lib/stories/hot";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
@@ -317,6 +318,12 @@ export function pickHotTopics<T extends HotTopic>(topics: T[], notified: Set<num
     .slice(0, room);
 }
 
+/** メールから開く、速報の候補1件の操作画面（鍵が作れなければ管理画面） */
+function quickUrl(storyId: string) {
+  const token = createActionToken(storyId);
+  return token ? `https://zenbu-navi.com/admin/quick/${token}` : "https://zenbu-navi.com/admin/breaking";
+}
+
 /** 速報の確認のたびに呼ぶ。多くの媒体が一斉に報じた出来事があれば、運営者に知らせる（深夜も知らせる） */
 export async function notifyHotTopics(now = new Date()) {
   const since = new Date(now.getTime() - HOT.withinHours * 3_600_000);
@@ -341,8 +348,10 @@ export async function notifyHotTopics(now = new Date()) {
       title: `速報の候補：${title}`.slice(0, 60),
       what: `「${title}」（${hotReason(t, now.getTime())}）。最初の報道から${minutes}分で、${t.publisherCount}媒体が報じています。`,
       action:
-        "速報として出す場合は、管理画面の「速報を作る」で、見出しを直して投稿するか、「AI に確認させて投稿」を押してください（AI が数分で確認し、問題なければ投稿します）。出さない場合は対応は不要です。",
-      url: "https://zenbu-navi.com/admin/breaking",
+        "下のボタンから、ログインせずに操作できます（6時間有効）。「AI に確認させて投稿」なら AI が数分で確かめて投稿し、自分で見出しを直してすぐ投稿することもできます。出さない場合は対応は不要です。",
+      // ログインせずに、この出来事の速報だけを操作できるリンク（署名付き・6時間有効）
+      url: quickUrl(t.stories[0].id),
+      button: "速報の操作画面を開く",
     });
   }
   return picked.length;

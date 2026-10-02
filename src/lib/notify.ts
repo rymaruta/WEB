@@ -16,6 +16,8 @@ export type Notice = {
   detail?: string;
   /** ボタンで開く画面（省略時は管理画面のトップ） */
   url?: string;
+  /** ボタンの文言（省略時は「管理画面を開く」） */
+  button?: string;
 };
 
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -53,7 +55,7 @@ ${sentences(n.action).map((x) => `<p style="margin:0 0 4px;font-size:15px;line-h
 </div>`
     : ""
 }
-<p style="margin:0 0 16px"><a href="${escape(n.url ?? ADMIN_URL)}" style="display:inline-block;background:#c2410c;color:#ffffff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px">管理画面を開く</a></p>
+<p style="margin:0 0 16px"><a href="${escape(n.url ?? ADMIN_URL)}" style="display:inline-block;background:#c2410c;color:#ffffff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px">${escape(n.button ?? "管理画面を開く")}</a></p>
 ${n.detail ? p(n.detail, "font-size:12px;line-height:1.6;color:#78716c;border-top:1px solid #e7e5e4;padding-top:12px") : ""}
 </div></body></html>`;
 }
