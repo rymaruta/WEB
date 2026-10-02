@@ -1,6 +1,5 @@
 "use client";
 
-import { getImageProps } from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { GenreIcon } from "./genre-icon";
 
@@ -12,25 +11,17 @@ type Props = {
   iconClassName?: string;
   /** 画面の最初に見える画像は遅延読み込みしない */
   priority?: boolean;
-  /** 表示される幅（srcset からどの大きさを選ぶかの目安） */
+  /** 互換のために残す（画像は加工せず、媒体の配信する画像をそのまま表示する） */
   sizes?: string;
+  /** 画像の出典（媒体名）。マウスを重ねたときに表示する */
+  credit?: string;
 };
 
 /**
- * 媒体の画像は数 MB のこともあるため、当サイトのサーバーで縮小・WebP 化してから配信する（next/image の最適化）。
- * 縮小版はサーバーと CDN に一時的に保存される。https 以外の画像は最適化できないため、そのまま表示する
- */
-function imageProps(src: string, sizes: string, priority: boolean) {
-  if (!src.startsWith("https://")) return { src };
-  const { props } = getImageProps({ src, alt: "", width: 640, height: 360, sizes, quality: 60, priority });
-  return { src: props.src, srcSet: props.srcSet, sizes: props.sizes };
-}
-
-/**
- * 記事のサムネイル。各媒体の画像を縮小して表示し、
+ * 記事のサムネイル。媒体が RSS で配信する画像を、当サイトで保存・加工せず、そのまま媒体から表示する（出典を明記する）。
  * 画像がない・読み込めない場合はジャンル色とアイコンの代替表示にする。
  */
-export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
+export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit }: Props) {
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // サーバー描画された画像が、React の準備前に読み込みに失敗していた場合も代替表示にする
@@ -55,8 +46,10 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
-      {...imageProps(src, sizes, priority)}
+      src={src}
       alt=""
+      title={credit ? `画像：${credit}` : undefined}
+      fetchPriority={priority ? "high" : undefined}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
       referrerPolicy="no-referrer"

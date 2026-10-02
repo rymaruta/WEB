@@ -24,11 +24,19 @@ function describe(topic: TopicCardData) {
     topic.aiLead || ((primary.find((a) => a.summary) ?? topic.articles.find((a) => a.summary))?.summary ?? null);
   const publishers = [...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))];
   // 画像は報道機関の記事から選ぶ。SNS 経由の記事は、名前の分かる媒体のものだけ（企業や個人のサイトの画面写真を大きく出さない）
-  const image =
-    (primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && hasPublisherName(a.publisher)))?.imageUrl ?? null;
+  const imageArticle = primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && hasPublisherName(a.publisher));
+  const image = imageArticle?.imageUrl ?? null;
+  // 画像の出典（画像を配信した媒体）
+  const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : undefined;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || cleanTitle(topic.title);
-  return { lead, title, summary, publishers, image, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
+  return { lead, title, summary, publishers, image, imageCredit, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
+}
+
+/** 画像の出典。媒体の画像を表示するときは、画像の右上に媒体名を出す */
+function ImageCredit({ credit }: { credit?: string }) {
+  if (!credit) return null;
+  return <span className="pointer-events-none absolute top-1.5 right-1.5 max-w-[60%] truncate rounded bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white/90">画像：{credit}</span>;
 }
 
 /** 複数記事のトピックはトピックページへ、単独記事は元記事へ直接リンクする */
@@ -72,7 +80,7 @@ function CoverageBadge({ count }: { count: number }) {
 
 /** トップの一番大きな枠。ジャンル色のパネルに報道媒体数を大きく示す */
 export function HeroTopic({ topic, priority = true, label = "トップニュース" }: { topic: TopicCardData; priority?: boolean; label?: string }) {
-  const { lead, title, summary, publishers, image, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -83,8 +91,10 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
           priority={priority}
           sizes="(max-width: 1024px) 100vw, 800px"
           iconClassName="h-16 w-16"
+          credit={imageCredit}
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
         />
+        <ImageCredit credit={image ? imageCredit : undefined} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         <div className="absolute bottom-0 left-0 flex items-end gap-3 p-4 text-white">
           {/* 写真に文字の多い画面（サイトの画面写真など）でも読めるよう、数字は暗い下地の上に置く */}
@@ -137,7 +147,7 @@ export function RumorBadge() {
 
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
-  const { lead, title, summary, publishers, image, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
@@ -145,8 +155,10 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
         <Thumbnail
           src={image}
           genreSlug={topic.genre.slug}
+          credit={imageCredit}
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"
         />
+        <ImageCredit credit={image ? imageCredit : undefined} />
         <span className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
           <GenreBadge genre={topic.genre} />
           {hasAi && <AiBadge />}
@@ -183,7 +195,7 @@ type CardProps = { topic: TopicCardData; variant?: Variant; showGenre?: boolean;
 
 /** 一覧の1行 */
 export function TopicCard({ topic, variant = "standard", showGenre = true, rank }: CardProps) {
-  const { lead, title, summary, publishers, image, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
   if (!lead) return null;
   const compact = variant === "compact";
   return (
@@ -210,7 +222,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
       </div>
       {!compact && (
         <TopicLink topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
-          <Thumbnail src={image} genreSlug={topic.genre.slug} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
+          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
         </TopicLink>
       )}
     </article>
