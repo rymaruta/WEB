@@ -14,12 +14,12 @@ import { verifyDate } from "./game";
 export { CHANGE_KIND_LABELS, CHANGE_KINDS, type ChangeKind } from "./change-kinds";
 import { CHANGE_KINDS, type ChangeKind } from "./change-kinds";
 
-/** 候補を探すジャンル */
-const CHANGE_GENRES = ["domestic", "business", "life", "products"];
+/** 候補を探すジャンル（携帯料金やネットサービスの値上げ・終了は IT に入るため、IT も含める） */
+const CHANGE_GENRES = ["domestic", "business", "life", "products", "tech"];
 /** 候補を探す範囲（最初の報道からの日数） */
 const CANDIDATE_DAYS = 21;
 /** 変更を表す語 */
-const CHANGE_RE = /値上げ|値下げ|価格改定|料金改定|改定|施行|義務化|廃止|終了|開始|改正|引き上げ|引き下げ|から変わる|が変わる|スタート/;
+const CHANGE_RE = /値上げ|値下げ|価格改定|料金改定|改定|施行|義務化|廃止|終了|開始|改正|引き上げ|引き下げ|から変わる|が変わる|スタート|増税|減税|運賃|手数料|新料金|新制度|提供終了|サービス終了/;
 /** 始まる時期 */
 const WHEN_RE = /\d{1,2}月(\d{1,2}日)?(から|より|以降)|来月から|今月から|\d{1,2}月\d{1,2}日/;
 
