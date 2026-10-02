@@ -33,6 +33,15 @@ export const topicCardInclude = {
 
 export type TopicCardData = Prisma.TopicGetPayload<{ include: typeof topicCardInclude }>;
 
+/** トップの一番上に固定中の話題（運営者が選んだ大きな出来事）。なければ null */
+export const getPinnedTopic = cache(() =>
+  prisma.topic.findFirst({
+    where: { pinnedUntil: { gt: new Date() }, mergedIntoId: null },
+    orderBy: { pinnedUntil: "desc" },
+    include: topicCardInclude,
+  }),
+);
+
 export const getGenres = cache(() => prisma.genre.findMany({ orderBy: { sortOrder: "asc" } }));
 
 export const getGenre = cache((slug: string) => prisma.genre.findUnique({ where: { slug } }));

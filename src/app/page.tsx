@@ -13,7 +13,7 @@ import { formatNumber } from "@/lib/format";
 import { serializeJsonLd, siteJsonLd } from "@/lib/structured-data";
 import Link from "next/link";
 import { companyPath } from "@/lib/company";
-import { getGenres, getLatestArticles, getMostRead, getSiteStats, getSocialBuzz, getTopCompanies, getTrendingTopics } from "@/lib/queries";
+import { getGenres, getLatestArticles, getMostRead, getPinnedTopic, getSiteStats, getSocialBuzz, getTopCompanies, getTrendingTopics } from "@/lib/queries";
 
 export const revalidate = 60;
 
@@ -21,7 +21,7 @@ export const revalidate = 60;
 const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
 
 export default async function HomePage() {
-  const [genres, headline, mostRead, buzz, latest, stats, companies, digest, calendar] = await Promise.all([
+  const [genres, headline, mostRead, buzz, latest, stats, companies, digest, calendar, pinned] = await Promise.all([
     getGenres(),
     getTrendingTopics({ minPublishers: 2, take: 9 }),
     getMostRead(8),
@@ -33,9 +33,11 @@ export default async function HomePage() {
     getLatestDigest().catch(() => null),
     // ぜんぶカレンダーの入口（この1週間）。失敗してもトップは出す
     getCalendar(new Date(), 7).catch(() => null),
+    // 運営者が固定した大きな出来事（一番上に出す）
+    getPinnedTopic().catch(() => null),
   ]);
 
-  const headlineIds = headline.map((t) => t.id);
+  const headlineIds = [...headline.map((t) => t.id), ...(pinned ? [pinned.id] : [])];
   const sections = await Promise.all(
     genres.map(async (genre) => ({
       genre,
@@ -44,8 +46,9 @@ export default async function HomePage() {
   );
 
   // 一番上は、まとめ記事があり、多くの読者に関わるジャンルの話題を優先する（なければ話題度の1位）
-  const lead = headline.find((t) => t.aiTitle && HERO_GENRES.has(t.genre.slug)) ?? headline[0];
-  const others = headline.filter((t) => t !== lead);
+  // 運営者が固定した出来事があれば、それを一番上にする
+  const lead = pinned ?? headline.find((t) => t.aiTitle && HERO_GENRES.has(t.genre.slug)) ?? headline[0];
+  const others = headline.filter((t) => t.id !== lead?.id);
   // 配信したばかりの回は一番上に。時間がたった回は「いま話題」の下に回し、開いてすぐ今のニュースが見えるようにする
   const digestOnTop = digest ? isFreshDigest(digest) : false;
 
