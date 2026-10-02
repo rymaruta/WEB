@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
+import { editionQualityProblems } from "./check";
 import { publishEdition } from "./publish";
 import { REQUIRED_ITEMS } from "./select";
 import { autoApproveEnabled, editionKey, jstDate, SLOTS, type Slot } from "./slots";
@@ -40,21 +41,27 @@ export async function runScheduledPublish(slot: Slot, now = new Date(), opts: { 
       where: { editionId: edition.id, confirmed: false, story: { status: "REVIEW_REQUIRED" } },
     });
     const items = await prisma.editionItem.count({ where: { editionId: edition.id } });
-    // 3本とも同じ分野（例：全部サッカー）の回は、世の中の主なニュースを伝えられないため自動では出さない
-    const categories = (await prisma.editionItem.findMany({ where: { editionId: edition.id }, select: { story: { select: { category: true } } } })).map(
-      (i) => i.story.category,
+    // 投稿前の品質チェック。全部が同じ分野（例：全部サッカー）・同じ出来事の重複・見出しや出典の欠けがあれば自動では出さない
+    const rows = await prisma.editionItem.findMany({
+      where: { editionId: edition.id },
+      orderBy: { position: "asc" },
+      select: { story: { select: { category: true, eventThreadId: true, headline: true, _count: { select: { sources: true } } } } },
+    });
+    const quality = editionQualityProblems(
+      rows.map((r) => ({ category: r.story.category, threadId: r.story.eventThreadId, headline: r.story.headline, sources: r.story._count.sources })),
     );
-    const oneSided = items > 1 && categories.every((c) => c && c === categories[0]);
-    if (oneSided) {
-      await logEvent("warn", "digest.one-sided", `${edition.key}: ${items}本とも同じ分野（${categories[0]}）のため、自動では出しません`, edition.id);
+    for (const w of quality.warnings) await logEvent("warn", "digest.quality-warn", `${edition.key}: ${w}`, edition.id);
+    const blocked = quality.blocking.length > 0;
+    if (blocked) {
+      await logEvent("warn", "digest.quality", `${edition.key}: ${quality.blocking.join("、")}のため、自動では出しません`, edition.id);
       await notifyOwner({
-        title: `${name}が1つの分野に偏ったため、自動では投稿しません`,
-        what: `${name}の${items}本がすべて同じ分野（${categories[0]}）でした。`,
-        action: "出す場合は、管理画面でこの回を開き、ほかの分野のニュースに入れ替えてから投稿してください。",
+        title: `${name}は品質チェックで止めたため、自動では投稿しません`,
+        what: `${name}: ${quality.blocking.join("、")}。`,
+        action: "出す場合は、管理画面でこの回を開き、ニュースを入れ替えてから投稿してください。",
       });
     }
     // 1回の配信は必ず3本（REQUIRED_ITEMS）。そろっていない回は自動では出さない
-    if (unconfirmed === 0 && items === REQUIRED_ITEMS && !oneSided) {
+    if (unconfirmed === 0 && items === REQUIRED_ITEMS && !blocked) {
       await prisma.edition.update({ where: { id: edition.id }, data: { status: "APPROVED" } });
       await logEvent("info", "digest.auto-approve", `${edition.key}: おまかせ投稿で承認しました`, edition.id);
       edition.status = "APPROVED";

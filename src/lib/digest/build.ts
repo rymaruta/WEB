@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import type { Assessment, Category, Sourced } from "@/lib/stories/schema";
+import { independentOutlets } from "./outlets";
 import { composePostText, type EditionEntry, type EditionView } from "./compose";
 import { isAutoReviewable, selectForEdition, type Candidate } from "./select";
 import { autoApproveEnabled, editionKey, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
@@ -54,11 +55,19 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
     },
   });
   const topicIds = [...new Set(stories.map((s) => s.topicId))];
-  const [topics, clicks] = await Promise.all([
+  const [topics, clicks, outlets] = await Promise.all([
     prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, publisherCount: true, genre: { select: { slug: true } } } }),
     prisma.article.groupBy({ by: ["topicId"], where: { topicId: { in: topicIds } }, _sum: { clicks: true, socialCount: true } }),
+    prisma.article.findMany({
+      where: { topicId: { in: topicIds }, source: { kind: "NEWS" } },
+      distinct: ["topicId", "publisher"],
+      select: { topicId: true, publisher: true },
+    }),
   ]);
-  const publishers = new Map(topics.map((t) => [t.id, t.publisherCount]));
+  // 報じた媒体の数は、転載・同じ媒体の別名を除いた「独立した媒体」で数える（同じ記事の転載で話題が大きく見えないように）
+  const outletNames = new Map<number, string[]>();
+  for (const o of outlets) if (o.topicId) outletNames.set(o.topicId, [...(outletNames.get(o.topicId) ?? []), o.publisher]);
+  const publishers = new Map(topics.map((t) => [t.id, Math.min(t.publisherCount, independentOutlets(outletNames.get(t.id) ?? []))]));
   const genreOf = new Map(topics.map((t) => [t.id, t.genre.slug]));
   const clickSum = new Map(clicks.map((c) => [c.topicId, c._sum.clicks ?? 0]));
   const socialSum = new Map(clicks.map((c) => [c.topicId, c._sum.socialCount ?? 0]));

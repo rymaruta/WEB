@@ -104,19 +104,33 @@ type Picked = Scored & { candidate: Candidate };
 /** 3本に足りないときに埋める段階で、ゆるめた後の上限（同じカテゴリー・スポーツとエンタメの合計とも2本まで。3本とも同じにはしない） */
 const RELAXED_MAX = 2;
 
-function fits(picked: Picked[], c: Candidate, relaxed = false): boolean {
-  if (c.threadId && picked.some((p) => p.candidate.threadId === c.threadId)) return false;
-  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= (relaxed ? RELAXED_MAX : PER_CATEGORY)) return false;
+/** 載せられない理由（載せられるなら null） */
+function misfit(picked: Picked[], c: Candidate, relaxed = false): string | null {
+  if (c.threadId && picked.some((p) => p.candidate.threadId === c.threadId)) return "同じ出来事がすでに載る";
+  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= (relaxed ? RELAXED_MAX : PER_CATEGORY)) return `同じ分野（${c.category}）の上限`;
   if (c.category && SOFT_NEWS.has(c.category) && picked.filter((p) => p.candidate.category && SOFT_NEWS.has(p.candidate.category)).length >= (relaxed ? RELAXED_MAX : SOFT_MAX))
-    return false;
-  return true;
+    return "芸能・スポーツの合計の上限";
+  return null;
 }
+
+const fits = (picked: Picked[], c: Candidate, relaxed = false) => misfit(picked, c, relaxed) === null;
+
+/** 選定の記録に残す、載らなかった候補の数（点数の高い順） */
+const REJECTED_LOG = 20;
 
 export type Selection = {
   main: Scored[];
   followups: Scored[];
   /** 選定の記録（管理画面で「なぜ載らなかったか」を見せる） */
-  notes: { candidates: number; eligible: number; belowMinScore: number; excludedThreads: number; filled: number };
+  notes: {
+    candidates: number;
+    eligible: number;
+    belowMinScore: number;
+    excludedThreads: number;
+    filled: number;
+    /** 載らなかった候補と理由（点数の高い順に REJECTED_LOG 件） */
+    rejected: { id: string; score: number; reason: string }[];
+  };
 };
 
 /**
@@ -189,6 +203,25 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     }
   }
 
+  // 載らなかった理由（管理画面と選定の記録で「なぜ載らなかったか」を見せる）
+  const chosen = new Set([...main, ...followups].map((p) => p.id));
+  const reasonOf = (s: Picked): string => {
+    const c = s.candidate;
+    if (!ELIGIBLE_STATUSES.has(c.status)) return `状態が対象外（${c.status}）`;
+    if (opts.verifiedOnly && c.status === "REVIEW_REQUIRED" && !c.autoOk) return "人の確認が必要（おまかせ投稿では使わない）";
+    if (c.kind === "NEW" && c.threadId && excludeThreads.has(c.threadId)) return "前の配信回に載った出来事";
+    if (c.kind === "NEW" && c.threadId && followupThreads.has(c.threadId)) return "同じ出来事の続報が載る";
+    if (c.kind === "FOLLOWUP") return s.score < MIN_SCORE ? `続報の点数不足（${s.score}）` : "続報の枠の上限";
+    if (s.score < FILL_MIN_SCORE) return `点数不足（${s.score}）`;
+    if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return "ゴシップ・宣伝（埋め合わせに使わない）";
+    return misfit(main, c, true) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
+  };
+  const rejected = scored
+    .filter((s) => !chosen.has(s.id))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+    .slice(0, REJECTED_LOG)
+    .map((s) => ({ id: s.id, score: s.score, reason: reasonOf(s) }));
+
   const strip = ({ id, score, parts }: Picked): Scored => ({ id, score, parts });
   return {
     main: main.sort((a, b) => b.score - a.score).map(strip),
@@ -200,6 +233,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
       excludedThreads: excluded.length,
       // 基準点に届かない候補で埋めた本数
       filled: main.filter((m) => m.score < MIN_SCORE).length,
+      rejected,
     },
   };
 }
