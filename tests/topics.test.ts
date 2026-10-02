@@ -93,3 +93,14 @@ describe("topicScore", () => {
     expect(topicScore({ ...s, genreSlug: "game" }, now)).toBeLessThan(topicScore({ ...s, genreSlug: "domestic" }, now));
   });
 });
+
+describe("topicScore と報道機関の記事", () => {
+  const now = new Date("2026-10-02T12:00:00Z");
+  const base = { publisherCount: 1, articleCount: 1, socialCount: 300, clicks: 0, lastSeenAt: now };
+  it("SNS のまとめ・企業のお知らせだけの話題は、話題順で下に回す", () => {
+    expect(topicScore({ ...base, newsArticles: 0 }, now)).toBeLessThan(topicScore({ ...base, newsArticles: 1 }, now) * 0.5);
+  });
+  it("報道機関の記事の数が分からないときは、これまでどおり", () => {
+    expect(topicScore(base, now)).toBe(topicScore({ ...base, newsArticles: 1 }, now));
+  });
+});
