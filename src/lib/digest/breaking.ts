@@ -69,9 +69,15 @@ export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedT
   return ok.sort((a, b) => b.score - a.score)[0] ?? null;
 }
 
-/** 速報の投稿文（本投稿）。時刻を明記し、続報は定時の配信で伝えることを添える */
+/** 速報の投稿文（本投稿）。時刻を明記する */
 export function breakingPostText(headline: string[], at: Date): string[] {
-  return [`⚡ 速報（${jstTime(at)}時点）`, "", headline.join(""), "", "続報は定時のニュースでお伝えします"];
+  return [`⚡ 速報（${jstTime(at)}時点）`, "", headline.join("")];
+}
+
+/** 人が直した見出し（配信回の項目の上書き）があれば、それを使う */
+function headlineOf(item: { override: unknown; story: { headline: string[] } }): string[] {
+  const o = item.override as { headline?: unknown } | null;
+  return Array.isArray(o?.headline) && o.headline.length && o.headline.every((l) => typeof l === "string") ? (o.headline as string[]) : item.story.headline;
 }
 
 export function breakingEnabled(env: Record<string, string | undefined> = process.env): boolean {
@@ -195,10 +201,12 @@ export async function listBreakingCandidates(now = new Date(), take = 20) {
 }
 
 /** 選んだ出来事で速報の回を作る（承認済み）。同じ出来事の速報が今日すでにあれば null */
-export async function createManualBreaking(storyId: string, now = new Date()) {
+export async function createManualBreaking(storyId: string, now = new Date(), headline?: string[]) {
   const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
   if (!story) return null;
   const date = jstDate(now);
+  // 人が見出しを直したときは、配信回の項目に上書きとして残す（カードの見出しにも使われる）
+  const edited = headline?.length && headline.join("") !== story.headline.join("") ? headline : null;
   return prisma.edition
     .create({
       data: {
@@ -210,8 +218,8 @@ export async function createManualBreaking(storyId: string, now = new Date()) {
         deadlineAt: now,
         approvedAt: now,
         approvedBy: "admin",
-        postText: breakingPostText(story.headline, now),
-        items: { create: [{ position: 1, storyId: story.id, role: "MAIN" }] },
+        postText: breakingPostText(edited ?? story.headline, now),
+        items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...(edited ? { override: { headline: edited } } : {}) }] },
       },
       select: { id: true },
     })
@@ -228,7 +236,7 @@ export async function stampBreakingTime(editionId: string, now = new Date()) {
     where: { id: editionId },
     select: {
       slot: true,
-      items: { take: 1, select: { story: { select: { headline: true } } } },
+      items: { take: 1, select: { override: true, story: { select: { headline: true } } } },
       publications: { select: { parts: { where: { externalId: { not: null } }, select: { position: true } } } },
     },
   });
@@ -236,6 +244,6 @@ export async function stampBreakingTime(editionId: string, now = new Date()) {
   if (e.publications.some((p) => p.parts.length > 0)) return;
   await prisma.edition.update({
     where: { id: editionId },
-    data: { scheduledAt: now, deadlineAt: now, postText: breakingPostText(e.items[0].story.headline, now) },
+    data: { scheduledAt: now, deadlineAt: now, postText: breakingPostText(headlineOf(e.items[0]), now) },
   });
 }

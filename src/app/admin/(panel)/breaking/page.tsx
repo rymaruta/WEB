@@ -3,7 +3,7 @@ import { BREAKING_RULES, breakingPostText, listBreakingCandidates, MANUAL_BREAKI
 import { jstTime } from "@/lib/digest/slots";
 import { RISK_LABELS } from "@/lib/stories/schema";
 import { publishBreakingAction } from "../../actions";
-import { ActionButton } from "../editions/[id]/controls";
+import { BreakingForm } from "./breaking-form";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export default async function BreakingPage() {
         </Link>
         <h1 className="mt-1 text-xl font-extrabold">速報を作る</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          直近{MANUAL_BREAKING_HOURS}時間に最初に報じられた、まだ配信していない出来事です（話題の大きい順）。投稿文とカードの「◯時◯分時点」は、投稿した時刻になります。
+          直近{MANUAL_BREAKING_HOURS}時間に最初に報じられた、まだ配信していない出来事です（話題の大きい順）。投稿文とカードの「◯時◯分時点」は、投稿した時刻になります。見出しは投稿の前に直せます。
         </p>
         <p className="mt-1 text-sm text-fg-muted">
           今日の速報 {postedToday} 本（自動の速報は1日{BREAKING_RULES.maxPerDay}本まで。ここで出した分も数えます）
@@ -45,18 +45,13 @@ export default async function BreakingPage() {
                 {cautions.length > 0 && <span className="font-bold text-accent">注意：{cautions.map((f) => RISK_LABELS[f as keyof typeof RISK_LABELS] ?? f).join("・")}</span>}
               </div>
               <details className="mt-2">
-                <summary className="cursor-pointer text-sm font-bold text-accent">プレビュー</summary>
+                <summary className="cursor-pointer text-sm font-bold text-accent">プレビュー（直す前の見出し）</summary>
                 <pre className="mt-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{breakingPostText(s.headline, now).join("\n")}</pre>
                 {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面のプレビュー（その場で作る画像） */}
                 <img src={`/api/admin/breaking/${s.id}/card`} alt="速報のカードのプレビュー" loading="lazy" className="mt-2 w-full max-w-sm rounded-lg border border-border" />
               </details>
               <div className="mt-3">
-                <ActionButton
-                  action={publishBreakingAction.bind(null, s.id)}
-                  label="速報として X に投稿する"
-                  tone="primary"
-                  confirm={`「${s.headline.join("")}」を速報として X に投稿します。よろしいですか？（取り消しはできません）`}
-                />
+                <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={s.headline} />
               </div>
             </li>
           );
