@@ -20,7 +20,6 @@ const GROUPS: { title: string; links: { href: string; label: string; external?: 
       { href: "/following", label: "フォロー中" },
       { href: "/saved", label: "あとで読む" },
       { href: "/digest", label: "配信アーカイブ" },
-      { href: "/feed.xml", label: "RSS", external: true },
     ],
   },
   {
