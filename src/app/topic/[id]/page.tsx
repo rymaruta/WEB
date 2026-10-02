@@ -27,6 +27,7 @@ import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/stru
 import { kindTone } from "@/components/kind-badge";
 import { workKey, workPath } from "@/lib/work-keys";
 import { getRelatedNews } from "@/lib/topics/related-news";
+import { jstDay } from "@/lib/archive";
 
 export const revalidate = 60;
 
@@ -129,7 +130,10 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </span>
             )}
             <span className="text-xs">
-              最初の報道 <time dateTime={topic.firstSeenAt.toISOString()}>{formatDateTime(topic.firstSeenAt)}</time>
+              最初の報道{" "}
+              <Link href={`/daily/${jstDay(topic.firstSeenAt)}`} prefetch={false} className="underline decoration-dotted underline-offset-2 hover:text-accent">
+                <time dateTime={topic.firstSeenAt.toISOString()}>{formatDateTime(topic.firstSeenAt)}</time>
+              </Link>
               {topic.lastSeenAt > topic.firstSeenAt && (
                 <>
                   {" "}／ 最新 <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
