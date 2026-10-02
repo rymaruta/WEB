@@ -71,16 +71,16 @@ function CoverageBadge({ count }: { count: number }) {
 }
 
 /** トップの一番大きな枠。ジャンル色のパネルに報道媒体数を大きく示す */
-export function HeroTopic({ topic }: { topic: TopicCardData }) {
+export function HeroTopic({ topic, priority = true, label = "トップニュース" }: { topic: TopicCardData; priority?: boolean; label?: string }) {
   const { lead, title, summary, publishers, image, hasAi } = describe(topic);
   if (!lead) return null;
   return (
-    <article className="card group grid overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+    <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <TopicLink topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden md:aspect-auto md:min-h-72">
         <Thumbnail
           src={image}
           genreSlug={topic.genre.slug}
-          priority
+          priority={priority}
           sizes="(max-width: 1024px) 100vw, 800px"
           iconClassName="h-16 w-16"
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
@@ -101,7 +101,8 @@ export function HeroTopic({ topic }: { topic: TopicCardData }) {
       </TopicLink>
       <div className="flex min-w-0 flex-col p-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-bold text-accent">
-          トップニュース{hasAi && <AiBadge />}
+          {label}
+          {hasAi && <AiBadge />}
         </p>
         <TopicLink topic={topic} leadId={lead.id} className="headline">
           <h2 className="text-xl leading-snug font-black group-hover:text-accent sm:text-2xl">
