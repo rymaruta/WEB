@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ANIME_KIND_LABELS, type AnimeItem } from "@/lib/anime-kinds";
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
+import { KindBadge } from "./kind-badge";
 
 /** アニメの「放送・配信スケジュール」。月ごとに開け閉めでき、最初は今月だけ開く */
 export function AnimeSchedule({ months, thisYear, sourceUrl }: { months: { month: number; items: AnimeItem[] }[]; thisYear: number; sourceUrl: string }) {
@@ -39,7 +40,7 @@ export function AnimeSchedule({ months, thisYear, sourceUrl }: { months: { month
                   const row = (
                     <>
                       <span className="w-12 shrink-0 text-xs font-bold text-[var(--g-anime)] tabular-nums">{day(a.date)}</span>
-                      <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 font-bold text-fg-muted">{ANIME_KIND_LABELS[a.kind]}</span>
+                      <KindBadge label={ANIME_KIND_LABELS[a.kind]} />
                       <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={a.channel ? `${a.title}（${a.channel}）` : a.title}>
                         {a.title}
                       </span>

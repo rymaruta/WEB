@@ -6,6 +6,7 @@ import { GAME_KIND_LABELS, GAME_PLATFORMS, releaseLabel, type GameKind } from "@
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
 import { ReadTitle } from "./read-title";
+import { KindBadge } from "./kind-badge";
 
 /** 発売日の短い表示（10/2、10月中、2027年） */
 function shortRelease(date: string, thisYear: number): string {
@@ -186,9 +187,7 @@ export function GameHighlights({
                 keyOf={(g) => `${g.topicId}`}
                 render={(g) => (
                   <Link href={`/topic/${g.topicId}`} data-topic-id={g.topicId} className="group flex items-start gap-2 py-1.5">
-                    <span className="mt-0.5 shrink-0 rounded bg-[var(--g-game)] px-1 text-[10px] leading-4 font-bold text-white">
-                      {GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"}
-                    </span>
+                    <KindBadge className="mt-0.5" label={GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"} />
                     <span className="min-w-0 flex-1 text-sm leading-snug font-bold group-hover:text-accent">
                       <span className="line-clamp-2">
                         <ReadTitle id={g.topicId}>{g.headline}</ReadTitle>

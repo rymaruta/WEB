@@ -5,6 +5,7 @@ import { FeatureNav } from "@/components/feature-nav";
 import { featurePath, getFeature, isFeatureKind, isFeatureMonth, type FeatureItem } from "@/lib/features";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { siteConfig } from "@/config/site";
+import { isKindLabel, KindBadge } from "@/components/kind-badge";
 
 export const revalidate = 600;
 
@@ -45,7 +46,12 @@ function Row({ item }: { item: FeatureItem }) {
         </span>
         {item.note && <span className="mt-0.5 block text-xs text-fg-subtle">{item.note}</span>}
       </span>
-      {item.label && <span className="max-w-[40%] shrink-0 truncate text-xs text-fg-muted">{item.label}</span>}
+      {item.label &&
+        (isKindLabel(item.label) ? (
+          <KindBadge className="mt-0.5" label={item.label} />
+        ) : (
+          <span className="max-w-[40%] shrink-0 truncate text-xs text-fg-muted">{item.label}</span>
+        ))}
     </>
   );
   const cls = "group flex items-start gap-3 py-2.5";
