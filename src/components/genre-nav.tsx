@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { GenreIcon } from "./genre-icon";
 import { NavIcon } from "./nav-icons";
 
@@ -9,6 +10,12 @@ type Props = { genres: { slug: string; name: string }[] };
 
 export function GenreNav({ genres }: Props) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+  // 開いているタブが見えるよう、タブの列を横に動かす（左右になぞって切り替えたときも、今どこかが分かるように）
+  useEffect(() => {
+    const active = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    active?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [pathname]);
   const items = [
     // トップ・ランキング・まとめ記事は、スマホでは下のメニューにあるため PC でだけ出す
     { href: "/", label: "トップ", slug: null, featured: false, desktopOnly: true, icon: null },
@@ -24,7 +31,7 @@ export function GenreNav({ genres }: Props) {
     }),
   ];
   return (
-    <nav aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
+    <nav ref={navRef} aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
       {items.map((item) => {
         const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         const color = item.slug ? `var(--g-${item.slug})` : "var(--accent)";

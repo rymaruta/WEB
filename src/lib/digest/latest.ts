@@ -13,6 +13,8 @@ export type DigestSummary = {
   href: string;
   title: string;
   dateLabel: string;
+  /** 配信した時刻（ISO 文字列） */
+  publishedAt: string;
   items: { topicId: number; label: string; color: string; headline: string; point: string; followup: boolean }[];
 };
 
@@ -50,5 +52,20 @@ export async function getLatestDigest(now = new Date()): Promise<DigestSummary |
     ];
   });
   if (items.length === 0) return null;
-  return { slot, href: `/digest/${edition.date}/${slot.toLowerCase()}`, title: SLOTS[slot].title, dateLabel: jstDateLabel(edition.date), items };
+  return {
+    slot,
+    href: `/digest/${edition.date}/${slot.toLowerCase()}`,
+    title: SLOTS[slot].title,
+    dateLabel: jstDateLabel(edition.date),
+    publishedAt: (edition.publishedAt ?? edition.scheduledAt).toISOString(),
+    items,
+  };
+}
+
+/** 配信してからこの時間までは、トップの一番上に出す（それより後は「いま話題」の下に回す） */
+const TOP_HOURS = 3;
+
+/** 配信したばかりの回か（トップの一番上に出すか） */
+export function isFreshDigest(d: Pick<DigestSummary, "publishedAt">, now = new Date()): boolean {
+  return now.getTime() - new Date(d.publishedAt).getTime() < TOP_HOURS * 3_600_000;
 }

@@ -3,8 +3,8 @@ import { DigestSummaryCard } from "@/components/digest-summary";
 import { Fold } from "@/components/fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
-import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-card";
-import { getLatestDigest } from "@/lib/digest/latest";
+import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
+import { getLatestDigest, isFreshDigest } from "@/lib/digest/latest";
 import { formatNumber } from "@/lib/format";
 import { serializeJsonLd, siteJsonLd } from "@/lib/structured-data";
 import Link from "next/link";
@@ -19,7 +19,7 @@ const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
 export default async function HomePage() {
   const [genres, headline, mostRead, buzz, latest, stats, companies, digest] = await Promise.all([
     getGenres(),
-    getTrendingTopics({ minPublishers: 2, take: 11 }),
+    getTrendingTopics({ minPublishers: 2, take: 9 }),
     getMostRead(8),
     getSocialBuzz(8),
     getLatestArticles(8),
@@ -33,22 +33,22 @@ export default async function HomePage() {
   const sections = await Promise.all(
     genres.map(async (genre) => ({
       genre,
-      topics: await getTrendingTopics({ genreId: genre.id, take: 6, excludeIds: headlineIds }),
+      topics: await getTrendingTopics({ genreId: genre.id, take: 5, excludeIds: headlineIds }),
     })),
   );
 
   // 一番上は、まとめ記事があり、多くの読者に関わるジャンルの話題を優先する（なければ話題度の1位）
   const lead = headline.find((t) => t.aiTitle && HERO_GENRES.has(t.genre.slug)) ?? headline[0];
   const others = headline.filter((t) => t !== lead);
-  const tiles = others.slice(0, 4);
-  const rest = others.slice(4);
+  // 配信したばかりの回は一番上に。時間がたった回は「いま話題」の下に回し、開いてすぐ今のニュースが見えるようにする
+  const digestOnTop = digest ? isFreshDigest(digest) : false;
 
   return (
     <div className="space-y-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
       {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
       <SinceLastVisit />
-      {digest && <DigestSummaryCard digest={digest} />}
+      {digest && digestOnTop && <DigestSummaryCard digest={digest} />}
       <section aria-labelledby="trending">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -69,7 +69,16 @@ export default async function HomePage() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 space-y-4">
               <HeroTopic topic={lead} />
-              {/* スマホではサイドバーが一番下になるため、ランキングをトップ記事の直後に出す */}
+              {/* 2本目からは写真の小さい詰めた並びにして、スマホでも一目で数本見えるようにする */}
+              {others.length > 0 && (
+                <div className="card divide-y divide-border px-4">
+                  {others.map((t) => (
+                    <TopicCard key={t.id} topic={t} />
+                  ))}
+                </div>
+              )}
+              {digest && !digestOnTop && <DigestSummaryCard digest={digest} />}
+              {/* スマホではサイドバーが一番下になるため、ランキングを話題の一覧の後に出す */}
               <section className="card p-4 lg:hidden">
                 {mostRead.length > 0 ? (
                   <>
@@ -83,18 +92,6 @@ export default async function HomePage() {
                   </>
                 )}
               </section>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {tiles.map((t) => (
-                  <TopicTile key={t.id} topic={t} />
-                ))}
-              </div>
-              {rest.length > 0 && (
-                <div className="card divide-y divide-border px-4">
-                  {rest.map((t) => (
-                    <TopicCard key={t.id} topic={t} />
-                  ))}
-                </div>
-              )}
             </div>
             <aside className="min-w-0 space-y-6">
               {mostRead.length > 0 && (
