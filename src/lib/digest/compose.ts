@@ -134,7 +134,7 @@ export type IndexCard = {
   dateLabel: string;
   time: string;
   mainCount: number;
-  /** 昼は番号の代わりに時刻を出す */
+  /** 番号の代わりに時刻を出すか（今は朝・昼・夜とも番号でそろえるため使わない） */
   timed: boolean;
   /** detail は見出しの下に添える一番の要点（続報は「現在」） */
   entries: { label: string; color: string; text: string; detail: string; time: string; role: "MAIN" | "FOLLOWUP" }[];
@@ -216,7 +216,7 @@ export function buildCards(view: EditionView): Card[] {
     dateLabel: jstFullDateLabel(view.date),
     time,
     mainCount: main.length,
-    timed: view.slot === "LUNCH",
+    timed: false,
     entries: view.entries.map((e) => ({
       label: e.role === "FOLLOWUP" ? "続報" : label(e),
       color: e.role === "FOLLOWUP" ? FOLLOWUP_COLOR : color(e),
