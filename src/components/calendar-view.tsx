@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CALENDAR_CATEGORIES, CALENDAR_COLORS, CALENDAR_LABELS, type CalendarCategory, type CalendarItem } from "@/lib/calendar-kinds";
 
 /** 選んだ分野は、その人の端末（localStorage）に覚えておく */
@@ -57,6 +57,15 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
     write([...next].join(","));
   };
   const icsPath = `/calendar.ics${selected.size ? `?c=${[...selected].join(",")}` : ""}`;
+  const calendarName = selected.size ? `ぜんぶカレンダー（${[...selected].map((c) => CALENDAR_LABELS[c]).join("・")}）` : "ぜんぶカレンダー";
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [links, setLinks] = useState<{ apple: string; google: string } | null>(null);
+  // 購読の形で追加する（予定を1件ずつ取り込むのではなく、まとめて消せる別のカレンダーにする）
+  const openAdd = () => {
+    const webcal = `webcal://${location.host}${icsPath}`;
+    setLinks({ apple: webcal, google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}` });
+    dialogRef.current?.showModal();
+  };
 
   return (
     <div className="space-y-4">
@@ -85,12 +94,47 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
           )}
         </div>
         <p className="text-xs text-fg-muted">
-          <a href={icsPath} className="font-bold text-accent hover:underline">
+          <button type="button" onClick={openAdd} className="font-bold text-accent hover:underline">
             スマホのカレンダーに追加
-          </a>
+          </button>
           <span className="ml-1 text-fg-subtle">（{selected.size ? "選んだ分野だけ。" : ""}予定は自動で増えます）</span>
         </p>
       </div>
+
+      {/* 追加の前に、何が起きるかを見せて確かめる（押してすぐ大量の予定が入らないように） */}
+      <dialog
+        ref={dialogRef}
+        aria-labelledby="add-calendar-title"
+        className="m-auto w-[min(92vw,26rem)] rounded-2xl border border-border bg-surface p-5 text-fg backdrop:bg-black/50"
+        onClick={(e) => e.target === e.currentTarget && dialogRef.current?.close()}
+      >
+        <h2 id="add-calendar-title" className="text-lg font-black">
+          スマホのカレンダーに追加しますか？
+        </h2>
+        <ul className="mt-3 space-y-2 text-sm leading-relaxed">
+          <li>
+            ・「<span className="font-bold">{calendarName}</span>」という<span className="font-bold">別のカレンダー</span>として追加されます。いまお使いのカレンダーの予定は変わりません。
+          </li>
+          <li>・これから90日分の予定が入り、新しい予定は自動で増えます。</li>
+          <li>・やめたいときは、カレンダーのアプリでこのカレンダーを削除すれば、まとめて消えます。</li>
+        </ul>
+        <div className="mt-5 space-y-2">
+          <a href={links?.apple} className="block rounded-lg bg-accent py-2.5 text-center text-sm font-bold text-accent-fg hover:opacity-90">
+            iPhone・Mac のカレンダーに追加
+          </a>
+          <a
+            href={links?.google}
+            target="_blank"
+            rel="noopener"
+            className="block rounded-lg border border-accent py-2.5 text-center text-sm font-bold text-accent hover:bg-accent-soft"
+          >
+            Google カレンダー（Android）に追加
+          </a>
+          <button type="button" onClick={() => dialogRef.current?.close()} className="block w-full rounded-lg border border-border py-2.5 text-sm font-bold text-fg-muted hover:text-fg">
+            キャンセル
+          </button>
+        </div>
+      </dialog>
 
       {visible.length === 0 ? (
         <p className="card p-6 text-sm text-fg-subtle">この期間の予定はまだありません。</p>

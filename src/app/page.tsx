@@ -1,4 +1,5 @@
 import { ArticleRanking } from "@/components/article-ranking";
+import { CalendarPreview } from "@/components/calendar-preview";
 import { DigestSummaryCard } from "@/components/digest-summary";
 import { FeatureNav } from "@/components/feature-nav";
 import { Fold } from "@/components/fold";
@@ -6,6 +7,7 @@ import { SideFold } from "@/components/side-fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
+import { getCalendar, jstDate } from "@/lib/calendar";
 import { getLatestDigest, isFreshDigest } from "@/lib/digest/latest";
 import { formatNumber } from "@/lib/format";
 import { serializeJsonLd, siteJsonLd } from "@/lib/structured-data";
@@ -19,7 +21,7 @@ export const revalidate = 60;
 const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
 
 export default async function HomePage() {
-  const [genres, headline, mostRead, buzz, latest, stats, companies, digest] = await Promise.all([
+  const [genres, headline, mostRead, buzz, latest, stats, companies, digest, calendar] = await Promise.all([
     getGenres(),
     getTrendingTopics({ minPublishers: 2, take: 9 }),
     getMostRead(8),
@@ -29,6 +31,8 @@ export default async function HomePage() {
     getTopCompanies(7, 8),
     // 配信の失敗でトップ全体を止めない
     getLatestDigest().catch(() => null),
+    // ぜんぶカレンダーの入口（この1週間）。失敗してもトップは出す
+    getCalendar(new Date(), 7).catch(() => null),
   ]);
 
   const headlineIds = headline.map((t) => t.id);
@@ -117,6 +121,11 @@ export default async function HomePage() {
           <p className="card p-6 text-sm text-fg-subtle">ニュースを準備しています。しばらくしてから再度お越しください。</p>
         )}
       </section>
+
+      {/* ぜんぶカレンダーの入口。今日と明日の予定を見せる（このサイトにしかない一覧なので、ニュースのすぐ下に置く） */}
+      {calendar && calendar.items.length > 0 && (
+        <CalendarPreview today={calendar.from} tomorrow={jstDate(new Date(), 1)} items={calendar.items} weekCount={calendar.items.length} />
+      )}
 
       {/* 特集への入口（今月・来月に始まること・発売のゲーム・始まるアニメの一覧） */}
       <section className="card px-4 py-3" aria-labelledby="home-features">
