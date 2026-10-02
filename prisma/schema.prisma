@@ -84,6 +84,10 @@ model Topic {
   genre          Genre     @relation(fields: [genreId], references: [id])
   /// AI がまとめ記事を書くときに判定したジャンル（あれば媒体の欄から決めたジャンルより優先する）
   aiGenreId      Int?
+  /// 記事作成の定期処理が、内容からジャンルを判定し直したか（src/lib/topics/genre-check.ts）
+  aiGenreChecked Boolean   @default(false)
+  /// 読み物でない告知（占い・求人・IR 説明会・自治体のお知らせなど）。一覧には出さない
+  aiNotNews      Boolean   @default(false)
   articleCount   Int       @default(0)
   publisherCount Int       @default(0)
   score          Float     @default(0)
