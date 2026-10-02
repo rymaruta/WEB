@@ -214,7 +214,8 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     if (c.kind === "FOLLOWUP") return s.score < MIN_SCORE ? `続報の点数不足（${s.score}）` : "続報の枠の上限";
     if (s.score < FILL_MIN_SCORE) return `点数不足（${s.score}）`;
     if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return "ゴシップ・宣伝（埋め合わせに使わない）";
-    return misfit(main, c, true) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
+    // 基準点以上の候補はふだんの上限（同じ分野2本・芸能とスポーツ合わせて1本）で、埋め合わせの候補はゆるめた上限で調べる
+    return misfit(main, c, s.score < MIN_SCORE) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
   };
   const rejected = scored
     .filter((s) => !chosen.has(s.id))
