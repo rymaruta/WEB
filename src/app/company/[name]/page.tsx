@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FollowButton } from "@/components/follow-button";
 import { Pagination, parsePage } from "@/components/pagination";
-import { TopicList } from "@/components/topic-card";
+import { HeroCarousel } from "@/components/hero-carousel";
+import { HeroTopic, TopicList } from "@/components/topic-card";
 import { companyPath, readCompanyParam } from "@/lib/company";
 import { formatNumber } from "@/lib/format";
 import { getCompanyEvents, getCompanyTopics, getRelatedCompanies } from "@/lib/queries";
@@ -36,6 +37,8 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
     page === 1 ? getRelatedCompanies(name) : [],
   ]);
   if (items.length === 0) notFound();
+  const heroes = page === 1 ? items.filter((t) => t.publisherCount > 1).slice(0, 3) : [];
+  const heroIds = new Set(heroes.map((t) => t.id));
   const md = (d: Date) => {
     const j = new Date(d.getTime() + 9 * 3_600_000);
     return `${j.getUTCMonth() + 1}/${j.getUTCDate()}`;
@@ -67,6 +70,16 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
       <p className="mt-1 mb-2 text-sm text-fg-muted">
         {name}を取り上げた話題 {formatNumber(total)}件（新しい順）。各社の報道をまとめた記事を読めます。
       </p>
+      {/* 1ページ目は、複数の媒体が報じた最近の話題を写真の大きな枠で横にスライドして見せる */}
+      {heroes.length > 0 && (
+        <div className="mt-4">
+          <HeroCarousel label={`${name}の大きな話題`}>
+            {heroes.map((t, i) => (
+              <HeroTopic key={t.id} topic={t} priority={i === 0} label={`${name}の話題`} />
+            ))}
+          </HeroCarousel>
+        </div>
+      )}
       {events.length > 0 && (
         <section aria-labelledby="company-events" className="my-4 rounded-xl border border-border p-4">
           <h2 id="company-events" className="mb-2 text-sm font-black">
@@ -107,7 +120,7 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
         </section>
       )}
       <h2 className="mt-4 text-sm font-black">ニュース</h2>
-      <TopicList topics={items} />
+      <TopicList topics={items.filter((t) => !heroIds.has(t.id))} />
       <Pagination
         page={page}
         totalPages={Math.min(50, Math.ceil(total / PER_PAGE))}
