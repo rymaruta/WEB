@@ -112,6 +112,12 @@ model Topic {
   aiGamePlatforms String[]  @default([])
   /// ゲームの情報を読み取る形式で書いたか（以前の記事を書き直す対象を見分ける）
   aiGameChecked   Boolean   @default(false)
+  /// 暮らしに関わる変更（値上げ・制度の開始・サービスの終了など）。「◯月から変わること」に使う
+  aiChangeTitle   String?
+  /// 変更が始まる日（YYYY-MM-DD か YYYY-MM）
+  aiChangeDate    String?
+  aiChangeKind    String?
+  aiChangeChecked Boolean   @default(false)
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?
@@ -131,6 +137,7 @@ model Topic {
   @@index([aiGeneratedAt(sort: Desc)])
   @@index([aiCompanies], type: Gin)
   @@index([aiGameRelease])
+  @@index([aiChangeDate])
 }
 
 // ---------------------------------------------------------------------------
