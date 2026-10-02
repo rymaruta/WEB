@@ -16,6 +16,8 @@ export const JOBS: Job[] = [
   { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 10, envKey: "BREAKING_INTERVAL_MINUTES" },
   // Bluesky への同時投稿の再試行と、Threads のトークンの延長（src/lib/digest/crosspost.ts）。認証情報がなければ何もしない
   { name: "crosspost", path: "/api/cron/crosspost", intervalMinutes: 10, envKey: "CROSSPOST_INTERVAL_MINUTES" },
+  // YouTube の新着動画と再生回数の取り込み（src/lib/youtube.ts）
+  { name: "youtube", path: "/api/cron/youtube", intervalMinutes: 30, envKey: "YOUTUBE_INTERVAL_MINUTES" },
 ];
 
 /** 環境変数の値（分）を読む。0 以下・数値でない場合は既定値。"off" ならジョブを止める */
