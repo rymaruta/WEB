@@ -29,6 +29,8 @@ export async function findDueTopics(limit: number, now = Date.now()) {
     where: {
       lastSeenAt: { gte: new Date(now - 24 * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
+      // 別の話題にまとめたトピック（記事が残っていない）は書かない
+      mergedIntoId: null,
       OR: [{ aiAttemptedAt: null }, { aiAttemptedAt: { lt: new Date(now - REGENERATE_AFTER_MS) } }],
     },
     orderBy: { score: "desc" },
@@ -51,12 +53,26 @@ export async function findDueTopics(limit: number, now = Date.now()) {
   return [...due, ...(await findUpgradeTopics(limit - due.length, now, due.map((t) => t.id)))];
 }
 
+/** まだまとめ記事のない、書くべきトピックの数（定期処理が書く本数を決める目安） */
+export function countNewDueTopics(now = Date.now()) {
+  return prisma.topic.count({
+    where: {
+      lastSeenAt: { gte: new Date(now - 24 * 3_600_000) },
+      publisherCount: { gte: MIN_PUBLISHERS },
+      aiGeneratedAt: null,
+      mergedIntoId: null,
+      OR: [{ aiAttemptedAt: null }, { aiAttemptedAt: { lt: new Date(now - RETRY_AFTER_MS) } }],
+    },
+  });
+}
+
 /** 今の形式になる前に書いた記事（更新の記録がないもの）のうち、今も動きのある話題（話題度の高い順） */
 export function findUpgradeTopics(limit: number, now = Date.now(), excludeIds: number[] = []) {
   return prisma.topic.findMany({
     where: {
       id: { notIn: excludeIds },
       aiGeneratedAt: { not: null },
+      mergedIntoId: null,
       // 今の形式になる前の記事（更新の記録がない）か、ゲームの情報を読み取る前のゲームの記事
       OR: [{ aiHistory: { equals: Prisma.DbNull } }, { aiGameChecked: false, genre: { slug: "game" } }],
       lastSeenAt: { gte: new Date(now - UPGRADE_WINDOW_HOURS * 3_600_000) },
