@@ -8,6 +8,7 @@ import {
   AdminError,
   addItem,
   approveEdition,
+  bulkConfirm,
   confirmItem,
   editItem,
   moveItem,
@@ -66,6 +67,23 @@ export async function removeAction(editionId: string, storyId: string) {
 
 export async function addAction(editionId: string, storyId: string) {
   return run(editionId, () => addItem(editionId, storyId), "追加しました");
+}
+
+/** 要確認のニュースをまとめて点検し、問題のないものを確認済みにする */
+export async function bulkConfirmAction(editionId: string): Promise<ActionState> {
+  await requireAdmin();
+  try {
+    const { confirmed, remaining } = await bulkConfirm(editionId);
+    revalidatePath(`/admin/editions/${editionId}`);
+    revalidatePath("/admin");
+    if (remaining.length === 0) return { ok: confirmed > 0 ? `${confirmed}本を確認済みにしました。残りはありません` : "確認が必要なニュースはありません" };
+    return {
+      ok: `${confirmed}本を確認済みにしました。次の${remaining.length}本は中身に気になる点があるため、確かめてください：${remaining.map((r) => `「${r.headline}」（${r.reasons.join("・")}）`).join(" ")}`,
+    };
+  } catch (e) {
+    if (e instanceof AdminError) return { error: e.message };
+    throw e;
+  }
 }
 
 export async function confirmAction(editionId: string, storyId: string, confirmed: boolean) {

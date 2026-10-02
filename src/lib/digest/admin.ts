@@ -131,6 +131,43 @@ export async function confirmItem(editionId: string, storyId: string, confirmed:
   await log(editionId, confirmed ? "confirm" : "unconfirm", undefined, undefined, storyId);
 }
 
+/**
+ * 「まとめて確認」で、人が読まなくても確認済みにしてよいか。
+ * 要確認の理由が「慎重に扱う分野」（政治・事件など、話題の種類）だけで、文の中身の問題
+ * （資料にない語・媒体間の食い違い・確からしさが低い・文字数・出典の番号がない・写しすぎ）がないもの。
+ * ゴシップは中身に関係なく人が確かめる
+ */
+export function bulkConfirmable(s: { status: string; statusNote: string | null; assessment: unknown }): boolean {
+  if (s.status !== "REVIEW_REQUIRED") return false;
+  if ((s.assessment as { gossip?: boolean } | null)?.gossip) return false;
+  const reasons = (s.statusNote ?? "").split("\n").filter(Boolean);
+  return reasons.length > 0 && reasons.every((r) => r.startsWith("慎重に扱う分野"));
+}
+
+/** 要確認のニュースをまとめて点検し、問題のないものを確認済みにする。残ったものは理由つきで返す */
+export async function bulkConfirm(editionId: string) {
+  const e = await editableEdition(editionId);
+  const stories = await prisma.story.findMany({
+    where: { id: { in: e.items.map((i) => i.storyId) } },
+    select: { id: true, status: true, statusNote: true, assessment: true, headline: true },
+  });
+  const byId = new Map(stories.map((st) => [st.id, st]));
+  let confirmed = 0;
+  const remaining: { headline: string; reasons: string[] }[] = [];
+  for (const row of e.items) {
+    const st = byId.get(row.storyId);
+    if (!st || st.status !== "REVIEW_REQUIRED" || row.confirmed) continue;
+    if (bulkConfirmable(st)) {
+      await prisma.editionItem.update({ where: { editionId_position: { editionId, position: row.position } }, data: { confirmed: true } });
+      await log(editionId, "confirm", undefined, { by: "bulk" }, row.storyId);
+      confirmed++;
+    } else {
+      remaining.push({ headline: st.headline.join(""), reasons: (st.statusNote ?? "").split("\n").filter((r) => r && !r.startsWith("慎重に扱う分野")) });
+    }
+  }
+  return { confirmed, remaining };
+}
+
 export async function setPostText(editionId: string, lines: string[] | null) {
   const e = await editableEdition(editionId);
   const notes = (e.notes ?? {}) as Record<string, unknown>;

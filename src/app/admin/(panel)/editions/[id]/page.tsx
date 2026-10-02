@@ -8,6 +8,7 @@ import { CATEGORY_LABELS, type Category } from "@/lib/stories/schema";
 import {
   addAction,
   approveAction,
+  bulkConfirmAction,
   confirmAction,
   editAction,
   moveAction,
@@ -110,7 +111,14 @@ export default async function EditionPage({ params }: PageProps<"/admin/editions
                 おまかせ投稿です。確認しなくても {jstTime(edition.scheduledAt)} に自動で投稿されます。気になる点があるときだけ直してください。
               </p>
             )}
-            {needReview > 0 && <p className="text-sm font-bold text-accent">要確認のニュースが {needReview} 本あります。内容を確かめて「確認した」を押してください（確認されないままだと、この回は見送りになります）。</p>}
+            {needReview > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-bold text-accent">
+                  要確認のニュースが {needReview} 本あります。「まとめて確認」を押すと、中身に問題がないものは確認済みになります。残ったものだけ内容を確かめて「確認した」を押してください（確認されないままだと、この回は見送りになります）。
+                </p>
+                <ActionButton action={bulkConfirmAction.bind(null, id)} label="まとめて確認" tone="primary" />
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {pastTime ? (
                 <ActionButton
