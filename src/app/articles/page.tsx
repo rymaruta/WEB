@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Pagination, parsePage } from "@/components/pagination";
-import { TopicTile } from "@/components/topic-card";
+import { TopicCard } from "@/components/topic-card";
 import { formatNumber } from "@/lib/format";
 import { getAiArticles } from "@/lib/queries";
 
@@ -27,9 +27,10 @@ export default async function ArticlesPage({ searchParams }: PageProps<"/article
       {items.length === 0 ? (
         <p className="card p-6 text-sm text-fg-subtle">まとめ記事は準備中です。大きな話題が集まると、ここに記事が追加されます。</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        // 写真の大きいカードだとスマホで1画面に1本しか入らないため、写真の小さい詰めた一覧にする
+        <div className="card divide-y divide-border px-4">
           {items.map((t) => (
-            <TopicTile key={t.id} topic={t} />
+            <TopicCard key={t.id} topic={t} />
           ))}
         </div>
       )}

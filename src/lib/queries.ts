@@ -308,9 +308,10 @@ export const getRisingTopics = cache(async (hours: number, take: number) => {
     )
     SELECT * FROM a
     WHERE "topicId" IN (SELECT "topicId" FROM a WHERE first >= ${since(hours)} GROUP BY "topicId" HAVING COUNT(*) >= 2)`;
-  const pool = [...countReports(rows, since(hours))]
-    // 転載を除いて、直近に2つ以上の報道がある話題だけ
-    .filter(([, c]) => c.recent >= 2)
+  const counted = [...countReports(rows, since(hours))];
+  // 転載を除いて、直近に3つ以上の報道がある話題を優先する（2媒体だけの小さな話題が上に来ないように）。足りなければ2つ以上まで広げる
+  const strong = counted.filter(([, c]) => c.recent >= 3);
+  const pool = (strong.length >= take ? strong : counted.filter(([, c]) => c.recent >= 2))
     .map(([id, c]) => ({ id, recent: c.publishers, reports: c.recent, before: c.before }))
     // 新しい報道の数に、それ以前と比べた伸びを加える（以前から大きい話題より、いま広がっている話題を上に）
     .map((r) => ({ ...r, rise: r.reports + r.reports / (r.before + 1) }))
