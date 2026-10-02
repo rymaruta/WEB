@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { isLocked, recordFailure, recordSuccess } from "@/lib/admin/rate-limit";
-import { createToken, passwordMatches, verifyToken } from "@/lib/admin/token";
+import { createToken, passwordMatches, SESSION_DAYS, verifyToken } from "@/lib/admin/token";
 import { checkOverride } from "@/lib/digest/check";
 
 const KEY = "x".repeat(40);
@@ -13,7 +13,7 @@ describe("管理画面のログイン", () => {
     const now = Date.parse("2026-10-01T00:00:00Z");
     const t = createToken(now, KEY)!;
     expect(verifyToken(t, now + 1000, KEY)).toBe(true);
-    expect(verifyToken(t, now + 15 * 86_400_000, KEY)).toBe(false);
+    expect(verifyToken(t, now + (SESSION_DAYS + 1) * 86_400_000, KEY)).toBe(false);
     expect(verifyToken(t, now, "y".repeat(40))).toBe(false);
     expect(verifyToken(t.replace(/.$/, (c) => (c === "A" ? "B" : "A")), now, KEY)).toBe(false);
     expect(verifyToken(undefined, now, KEY)).toBe(false);

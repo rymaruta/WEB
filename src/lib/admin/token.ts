@@ -3,7 +3,8 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 /** 管理画面のログインに使う署名付きトークンとパスワード照合。Next.js に依存しない */
 
 export const SESSION_COOKIE = "zn_admin";
-export const SESSION_DAYS = 14;
+/** ログインを保つ日数（運営者1人が自分のスマホで使う前提） */
+export const SESSION_DAYS = 60;
 
 function secret(): string | null {
   const s = process.env.ADMIN_SESSION_SECRET;
@@ -48,4 +49,36 @@ export function passwordMatches(given: string): boolean {
   const a = createHash("sha256").update(given).digest();
   const b = createHash("sha256").update(expected).digest();
   return timingSafeEqual(a, b);
+}
+
+// ---------------------------------------------------------------------------
+// メールのリンク用の、署名付き・期限つきの鍵（ログインしなくても、その出来事の速報だけを操作できる）
+// ---------------------------------------------------------------------------
+
+/** メールのリンクの有効時間 */
+export const ACTION_HOURS = 6;
+
+const actionKey = (key: string) => `${key}:breaking-action`;
+
+/** 速報の候補1件を操作するための鍵を作る */
+export function createActionToken(storyId: string, now = Date.now(), key = secret()): string | null {
+  if (!key || !/^[a-z0-9]{10,40}$/.test(storyId)) return null;
+  const payload = Buffer.from(JSON.stringify({ sid: storyId, exp: now + ACTION_HOURS * 3_600_000 })).toString("base64url");
+  return `${payload}.${sign(payload, actionKey(key))}`;
+}
+
+/** 鍵を確かめ、操作できる出来事の ID を返す（期限切れ・改ざんは null） */
+export function verifyActionToken(token: string | undefined, now = Date.now(), key = secret()): string | null {
+  if (!token || !key) return null;
+  const [payload, sig] = token.split(".");
+  if (!payload || !sig) return null;
+  const expected = Buffer.from(sign(payload, actionKey(key)));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  try {
+    const { sid, exp } = JSON.parse(Buffer.from(payload, "base64url").toString()) as { sid: string; exp: number };
+    return typeof exp === "number" && exp > now && typeof sid === "string" && /^[a-z0-9]{10,40}$/.test(sid) ? sid : null;
+  } catch {
+    return null;
+  }
 }
