@@ -1,23 +1,41 @@
 /**
- * 「いま一斉に報じられている出来事」の判定（速報の候補）。解析の順番・速報の候補の知らせに使う。
- * - 勢い: 最初の報道から1時間以内に4媒体以上（有名人の結婚発表のように、短時間に各社が追いかける出来事）
- * - 規模: 最初の報道から3時間以内に5媒体以上
+ * 「速報になりうる大きな出来事」の判定。解析の順番・速報の候補の知らせに使う。
+ * 速さを優先し、媒体がそろうのを待たない。次のどれかに当てはまる、最初の報道から3時間以内の出来事:
+ * - 言葉: 見出しに大きな出来事を表す言葉（結婚・死去・引退・逮捕・優勝・地震など）がある（1媒体でも）
+ * - 勢い: 最初の報道から1時間以内に4媒体以上がそろった
+ * - 規模: 5媒体以上が報じた
+ * 言葉だけで選ぶと小さな話題も入るため、出すかどうかは人が知らせを見て決める
  */
 export const HOT = {
+  withinHours: 3,
   fast: { minPublishers: 4, withinMinutes: 60 },
-  wide: { minPublishers: 5, withinHours: 3 },
+  wide: { minPublishers: 5 },
 } as const;
 
-/** DB で先に絞る条件（この範囲の外は、どちらの判定にも当てはまらない） */
-export const HOT_QUERY = { minPublishers: HOT.fast.minPublishers, withinHours: HOT.wide.withinHours } as const;
+/** 大きな出来事を表す言葉（人の節目・事件・災害・記録） */
+const BIG_WORDS =
+  /結婚|離婚|婚約|入籍|破局|熱愛|妊娠|出産|第[1-9１-９一二三]子|死去|急死|逝去|訃報|亡くなっ|引退|電撃|逮捕|書類送検|活動休止|脱退|解散|辞任|退任|辞職|優勝|金メダル|世界一|世界新|日本新|地震|津波|噴火|緊急事態|運転見合わせ|大規模障害/;
+/** 言葉が入っていても、大きな出来事ではない言い方 */
+const NOT_BIG = /結婚式場|婚活|優勝候補|優勝争い|引退試合|地震対策|地震保険|防災|ランキング|特集|まとめ|PR|セール/;
 
-export type HotInput = { publisherCount: number; firstSeenAt: Date; lastSeenAt?: Date | null };
-
-export function isHot(t: HotInput, now = Date.now()): boolean {
-  const age = now - t.firstSeenAt.getTime();
-  if (age < 0 || age > HOT.wide.withinHours * 3_600_000) return false;
-  if (t.publisherCount >= HOT.wide.minPublishers) return true;
-  // 勢いの判定は、1時間以内に媒体がそろったかで見る（最後の報道の時刻があれば、それが1時間以内か）
-  const spread = t.lastSeenAt ? t.lastSeenAt.getTime() - t.firstSeenAt.getTime() : age;
-  return t.publisherCount >= HOT.fast.minPublishers && spread <= HOT.fast.withinMinutes * 60_000;
+export function bigWord(title: string): string | null {
+  if (NOT_BIG.test(title)) return null;
+  return title.match(BIG_WORDS)?.[0] ?? null;
 }
+
+export type HotInput = { title?: string | null; publisherCount: number; firstSeenAt: Date; lastSeenAt?: Date | null };
+
+/** 速報になりうる理由（当てはまらなければ null） */
+export function hotReason(t: HotInput, now = Date.now()): string | null {
+  const age = now - t.firstSeenAt.getTime();
+  if (age < 0 || age > HOT.withinHours * 3_600_000) return null;
+  const word = t.title ? bigWord(t.title) : null;
+  if (word) return `「${word}」`;
+  if (t.publisherCount >= HOT.wide.minPublishers) return `${t.publisherCount}媒体が報道`;
+  // 勢いは、1時間以内に媒体がそろったかで見る（最後の報道の時刻があれば、最初の報道からそこまでの時間）
+  const spread = t.lastSeenAt ? t.lastSeenAt.getTime() - t.firstSeenAt.getTime() : age;
+  if (t.publisherCount >= HOT.fast.minPublishers && spread <= HOT.fast.withinMinutes * 60_000) return `1時間で${t.publisherCount}媒体が報道`;
+  return null;
+}
+
+export const isHot = (t: HotInput, now = Date.now()) => hotReason(t, now) !== null;

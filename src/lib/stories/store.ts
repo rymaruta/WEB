@@ -2,7 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { isSameEvent, type Entities } from "./dedup";
-import { HOT_QUERY, isHot } from "./hot";
+import { HOT, isHot } from "./hot";
 import { pickFollowupMaterials, pickMaterials, type ArticleRef } from "./materials";
 import type { FollowupAnalysis, PreviousCoverage, Sourced, StoryAnalysis, StoryMaterial } from "./schema";
 import { verifyAnalysis, verifyFollowup } from "./verify";
@@ -45,8 +45,16 @@ export async function enqueueCandidates(limit: number, now = Date.now()): Promis
     take: limit,
     select: { id: true, score: true },
   });
+  // 速報になりうる出来事は、1媒体だけの報道でもすぐに候補にする（媒体がそろうのを待たない。src/lib/stories/hot.ts）
+  const recent = await prisma.topic.findMany({
+    where: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) }, publisherCount: { lt: MIN_PUBLISHERS }, mergedIntoId: null, aiNotNews: false, stories: { none: {} } },
+    orderBy: { firstSeenAt: "desc" },
+    take: 300,
+    select: { id: true, score: true, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true },
+  });
+  const hot = recent.filter((t) => isHot(t, now)).slice(0, limit);
   let created = 0;
-  for (const t of topics) {
+  for (const t of [...hot, ...topics]) {
     const picked = pickMaterials(await topicArticles(t.id));
     try {
       await prisma.story.create({ data: { topicId: t.id, score: t.score, sources: sourcesCreate(picked) } });
@@ -124,11 +132,11 @@ export async function findQueued(limit: number) {
     prisma.story.findMany({
       where: {
         status: "QUEUED",
-        topic: { publisherCount: { gte: HOT_QUERY.minPublishers }, firstSeenAt: { gte: new Date(now - HOT_QUERY.withinHours * 3_600_000) } },
+        topic: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) } },
       },
       orderBy: { topic: { publisherCount: "desc" } },
-      take: limit * 2,
-      select: { ...select, topic: { select: { ...select.topic.select, publisherCount: true, firstSeenAt: true, lastSeenAt: true } } },
+      take: 200,
+      select: { ...select, topic: { select: { ...select.topic.select, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } } },
     }).then((r) => r.filter((s) => isHot(s.topic, now)).slice(0, limit)),
   ]);
   const priority = (r: (typeof rows)[number]) => r.score * (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? HARD_NEWS_BOOST : 1);

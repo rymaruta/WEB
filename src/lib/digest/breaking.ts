@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
-import { HOT_QUERY, isHot } from "@/lib/stories/hot";
+import { HOT, hotReason } from "@/lib/stories/hot";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
 import { editionKey, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
@@ -216,26 +216,28 @@ export function draftHeadline(topic: { title: string; aiTitle: string | null }):
 
 export const HOT_RULES = {
   /** 24時間に知らせる上限 */
-  maxPerDay: 6,
+  maxPerDay: 10,
 } as const;
 
-type HotTopic = { id: number; publisherCount: number; firstSeenAt: Date; lastSeenAt?: Date | null };
+type HotTopic = { id: number; title?: string | null; publisherCount: number; firstSeenAt: Date; lastSeenAt?: Date | null };
 
 /** 知らせる出来事を選ぶ（まだ知らせていない・一斉に報じられている。判定は src/lib/stories/hot.ts） */
 export function pickHotTopics<T extends HotTopic>(topics: T[], notified: Set<number>, now: Date, sentToday: number): T[] {
   const room = Math.max(0, HOT_RULES.maxPerDay - sentToday);
   return topics
-    .filter((t) => !notified.has(t.id) && isHot(t, now.getTime()))
+    .filter((t) => !notified.has(t.id) && hotReason(t, now.getTime()) !== null)
     .sort((a, b) => b.publisherCount - a.publisherCount)
     .slice(0, room);
 }
 
 /** 速報の確認のたびに呼ぶ。多くの媒体が一斉に報じた出来事があれば、運営者に知らせる（深夜も知らせる） */
 export async function notifyHotTopics(now = new Date()) {
-  const since = new Date(now.getTime() - HOT_QUERY.withinHours * 3_600_000);
+  const since = new Date(now.getTime() - HOT.withinHours * 3_600_000);
   const [topics, logs] = await Promise.all([
     prisma.topic.findMany({
-      where: { firstSeenAt: { gte: since }, publisherCount: { gte: HOT_QUERY.minPublishers }, mergedIntoId: null, aiNotNews: false, stories: { some: { kind: "NEW" } } },
+      where: { firstSeenAt: { gte: since }, mergedIntoId: null, aiNotNews: false, stories: { some: { kind: "NEW" } } },
+      orderBy: { firstSeenAt: "desc" },
+      take: 500,
       select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true, stories: { where: { kind: "NEW" }, select: { id: true }, take: 1 } },
     }),
     prisma.eventLog.findMany({ where: { scope: "breaking.hot", at: { gte: new Date(now.getTime() - 24 * 3_600_000) } }, select: { ref: true } }),
@@ -250,7 +252,7 @@ export async function notifyHotTopics(now = new Date()) {
     const minutes = Math.max(1, Math.round((now.getTime() - t.firstSeenAt.getTime()) / 60_000));
     await notifyOwner({
       title: `速報の候補：${title}`.slice(0, 60),
-      what: `「${title}」を、最初の報道から${minutes}分で${t.publisherCount}媒体が報じています。`,
+      what: `「${title}」（${hotReason(t, now.getTime())}）。最初の報道から${minutes}分で、${t.publisherCount}媒体が報じています。`,
       action: "速報として出す場合は、管理画面の「速報を作る」で見出しを確かめて投稿してください。出さない場合は対応は不要です。",
     });
   }
