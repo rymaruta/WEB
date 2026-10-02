@@ -1,10 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["hnd1"],
+  "regions": [
+    "hnd1"
+  ],
+  "git": {
+    "deploymentEnabled": false
+  },
+  "github": {
+    "silent": true
+  },
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "zenbu-navi.vercel.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "zenbu-navi.vercel.app"
+        }
+      ],
       "destination": "https://zenbu-navi.com/:path*",
       "permanent": true
     }
