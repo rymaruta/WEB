@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import gold from "./fixtures/genre-gold.json";
-import { judgeGenre } from "@/lib/topics/genre-rules";
+import { confidentMove, judgeGenre } from "@/lib/topics/genre-rules";
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 const { decideTopicGenre, OVERRIDE_AI_CONFIDENCE, TOPIC_MIN_CONFIDENCE } = await import("@/lib/topics/genre-apply");
@@ -8,23 +8,44 @@ const { decideTopicGenre, OVERRIDE_AI_CONFIDENCE, TOPIC_MIN_CONFIDENCE } = await
 /** 本番と同じく、信頼度が足りない判定では今のジャンルのままにする */
 const applied = (r: Row) => {
   const j = judgeGenre(r.title, r.summary, r.current, r.publisher || undefined);
-  return j.moved && j.confidence >= TOPIC_MIN_CONFIDENCE ? j.genre : r.current;
+  return confidentMove(j, TOPIC_MIN_CONFIDENCE) ? j.genre : r.current;
 };
 
 type Row = { id: number; title: string; summary: string | null; publisher: string; current: string; gold: string };
 const rows = gold as Row[];
 
 describe("judgeGenre（検証データ）", () => {
-  it("人が付けた正解との一致率が 93% 以上（今の分類は 72.7%）", () => {
+  it("人が付けた正解との一致率が 88% 以上（今の分類は 72.7%。残りは AI の見直しで直す）", () => {
     const hit = rows.filter((r) => applied(r) === r.gold).length;
-    // 2026-10-02 時点: 220件中 206件（93.6%）。下がったら規則の変更を見直す
-    expect(hit / rows.length).toBeGreaterThanOrEqual(0.93);
+    // 2026-10-02 時点: 220件中 195件（88.6%）。誤って動かさないことを優先し、手がかり1つでは動かさない
+    expect(hit / rows.length).toBeGreaterThanOrEqual(0.88);
   });
 
-  it("今のジャンルが正しい話題を、ほとんど動かさない（誤って動かすのは 3% まで）", () => {
+  it("今のジャンルが正しい話題を動かさない", () => {
     const ok = rows.filter((r) => r.current === r.gold);
-    const broken = ok.filter((r) => applied(r) !== r.gold).length;
-    expect(broken / ok.length).toBeLessThanOrEqual(0.03);
+    expect(ok.filter((r) => applied(r) !== r.gold).map((r) => r.title)).toEqual([]);
+  });
+
+  it("動かした話題は、すべて正解のジャンルに動いている", () => {
+    const moved = rows.filter((r) => applied(r) !== r.current);
+    expect(moved.filter((r) => applied(r) !== r.gold).map((r) => r.title)).toEqual([]);
+  });
+});
+
+describe("judgeGenre（本番の試算で誤って動かした例。手がかり1つでは動かさない）", () => {
+  const cases: [string, string, string?][] = [
+    ["ハニー・ポッターの作者が語る、「女体化ドラコは韓国発」みたいな話があるが", "game"],
+    ["セ・リーグ優勝をお祝い！最大20枚無料のラーメンステーション「チャーシュー熱覇増」", "products"],
+    ["ASUS、約7年前発売の第8世代～第9世代Intel Core向けZ390/C246マザーボードのBIOSアップデート", "tech"],
+    ["「リンツ詰め放題の缶（5980円）に約15000円分詰める方法」を教えてくれる人", "life"],
+    ["悪夢は続く…。RAM不足、2028年にかけてさらに悪化する模様", "tech"],
+    ["【ドジャース】キム・ヘソン、PS「滑り込み」ロースター入りに期待...「リリーフ", "sports"],
+    ["『MUSIC LIFE』×『Motor Magazine』による「クルマと洋楽」", "products"],
+    ["久保建英が結婚発表 長友は「アモーレ」で祝福…代表メンバーがから祝福続々", "entertainment", "FOOTBALL ZONE"],
+  ];
+  it.each(cases)("%s は %s のまま", (title, genre, publisher) => {
+    const j = judgeGenre(title, null, genre, publisher);
+    expect(confidentMove(j, TOPIC_MIN_CONFIDENCE)).toBe(false);
   });
 });
 

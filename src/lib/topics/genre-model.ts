@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
 import { classifierText, isTrainingFeed, MIXED_FEEDS, reclassify, trainGenreModel, type GenreModel } from "./genre-classifier";
 import { loadLabeledArticles } from "./genre-eval";
-import { judgeGenre } from "./genre-rules";
+import { confidentMove, judgeGenre } from "./genre-rules";
 
-/** 記事単位で配信元のジャンルから変える信頼度の下限（ルール層の判定） */
-export const ARTICLE_MIN_CONFIDENCE = 0.35;
+/** 記事単位で配信元のジャンルから変える信頼度の下限（ルール層の判定。手がかりが2つ以上のとき） */
+export const ARTICLE_MIN_CONFIDENCE = 0.4;
 
 /** 学習し直す間隔。記事は日々増えるので、1日1回学習し直す */
 const RETRAIN_MS = 24 * 3_600_000;
@@ -42,7 +42,7 @@ export async function genreResolver() {
     const feedGenre = slugOf.get(source.genreId) ?? "";
     const base = MIXED_FEEDS.has(source.feedUrl) ? reclassify(model, source.feedUrl, feedGenre, classifierText(title, summary)) : feedGenre;
     const j = judgeGenre(title, summary, base, publisher);
-    const slug = j.moved && j.confidence >= ARTICLE_MIN_CONFIDENCE ? j.genre : base;
+    const slug = confidentMove(j, ARTICLE_MIN_CONFIDENCE) ? j.genre : base;
     return idOf.get(slug) ?? source.genreId;
   };
 }

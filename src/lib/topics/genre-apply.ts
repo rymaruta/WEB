@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { judgeGenre } from "./genre-rules";
+import { confidentMove, judgeGenre } from "./genre-rules";
 
 /**
  * 話題単位のジャンルの見直し（ルール層）。記事の多数決で決まった話題のジャンルを、話題の見出しと要約で確かめる。
@@ -14,8 +14,9 @@ import { judgeGenre } from "./genre-rules";
  * - recheck: ルールが AI と強く食い違ったため、AI の見直し待ち
  * - ai-final: 見直した AI の判定（確定）
  */
-export const TOPIC_MIN_CONFIDENCE = 0.35;
-export const OVERRIDE_AI_CONFIDENCE = 0.5;
+export const TOPIC_MIN_CONFIDENCE = 0.4;
+/** AI の判定の見直しを頼む下限（手がかり2つ以上で、この信頼度以上） */
+export const OVERRIDE_AI_CONFIDENCE = 0.7;
 
 export type TopicRow = {
   id: number;
@@ -48,20 +49,31 @@ export function decideTopicGenre(t: TopicRow): TopicDecision {
   if (t.aiGenreSlug) {
     const aiNote = startsWith(t.note, "ai") || startsWith(t.note, "ai-final");
     if (!j.moved) return { genre: current, note: aiNote ? null : note("ai+rule"), recheck: false };
-    if (j.confidence >= OVERRIDE_AI_CONFIDENCE && !startsWith(t.note, "ai-final")) {
+    if (j.evidence >= 2 && j.confidence >= OVERRIDE_AI_CONFIDENCE && !startsWith(t.note, "ai-final")) {
       return { genre: j.genre, note: note(`recheck ai=${t.aiGenreSlug}`), recheck: true };
     }
     return { genre: current, note: aiNote ? null : note(`ai=${t.aiGenreSlug} rule`), recheck: false };
   }
   // AI が「決めにくい」と答えた記録は残す（ジャンルはルールで決める）
   const keepAiNote = startsWith(t.note, "ai") || startsWith(t.note, "ai-final");
-  return j.moved && j.confidence >= TOPIC_MIN_CONFIDENCE
+  return confidentMove(j, TOPIC_MIN_CONFIDENCE)
     ? { genre: j.genre, note: keepAiNote ? null : note("rule"), recheck: false }
     : { genre: current, note: keepAiNote ? null : note(j.moved ? "vote" : "rule"), recheck: false };
 }
 
 /** 直近 hours 時間に動きのあった話題のジャンルを見直す。dryRun なら変えずに、変わる件数と例を返す */
-export async function applyTopicGenreRules(hours = 2, dryRun = false, limit = 2000) {
+export async function applyTopicGenreRules(hours = 2, dryRun = false, limit = 2000, opts: { revote?: boolean } = {}) {
+  // revote: 先に記事の多数決からジャンルを数え直す（ルールを変えたあと、前のルールで動かした話題を戻すため）
+  if (opts.revote && !dryRun) {
+    const { refreshTopics } = await import("./cluster");
+    const ids = await prisma.topic.findMany({
+      where: { lastSeenAt: { gte: new Date(Date.now() - hours * 3_600_000) }, mergedIntoId: null },
+      orderBy: { lastSeenAt: "desc" },
+      take: limit,
+      select: { id: true },
+    });
+    for (let i = 0; i < ids.length; i += 500) await refreshTopics(ids.slice(i, i + 500).map((t) => t.id));
+  }
   const [genres, topics] = await Promise.all([
     prisma.genre.findMany({ select: { id: true, slug: true } }),
     prisma.topic.findMany({
