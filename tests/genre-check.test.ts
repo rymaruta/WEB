@@ -6,10 +6,10 @@ vi.mock("@/lib/db", () => ({
     genre: { findMany: async () => [{ id: 1, slug: "business" }, { id: 2, slug: "entertainment" }, { id: 3, slug: "products" }] },
     topic: {
       findMany: async () => [
-        // 報道機関の記事がある話題
-        { id: 10, genreId: 1, articles: [{ id: 100 }] },
-        // 企業の発表だけの話題
-        { id: 11, genreId: 3, articles: [] },
+        // 2つの報道機関が報じた話題
+        { id: 10, genreId: 1, articles: [{ publisher: "A新聞" }, { publisher: "B通信" }] },
+        // 1つの媒体だけが載せた話題（占い・企業の発表など）
+        { id: 11, genreId: 3, articles: [{ publisher: "Cニュース" }] },
       ],
     },
     $executeRaw: (...args: unknown[]) => executeRaw(...(args as [])),
@@ -25,7 +25,7 @@ describe("saveGenreChecks", () => {
       { id: 11, genre: null, notNews: true },
       { id: 99, genre: "business", notNews: false },
     ]);
-    // 報道された話題（10）は「告知」と判定されても外さない。知らない話題（99）は無視する
+    // 2つ以上の報道機関が報じた話題（10）は「告知」と判定されても外さない。知らない話題（99）は無視する
     expect(r).toEqual({ saved: 2, moved: 1, hidden: 1, merged: 0 });
     expect(executeRaw).toHaveBeenCalledTimes(1);
   });
