@@ -50,7 +50,7 @@ export default async function ComparePage() {
         <h2 id="speed" className="text-lg font-black">
           速報ランキング<span className="ml-2 text-xs font-normal text-fg-subtle">この{RANK_DAYS}日間・3媒体以上が報じた{total}件の出来事</span>
         </h2>
-        <p className="mt-1 text-xs text-fg-subtle">その出来事を、このサイトが集めている媒体の中で最初に報じた回数です（企業の発表やSNSは除く）。</p>
+        <p className="mt-1 text-xs text-fg-subtle">その出来事を、このサイトが集めている媒体の中で最初に報じた回数です（企業の発表・SNS・ほかの媒体の記事を転載して配信するサービスは除く）。</p>
         {ranking.length === 0 ? (
           <p className="mt-3 text-sm text-fg-subtle">まだ集計できる出来事がありません。</p>
         ) : (

@@ -8,11 +8,15 @@ export type CoverageArticle = { id: number; publisher: string; publishedAt: Date
 /** 比べる対象。報道機関の記事だけ（企業の発表は当事者なので速さを比べない。SNS は報道ではない） */
 const isNews = (a: CoverageArticle) => a.kind === "NEWS";
 
+/** ほかの媒体の記事を転載して配信する媒体。転載は元の報道より後になるため、速さは比べない */
+export const AGGREGATORS = new Set(["news.livedoor.com", "news.mynavi.jp"]);
+const isOriginalNews = (a: CoverageArticle) => isNews(a) && !AGGREGATORS.has(a.publisher);
+
 /** 媒体ごとの最初の記事と、最初の報道からの経過（分） */
 export function coverageTimes(articles: CoverageArticle[]): Map<number, { minutes: number; first: boolean }> {
   const seen = new Set<string>();
   const firsts = [...articles]
-    .filter(isNews)
+    .filter(isOriginalNews)
     .sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id - b.id)
     .filter((a) => (seen.has(a.publisher) ? false : (seen.add(a.publisher), true)));
   const out = new Map<number, { minutes: number; first: boolean }>();
@@ -70,9 +74,9 @@ export function numberDiffs(articles: CoverageArticle[], label: (publisher: stri
     }));
 }
 
-/** 速報ランキング用：話題ごとに最初に報じた報道機関（報じた媒体が minPublishers 以上の話題だけ） */
+/** 速報ランキング用：話題ごとに最初に報じた報道機関（転載を除いて、報じた媒体が minPublishers 以上の話題だけ） */
 export function firstReporter(articles: CoverageArticle[], minPublishers = 3): string | null {
-  const news = articles.filter(isNews);
+  const news = articles.filter(isOriginalNews);
   if (new Set(news.map((a) => a.publisher)).size < minPublishers) return null;
   return [...news].sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id - b.id)[0]?.publisher ?? null;
 }

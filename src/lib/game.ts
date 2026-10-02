@@ -53,7 +53,10 @@ export function verifyDate(date: string | null, sourceText: string): string | nu
     const day = Number(d);
     if (day < 1 || day > 31) return null;
     const dayForms = [`${month}月${day}日`, `${month}/${day}`, `${y}/${mo}/${d}`, `${y}-${mo}-${d}`, `${y}.${month}.${day}`];
-    return dayForms.some((f) => text.includes(f)) ? date : null;
+    if (dayForms.some((f) => text.includes(f))) return date;
+    // 資料に月までしか書かれていない（その月の日付がどこにもない）のに日まで書いてきたときは、月までの精度に落として残す
+    if (new RegExp(`(^|[^\\d])${month}月\\d{1,2}日`).test(text)) return null;
+    return verifyDate(`${y}-${mo}`, text);
   }
   const monthForms = [`${y}年${month}月`, `${month}月`];
   return monthForms.some((f) => text.includes(f)) ? date : null;

@@ -60,3 +60,18 @@ describe("firstReporter", () => {
     expect(firstReporter(list.slice(0, 2))).toBeNull();
   });
 });
+
+describe("転載する媒体", () => {
+  it("速さの比較と速報ランキングから除く", () => {
+    const at = (m: number) => new Date(Date.UTC(2026, 9, 1, 0, m));
+    const arts = [
+      { id: 1, publisher: "news.livedoor.com", publishedAt: at(0), title: "x", kind: "NEWS" },
+      { id: 2, publisher: "a.jp", publishedAt: at(5), title: "x", kind: "NEWS" },
+      { id: 3, publisher: "b.jp", publishedAt: at(9), title: "x", kind: "NEWS" },
+      { id: 4, publisher: "c.jp", publishedAt: at(12), title: "x", kind: "NEWS" },
+    ];
+    expect(firstReporter(arts)).toBe("a.jp");
+    expect(coverageTimes(arts).get(2)).toEqual({ minutes: 0, first: true });
+    expect(coverageTimes(arts).has(1)).toBe(false);
+  });
+});

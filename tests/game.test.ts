@@ -22,6 +22,10 @@ describe("verifyDate", () => {
     expect(verifyDate("2027-03", src)).toBeNull();
     expect(verifyDate("来年", src)).toBeNull();
   });
+  it("資料に月までしかないのに日まで書いたときは、月までに落とす", () => {
+    expect(verifyDate("2026-10-01", "鳥貴族が10月から値上げ")).toBe("2026-10");
+    expect(verifyDate("2026-12-01", "ドコモが12月から最大550円値上げ")).toBe("2026-12");
+  });
 });
 
 describe("年だけの発売予定と表示", () => {

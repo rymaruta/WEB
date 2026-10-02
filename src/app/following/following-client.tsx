@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { FOLLOW_KIND_LABELS, followingHref, followParam, MAX_FOLLOWS } from "@/lib/follow-kinds";
+import { FOLLOW_KIND_LABELS, FOLLOW_KINDS, followingHref, followParam, MAX_FOLLOWS } from "@/lib/follow-kinds";
 import { getFollows, getFollowsOnServer, removeFollow, subscribeFollows, toggleFollow } from "@/lib/follows";
 
 /**
@@ -29,19 +29,26 @@ export function FollowManager() {
   const [msg, setMsg] = useState("");
   return (
     <div className="space-y-3">
-      {follows.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
-          {follows.map((f) => (
-            <li key={followParam(f)} className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft py-0.5 pr-1 pl-3 text-xs font-bold text-accent">
-              <span className="font-normal text-fg-subtle">{FOLLOW_KIND_LABELS[f.kind]}</span>
-              {f.label}
-              <button type="button" aria-label={`${f.label}のフォローをやめる`} onClick={() => removeFollow(f.kind, f.key)} className="rounded-full px-1.5 text-fg-subtle hover:text-accent">
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* 企業・チーム・国・キーワードを混ぜずに、種類ごとに分けて出す */}
+      {FOLLOW_KINDS.map((kind) => {
+        const list = follows.filter((f) => f.kind === kind);
+        if (list.length === 0) return null;
+        return (
+          <div key={kind}>
+            <h2 className="mb-1.5 text-xs font-bold text-fg-muted">{FOLLOW_KIND_LABELS[kind]}</h2>
+            <ul className="flex flex-wrap gap-2">
+              {list.map((f) => (
+                <li key={followParam(f)} className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft py-0.5 pr-1 pl-3 text-xs font-bold text-accent">
+                  {f.label}
+                  <button type="button" aria-label={`${f.label}のフォローをやめる`} onClick={() => removeFollow(f.kind, f.key)} className="rounded-full px-1.5 text-fg-subtle hover:text-accent">
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
       <form
         className="flex gap-2"
         onSubmit={(e) => {

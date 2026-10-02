@@ -25,7 +25,7 @@ import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { MarketBar } from "@/components/market-bar";
 import { Fold } from "@/components/fold";
 import { getMarketSnapshot } from "@/lib/market";
-import { tagPath } from "@/lib/tags";
+import { TagGroups } from "@/components/tag-groups";
 import {
   countTopics,
   getTopCompanies,
@@ -183,27 +183,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
         </Fold>
       )}
 
-      {tags.length > 0 && (
-        <Fold
-          id={`tags-${tagKind}`}
-          className="card px-4 py-3"
-          summary={<span className="text-xs font-bold text-fg-muted">{tagKind === "country" ? "国・地域" : "チーム"}</span>}
-        >
-        <nav aria-label={tagKind === "country" ? "国・地域で見る" : "チームで見る"} className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          {tags.map(({ tag, count }) => (
-            <Link
-              key={tag.slug}
-              href={tagPath(tag)}
-              prefetch={false}
-              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
-            >
-              {tag.name}
-              <span className="ml-1 font-normal text-fg-subtle">{count}</span>
-            </Link>
-          ))}
-        </nav>
-        </Fold>
-      )}
+      {tagKind && tags.length > 0 && <TagGroups kind={tagKind} counts={tags} />}
 
       {game && <GameHighlights {...game} />}
       {changes && <MonthlyChanges {...changes} />}
