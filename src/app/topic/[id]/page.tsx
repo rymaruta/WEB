@@ -26,6 +26,7 @@ import { getEventTimeline } from "@/lib/topics/timeline";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { kindTone } from "@/components/kind-badge";
 import { workKey, workPath } from "@/lib/work-keys";
+import { getRelatedNews } from "@/lib/topics/related-news";
 
 export const revalidate = 60;
 
@@ -67,10 +68,15 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   // 同じ出来事の別の話題にまとめたページは、まとめた先へ移す（ブックマークや検索結果から来た人のため）
   if (topic.mergedIntoId) permanentRedirect(`/topic/${topic.mergedIntoId}`);
 
-  const [related, timeline] = await Promise.all([
+  const [related, timeline, similar] = await Promise.all([
     getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] }),
     getEventTimeline(topic.id),
+    // 関連するニュース（見出しが似た話題）。失敗してもページは出す
+    getRelatedNews(topic.id).catch(() => []),
   ]);
+  // 同じ出来事の流れに出ている話題は、関連するニュースから外す
+  const inTimeline = new Set(timeline.map((e) => e.id));
+  const similarNews = similar.filter((t) => !inTimeline.has(t.id));
   const ai = readAiArticle(topic);
   const coverage = topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, title: a.title, kind: a.source.kind }));
   const times = coverageTimes(coverage);
@@ -222,7 +228,15 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         </div>
       </article>
 
-      <aside className="min-w-0">
+      <aside className="min-w-0 space-y-6">
+        {similarNews.length > 0 && (
+          <section className="card p-4" aria-labelledby="similar-news">
+            <h2 id="similar-news" className="mb-1 text-base font-black">
+              関連するニュース
+            </h2>
+            <TopicList topics={similarNews} variant="compact" showGenre />
+          </section>
+        )}
         <section className="card p-4">
           <SectionHeading title={`${topic.genre.name}の話題`} href={`/genre/${topic.genre.slug}`} genreSlug={topic.genre.slug} />
           <TopicList topics={related} variant="compact" showGenre={false} />
