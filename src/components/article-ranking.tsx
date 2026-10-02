@@ -6,7 +6,7 @@ import { ArticleLink, SummaryMark, type LinkableArticle } from "./article-link";
 import { RankBadge } from "./rank-badge";
 
 /** 閲覧回数がこれより少ないうちは回数を表示しない（少ない数字はかえって人気がないように見えるため） */
-const MIN_CLICKS_SHOWN = 10;
+const MIN_CLICKS_SHOWN = 100;
 
 type Item = LinkableArticle & {
   id: number;
