@@ -22,7 +22,10 @@ const BODY = "BIZ UDPGothic";
 
 const px = (cqw: number) => Math.round(cqw * U);
 
-/** ブランドの印（3本線のアイコン）とサイト名 */
+/** カードに載せるサイトのアドレス（X の投稿はリンクを付けると料金が大きく上がるため、画像から辿れるようにする） */
+export const CARD_DOMAIN = new URL(siteConfig.url).hostname;
+
+/** ブランドの印（3本線のアイコン）とサイト名・アドレス */
 function Brand() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: px(1.4), fontFamily: DISPLAY, fontWeight: 800, fontSize: px(3.2), color: INK }}>
@@ -31,7 +34,10 @@ function Brand() {
           <div key={o} style={{ width: px(2.4), height: px(0.5), borderRadius: px(1), background: `rgba(255,255,255,${o})` }} />
         ))}
       </div>
-      {siteConfig.name}
+      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+        {siteConfig.name}
+        <span style={{ fontSize: px(2.3), fontWeight: 800, color: SUB, letterSpacing: "0.02em" }}>{CARD_DOMAIN}</span>
+      </div>
     </div>
   );
 }
@@ -320,7 +326,7 @@ function IndexCardView({ card }: { card: IndexCard }) {
 }
 
 function cardText(card: Card): string {
-  const base = `${siteConfig.name}出典：速報まだ分かっていないこと続報結局どうなった現在前回朝昼昨夜の時点なぜ重要左右にスワイプで詳しく本0123456789/:・（）ほか`;
+  const base = `${siteConfig.name}${CARD_DOMAIN}出典：速報まだ分かっていないこと続報結局どうなった現在前回朝昼昨夜の時点なぜ重要左右にスワイプで詳しく本0123456789/:・（）ほか`;
   return base + JSON.stringify(card);
 }
 
