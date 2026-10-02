@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PRODUCT_KIND_LABELS, type ProductItem } from "@/lib/product-kinds";
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
+import { KindBadge } from "./kind-badge";
 
 /** 「今週の新発売」。今週・来週を開け閉めでき、最初は今週だけ開く。各週は話題の大きい順 */
 export function WeeklyProducts({ weeks }: { weeks: { label: string; items: ProductItem[] }[] }) {
@@ -37,7 +38,7 @@ export function WeeklyProducts({ weeks }: { weeks: { label: string; items: Produ
                 render={(p) => (
                   <Link href={`/topic/${p.topicId}`} data-topic-id={p.topicId} prefetch={false} className="group flex items-center gap-2 py-1.5">
                     <span className="w-10 shrink-0 text-xs font-bold text-[var(--g-products)] tabular-nums">{day(p.date)}</span>
-                    <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 font-bold text-fg-muted">{PRODUCT_KIND_LABELS[p.kind]}</span>
+                    <KindBadge label={PRODUCT_KIND_LABELS[p.kind]} />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={p.maker ? `${p.name}（${p.maker}）` : p.name}>
                       {p.name}
                     </span>

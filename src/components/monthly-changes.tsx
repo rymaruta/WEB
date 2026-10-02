@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CHANGE_KIND_LABELS, type ChangeItem } from "@/lib/change-kinds";
 import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
+import { KindBadge } from "./kind-badge";
 
 /** 「◯月から変わること」。月ごとに開け閉めでき、最初は今月だけ開く */
 export function MonthlyChanges({ months, thisYear }: { months: { month: number; items: ChangeItem[] }[]; thisYear: number }) {
@@ -38,7 +39,7 @@ export function MonthlyChanges({ months, thisYear }: { months: { month: number; 
                 render={(c) => (
                   <Link href={`/topic/${c.topicId}`} data-topic-id={c.topicId} prefetch={false} className="group flex items-center gap-2 py-1.5">
                     <span className="w-12 shrink-0 text-xs font-bold text-accent tabular-nums">{day(c.date)}</span>
-                    <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 font-bold text-fg-muted">{CHANGE_KIND_LABELS[c.kind]}</span>
+                    <KindBadge label={CHANGE_KIND_LABELS[c.kind]} />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={c.title}>
                       {c.title}
                     </span>
