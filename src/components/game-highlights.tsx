@@ -54,6 +54,9 @@ const subscribe = (l: () => void) => {
 const snapshot = () => memory ?? readPlatform();
 
 /** topicId がなければ公式ストアだけの作品（storeUrl はストアのページ） */
+/** 絞り込みのボタンに出さない機種（前の世代で、新作のほとんどが新しい機種にも出るため） */
+const HIDDEN_PLATFORMS: ReadonlySet<string> = new Set(["PS4"]);
+
 export type ReleaseItem = { topicId: number | null; title: string; release: string; platforms: string[]; storeUrl: string | null };
 export type NewGameItem = { topicId: number; headline: string; kind: string | null; release: string | null; platforms: string[] };
 
@@ -79,7 +82,7 @@ export function GameHighlights({
 
   // 覚えている機種の作品が今は1本もなければ、絞り込まずに出す
   const used = new Set([...thisMonth, ...nextMonth, ...newGames].flatMap((x) => x.platforms));
-  const platform = used.has(saved) ? saved : "";
+  const platform = used.has(saved) && !HIDDEN_PLATFORMS.has(saved) ? saved : "";
   const match = (p: string[]) => !platform || p.includes(platform);
   const months = [
     { title: monthLabels[0], items: thisMonth.filter((r) => match(r.platforms)) },
@@ -87,7 +90,7 @@ export function GameHighlights({
   ];
   const fresh = newGames.filter((g) => match(g.platforms));
   // 実際に出てくる機種だけをボタンにする
-  const platforms = GAME_PLATFORMS.filter((p) => used.has(p));
+  const platforms = GAME_PLATFORMS.filter((p) => used.has(p) && !HIDDEN_PLATFORMS.has(p));
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${active ? "border-[var(--g-game)] bg-[var(--g-game)] text-white" : "border-border bg-surface text-fg-muted hover:text-fg"}`;
 
