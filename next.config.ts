@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // AWS（Lightsail のコンテナ）では .next/standalone の最小構成を Docker イメージに入れて動かす
   output: "standalone",
+  // 公開ごとの ID（GitHub Actions のコミット）。古い画面のまま新しい版のサーバーへ移ろうとしたときに、
+  // 自動でページを読み直して、部品の食い違いによるエラーを防ぐ（https://nextjs.org/docs/app/guides/self-hosting#version-skew）
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   images: {
     // 媒体の画像（https のみ）を縮小して配信する。媒体は数が多く入れ替わるためホストは限定しない
     remotePatterns: [{ protocol: "https", hostname: "**" }],
