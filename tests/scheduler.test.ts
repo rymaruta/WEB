@@ -31,6 +31,7 @@ describe("DAILY_JOBS", () => {
       ["/api/cron/digest?slot=LUNCH", "11:10"],
       ["/api/cron/digest?slot=EVENING", "19:10"],
       ["/api/cron/game-listings", "05:10"],
+      ["/api/cron/movie-listings", "05:20"],
     ]);
   });
   it("承認済みの回を 7:00・12:00・20:00 に、Threads の1本を 21:00 に投稿する", () => {

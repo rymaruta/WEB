@@ -502,3 +502,18 @@ model GameListing {
   @@unique([source, externalId])
   @@index([release])
 }
+
+/// 映画の日本での公開予定。Wikipedia「◯年の日本公開映画」から、記事のある作品だけを毎日取り込む（src/lib/movie-listings.ts）
+model MovieListing {
+  id        Int      @id @default(autoincrement())
+  title     String
+  /// 公開日（YYYY-MM-DD）
+  release   String
+  /// 製作国（最初に書かれた国）
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([title, release])
+  @@index([release])
+}
