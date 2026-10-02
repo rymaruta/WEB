@@ -1,3 +1,4 @@
+import { submitIndexNow } from "@/lib/indexnow";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { GeneratedArticle } from "./prompt";
@@ -127,4 +128,6 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       ...(genre ? { aiGenreId: genre.id, genreId: genre.id } : {}),
     },
   });
+  // まとめ記事を書いた・更新したページを、検索エンジンにすぐ知らせる（待たない）
+  void submitIndexNow([`/topic/${topicId}`]);
 }
