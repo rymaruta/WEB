@@ -43,6 +43,7 @@ import {
 } from "@/lib/queries";
 
 import { SortButtons, SortPanels } from "./sort-tabs";
+import { archiveMonths } from "@/lib/archive";
 
 const PER_PAGE = 20;
 
@@ -155,7 +156,12 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
           </span>
           <div>
             <h1 className="text-xl font-black tracking-tight sm:text-3xl">{genre.name}</h1>
-            <p className="text-xs opacity-90 sm:text-sm">直近の話題 {total}件</p>
+            <p className="text-xs opacity-90 sm:text-sm">
+              直近の話題 {total}件
+              <Link href={`/archive/${archiveMonths()[0]}/${genre.slug}`} prefetch={false} className="ml-2 underline underline-offset-2 hover:opacity-80">
+                今月のまとめ
+              </Link>
+            </p>
           </div>
         </div>
         <SortButtons />

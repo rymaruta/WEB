@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { getTagTopics, getTopCompanies } from "@/lib/queries";
 import { COUNTRIES, TEAMS, tagPath } from "@/lib/tags";
 import { listIndexableWorks, workPath } from "@/lib/works";
+import { archiveMonths, recentDays } from "@/lib/archive";
 import { YOUTUBE_CHANNELS } from "@/lib/youtube-channels";
 
 export const revalidate = 3600;
@@ -59,6 +60,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/company`, changeFrequency: "daily", priority: 0.6 },
     ...companies.map((c) => ({ url: `${base}${companyPath(c.name)}`, changeFrequency: "daily" as const, priority: 0.5 })),
     ...tags.map((t) => ({ url: `${base}${tagPath(t)}`, changeFrequency: "daily" as const, priority: 0.5 })),
+    { url: `${base}/daily`, changeFrequency: "daily", priority: 0.6 },
+    ...recentDays(90).map((d, i) => ({ url: `${base}/daily/${d}`, changeFrequency: (i === 0 ? "hourly" : "weekly") as "hourly" | "weekly", priority: 0.6 })),
+    ...archiveMonths().flatMap((m) => [
+      { url: `${base}/archive/${m}`, changeFrequency: "daily" as const, priority: 0.5 },
+      ...genres.map((g) => ({ url: `${base}/archive/${m}/${g.slug}`, changeFrequency: "daily" as const, priority: 0.6 })),
+    ]),
     { url: `${base}/youtube`, changeFrequency: "hourly", priority: 0.7 },
     ...YOUTUBE_CHANNELS.map((c) => ({ url: `${base}/youtube/${c.slug}`, changeFrequency: "hourly" as const, priority: 0.6 })),
     ...videos.map((v) => ({ url: `${base}/youtube/v/${v.videoId}`, lastModified: v.updatedAt, priority: 0.5 })),
