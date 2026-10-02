@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FollowButton } from "./follow-button";
 import { notFound } from "next/navigation";
 import { Pagination } from "@/components/pagination";
 import { TopicList } from "@/components/topic-card";
@@ -56,7 +57,10 @@ export async function TagTopics({ kind, slug, page }: { kind: TagKind; slug: str
         <span>›</span>
         <Link href={parent.path} className="hover:text-fg">{parent.name}</Link>
       </nav>
-      <h1 className="text-xl font-extrabold">{tag.name}のニュース</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-extrabold">{tag.name}のニュース</h1>
+        <FollowButton follow={{ kind: tag.kind, key: tag.slug, label: tag.name }} />
+      </div>
       <p className="mt-1 mb-2 text-sm text-fg-muted">
         直近3か月で{tag.name}を取り上げた話題 {formatNumber(total)}件（新しい順）。各社の報道をまとめた記事を読めます。
       </p>
