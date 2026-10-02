@@ -625,3 +625,20 @@ model TopicMerge {
   @@index([dropId])
   @@index([createdAt])
 }
+
+/// AI まとめ記事の版（作成・更新のたびに、その時点の内容を残す）。誤りの調査と、更新前の内容の確認に使う
+model TopicArticleVersion {
+  id        Int      @id @default(autoincrement())
+  topicId   Int
+  title     String
+  lead      String
+  body      String
+  /// 要点（出典番号つき）
+  points    Json
+  /// 記事の根拠にした記事（Article.id）
+  sources   Int[]
+  model     String
+  createdAt DateTime @default(now())
+
+  @@index([topicId, createdAt])
+}
