@@ -48,7 +48,9 @@ function parseId(raw: string): number | null {
 export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Promise<Metadata> {
   const id = parseId((await params).id);
   const topic = id ? await getTopic(id) : null;
-  if (!topic || topic.mergedIntoId) return {};
+  if (!topic) return {};
+  // まとめた先がある話題は、ページの読み込み後に転送する（200 で返るため）。検索エンジンには、まとめた先を正規の URL として伝える
+  if (topic.mergedIntoId) return { alternates: { canonical: `/topic/${topic.mergedIntoId}` }, robots: { index: false, follow: true } };
   const ai = readAiArticle(topic);
   const summary = ai?.lead || (topic.articles.find((a) => a.summary)?.summary ?? undefined);
   const title = ai?.title ?? topic.title;
