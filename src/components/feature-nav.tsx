@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { weekKey } from "@/lib/weekly";
 import { FEATURE_KINDS, featurePath, featureShortName, jstMonth, type FeatureKind } from "@/lib/features";
 
 /** 特集の入口。今月・来月の各特集へのリンクを並べる（current は選んだ状態で出す） */
@@ -20,6 +21,13 @@ export function FeatureNav({ current, className = "mt-4" }: { current?: { kind: 
         className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1 text-xs font-bold text-accent hover:bg-accent hover:text-accent-fg"
       >
         報道くらべ
+      </Link>
+      <Link
+        href={`/weekly/${weekKey()}`}
+        prefetch={false}
+        className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1 text-xs font-bold text-accent hover:bg-accent hover:text-accent-fg"
+      >
+        今週の10大ニュース
       </Link>
       {links.map(({ kind, month }) => {
         const active = current?.kind === kind && current.month === month;
