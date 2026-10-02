@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AiArticleView } from "@/components/ai-article";
 import { SectionHeading } from "@/components/section-heading";
 import { ShareButtons } from "@/components/share-buttons";
+import { HeroCarousel } from "@/components/hero-carousel";
 import { HeroTopic, TopicList } from "@/components/topic-card";
 import { siteConfig } from "@/config/site";
 import { readAiArticle } from "@/lib/ai/article";
@@ -26,7 +27,10 @@ export default async function TrendingPage() {
   const lead = leadId ? await getTopic(leadId) : null;
   const card = pinned ?? trending.find((t) => t.id === leadId) ?? null;
   const ai = lead ? readAiArticle(lead) : null;
-  const others = trending.filter((t) => t.id !== leadId).slice(0, 20);
+  // 横にスライドして見られる大きな枠：いちばん大きな話題と、まとめ記事のある話題を合わせて5本まで
+  const slides = trending.filter((t) => t.id !== leadId && t.aiGeneratedAt).slice(0, 4);
+  const slideIds = new Set([leadId, ...slides.map((t) => t.id)]);
+  const others = trending.filter((t) => !slideIds.has(t.id)).slice(0, 20);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -38,7 +42,13 @@ export default async function TrendingPage() {
       {lead && card && (
         <article aria-label="いちばん大きな話題" className="space-y-4">
           {pinned && <p className="inline-block rounded-full bg-accent px-3 py-1 text-xs font-black text-accent-fg">注目のニュース</p>}
-          <HeroTopic topic={card} />
+          <HeroCarousel label="大きな話題">
+            <HeroTopic topic={card} label={pinned ? "注目のニュース" : "いちばんの話題"} />
+            {slides.map((t, i) => (
+              <HeroTopic key={t.id} topic={t} priority={false} label={`話題 ${i + 2}`} />
+            ))}
+          </HeroCarousel>
+          {ai && <p className="pt-1 text-xs font-bold text-fg-muted">いちばん大きな話題のまとめ記事</p>}
           {ai && (
             <>
               <AiArticleView article={ai} sources={lead.articles.map((a) => ({ id: a.id, publisher: a.publisher }))} />
