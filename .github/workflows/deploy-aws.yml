@@ -101,6 +101,8 @@ jobs:
       - name: Build
         env:
           NEXT_PUBLIC_SITE_URL: https://zenbu-navi.com
+          # 公開ごとの ID（next.config.ts の deploymentId）。公開の切り替わりで古い画面が新しい版を読み込んで失敗するのを防ぐ
+          NEXT_DEPLOYMENT_ID: ${{ github.sha }}
           NEXT_PUBLIC_RUM_APP_MONITOR_ID: ${{ vars.NEXT_PUBLIC_RUM_APP_MONITOR_ID || secrets.NEXT_PUBLIC_RUM_APP_MONITOR_ID || '4ace6bfb-62c1-4df7-9956-9cc438ecc7ad' }}
           CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || secrets.CONTACT_EMAIL || 'coffee.acc9896@gmail.com' }}
         run: |
