@@ -97,8 +97,8 @@ export function getLatestVideos(take = 12, shorts?: boolean) {
 }
 
 /**
- * 再生数の伸びのランキング。直近 days 日に公開された動画の、昨日から今日までに増えた再生回数の多い順
- * （昨日の記録がない新しい動画は、今の再生回数をそのまま伸びとして数える）
+ * 再生数の伸びのランキング。直近 days 日に公開された動画の、昨日の記録から増えた再生回数の多い順。
+ * 昨日の記録がない動画は比べられないため載せない（通算の回数を「伸び」と見せないように）
  */
 export async function getRisingVideos(take = 5, days = 7, now = new Date()) {
   const yesterday = jstDate(now, -1);
@@ -107,7 +107,9 @@ export async function getRisingVideos(take = 5, days = 7, now = new Date()) {
   const before = await prisma.youTubeViewDaily.findMany({ where: { date: yesterday, videoId: { in: videos.map((v) => v.videoId) } } });
   const prev = new Map(before.map((b) => [b.videoId, b.views]));
   return videos
-    .map((v) => ({ ...v, gain: Math.max(0, v.views - (prev.get(v.videoId) ?? 0)) }))
+    .filter((v) => prev.has(v.videoId))
+    .map((v) => ({ ...v, gain: Math.max(0, v.views - prev.get(v.videoId)!) }))
+    .filter((v) => v.gain > 0)
     .sort((a, b) => b.gain - a.gain)
     .slice(0, take);
 }
