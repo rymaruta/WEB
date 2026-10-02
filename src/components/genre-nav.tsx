@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { GenreIcon } from "./genre-icon";
+import { usePrefetchOnIntent } from "./use-prefetch-on-intent";
 import { NavIcon } from "./nav-icons";
 
 type Props = { genres: { slug: string; name: string }[] };
 
 export function GenreNav({ genres }: Props) {
   const pathname = usePathname();
+  const intent = usePrefetchOnIntent();
   const navRef = useRef<HTMLElement>(null);
   // 開いているタブが見えるよう、タブの列を横に動かす（左右になぞって切り替えたときも、今どこかが分かるように）
   useEffect(() => {
@@ -39,6 +41,7 @@ export function GenreNav({ genres }: Props) {
           <Link
             // ジャンルは画面に並ぶだけで全部を先読みすると、閲覧のたびにサーバーへ十数回の問い合わせが走るため、触れたときだけ読み込む
             prefetch={false}
+            {...intent(item.href)}
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}

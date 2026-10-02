@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { usePrefetchOnIntent } from "./use-prefetch-on-intent";
 import { NavIcon, type NavIconName } from "./nav-icons";
 
 const ITEMS: { href: string; label: string; icon: NavIconName }[] = [
@@ -15,6 +16,7 @@ const ITEMS: { href: string; label: string; icon: NavIconName }[] = [
 /** スマホ用の画面下メニュー。片手で主要なページへ移動できるようにする（sm 以上では表示しない） */
 export function BottomNav() {
   const pathname = usePathname();
+  const intent = usePrefetchOnIntent();
   // 管理画面には専用のメニューがある
   if (pathname.startsWith("/admin")) return null;
   return (
@@ -30,6 +32,7 @@ export function BottomNav() {
               <Link
                 // 画面下のメニューは常に表示されるため、先読みするとページを開くたびにトップ・ランキング全体（数百KB）を取得してしまう。押したときだけ読み込む
                 prefetch={false}
+                {...intent(item.href)}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] ${
