@@ -118,6 +118,13 @@ model Topic {
   aiChangeDate    String?
   aiChangeKind    String?
   aiChangeChecked Boolean   @default(false)
+  /// 新商品の発売（「今週の新発売」に使う）
+  aiProductName    String?
+  aiProductMaker   String?
+  /// 発売日（YYYY-MM-DD）
+  aiProductDate    String?
+  aiProductKind    String?
+  aiProductChecked Boolean  @default(false)
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?
@@ -138,6 +145,7 @@ model Topic {
   @@index([aiCompanies], type: Gin)
   @@index([aiGameRelease])
   @@index([aiChangeDate])
+  @@index([aiProductDate])
 }
 
 // ---------------------------------------------------------------------------
