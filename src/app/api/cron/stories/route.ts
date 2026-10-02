@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { getStoryProvider, getStoryScope } from "@/lib/ai/provider";
+import { BREAKING_RULES } from "@/lib/digest/breaking";
 import { prisma } from "@/lib/db";
 import { hasCronSecret } from "@/lib/auth";
 import { logEvent } from "@/lib/events";
@@ -42,9 +43,10 @@ export async function GET(request: Request) {
   }
   after(async () => {
     try {
-      // 速報だけを解析する設定では、大きな話題だけを1日の上限まで解析する（ほかと続報は外部の定期実行に任せる）
+      // 速報だけを解析する設定では、自動で投稿できる大きな話題（2媒体以上）だけを1日の上限まで解析する
+      // （1媒体だけの話題・ほか・続報は、無料の外部の定期実行に任せる。API の費用を自動投稿に使う分だけにする）
       const hotUsed = scope === "hot" ? await prisma.eventLog.count({ where: { scope: "story.hot-ai", at: { gte: new Date(Date.now() - 24 * 3_600_000) } } }) : 0;
-      const queued = scope === "hot" ? await findHotQueued(Math.min(ANALYZE_PER_RUN, Math.max(0, HOT_PER_DAY - hotUsed))) : await findQueued(ANALYZE_PER_RUN);
+      const queued = scope === "hot" ? await findHotQueued(Math.min(ANALYZE_PER_RUN, Math.max(0, HOT_PER_DAY - hotUsed)), BREAKING_RULES.hot.minPublishers) : await findQueued(ANALYZE_PER_RUN);
       for (const s of queued) {
         if (scope === "hot") await logEvent("info", "story.hot-ai", "速報の候補を API で解析", s.id);
         try {

@@ -138,10 +138,10 @@ export async function findQueued(limit: number) {
 }
 
 /** 解析待ちのうち、速報になりうる出来事（src/lib/stories/hot.ts）。速報用の解析はこれだけを先に解析する */
-export async function findHotQueued(limit: number) {
+export async function findHotQueued(limit: number, minPublishers = 1) {
   const now = Date.now();
   const rows = await prisma.story.findMany({
-    where: { status: "QUEUED", topic: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) } } },
+    where: { status: "QUEUED", topic: { firstSeenAt: { gte: new Date(now - HOT.withinHours * 3_600_000) }, publisherCount: { gte: minPublishers } } },
     orderBy: { topic: { publisherCount: "desc" } },
     take: 200,
     select: { id: true, topicId: true, topic: { select: { title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } } },
