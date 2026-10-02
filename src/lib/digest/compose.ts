@@ -62,6 +62,14 @@ export function joinHeadline(lines: string[]): string {
   return lines.reduce((acc, l) => (acc && isAlnum(acc.at(-1)) && isAlnum(l[0]) ? `${acc} ${l}` : acc + l), "");
 }
 
+/**
+ * 投稿文の1行に使う見出し。続報のカードの見出し（「◯◯／結局どうなった」）は、「続報：」と重なるため「◯◯のその後」にする
+ */
+export function postHeadline(e: Pick<EditionEntry, "role" | "headline">): string {
+  if (e.role === "FOLLOWUP" && e.headline.length >= 2 && e.headline.at(-1) === "結局どうなった") return `${joinHeadline(e.headline.slice(0, -1))}のその後`;
+  return joinHeadline(e.headline);
+}
+
 /** 投稿文の最後に添える、画像を開いてもらうための一言 */
 export const POST_CTA = "画像をスワイプで詳しく👉";
 
@@ -83,7 +91,7 @@ export function composePostText(slot: Slot, date: string, entries: EditionEntry[
   const tail = ["", POST_CTA];
   const items: string[] = [];
   for (const e of entries) {
-    const line = `・${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+    const line = `・${e.role === "FOLLOWUP" ? "続報：" : ""}${postHeadline(e)}`;
     if (textWidth(line) > LIMITS.postWidth) continue;
     if (textWidth([...head, ...items, line, ...tail].join("\n")) > LIMITS.postTotalWidth) break;
     items.push(line);
@@ -114,7 +122,7 @@ export function replyText(entries: EditionEntry[], cards: number[]): string {
   const lines = [nos && hasFollowup ? `${nos}と続報` : nos || "続報"];
   // 本投稿と同じく、1本1行の見出しを続ける
   for (const e of items) {
-    const line = `${e.role === "FOLLOWUP" ? "続報：" : ""}${joinHeadline(e.headline)}`;
+    const line = `${e.role === "FOLLOWUP" ? "続報：" : ""}${postHeadline(e)}`;
     if (textWidth(line) > LIMITS.postWidth) continue;
     if (textWidth([...lines, line].join("\n")) > LIMITS.postTotalWidth) break;
     lines.push(line);
