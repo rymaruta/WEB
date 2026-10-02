@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ArticleSchema, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
 import { loadTopicSources, markAttempted, saveArticle } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
+import { findRelatedEarlier, verifyBackground } from "@/lib/ai/related";
 
 const BodySchema = z.object({
   article: ArticleSchema,
@@ -46,7 +47,9 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
     await markAttempted(topicId);
     return Response.json({ status: "skipped", missing: checked?.missing ?? [], banned: checked?.banned ?? [] });
   }
-  await saveArticle(topicId, clean, sourceIds, model ?? "claude-code");
+  // これまでの経緯は、このサイトの過去のまとめ記事と照合できたものだけを載せる
+  const background = verifyBackground(article.background, await findRelatedEarlier(topicId));
+  await saveArticle(topicId, clean, sourceIds, model ?? "claude-code", background);
   revalidatePath(`/topic/${topicId}`);
   revalidatePath("/articles");
   revalidatePath("/");

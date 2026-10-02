@@ -57,6 +57,18 @@ export const ArticleSchema = z.object({
     .describe(
       "本文の段落。リードと要点に書いたことは繰り返さず、資料にある背景・経緯・数字の内訳・今後の予定など、要点を補う内容だけを書く。補う内容が少なければ1段落・100文字程度でよい。最大3段落・500文字",
     ),
+  background: z
+    .array(
+      z.object({
+        topicId: z.number().int().describe("参考に挙げた過去のまとめ記事の id"),
+        text: z.string().describe("その記事の見出し・リードに書かれていることだけで、何があったかを1文（60文字程度）で"),
+      }),
+    )
+    .max(3)
+    .optional()
+    .describe(
+      "これまでの経緯。「参考：このサイトの過去のまとめ記事」が渡され、その中に今回と同じ出来事の前の段階（同じ人・会社・事件の以前の発表や動き）があるときだけ書く。古い順に最大3件。別の出来事なら書かない（空配列）。参考がなければ省略",
+    ),
   sufficient: z.boolean().describe("資料だけで記事を書くのに十分な情報があれば true"),
   genre: z
     .enum(GENRE_SLUGS)

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const PointsSchema = z.array(z.object({ text: z.string(), sources: z.array(z.number().int()) }));
 const SourcesSchema = z.array(z.number().int());
+const BackgroundSchema = z.array(z.object({ topicId: z.number().int(), text: z.string() }));
 const HistorySchema = z.array(z.object({ at: z.string(), sources: z.number().int() }));
 
 export type AiArticle = {
@@ -11,6 +12,8 @@ export type AiArticle = {
   points: { text: string; sources: number[] }[];
   /** 各媒体の報じ方の違い（ないときは空配列） */
   angles: { text: string; sources: number[] }[];
+  /** これまでの経緯（古い順。このサイトの過去のまとめ記事へつなぐ）。ないときは空配列 */
+  background: { topicId: number; text: string }[];
   /** 取り上げた企業（企業ページへのリンクに使う） */
   companies: string[];
   /** 作成・更新の記録（古い順）。記録が始まる前の記事は空 */
@@ -27,6 +30,7 @@ type TopicAiFields = {
   aiBody: string | null;
   aiPoints: unknown;
   aiAngles?: unknown;
+  aiBackground?: unknown;
   aiCompanies?: string[];
   aiHistory?: unknown;
   aiSources: unknown;
@@ -46,6 +50,7 @@ export function readAiArticle(t: TopicAiFields): AiArticle | null {
     body: t.aiBody.split(/\n{2,}/).filter(Boolean),
     points: points.data,
     companies: t.aiCompanies ?? [],
+    background: BackgroundSchema.safeParse(t.aiBackground).data ?? [],
     history: (HistorySchema.safeParse(t.aiHistory).data ?? []).map((h) => ({ at: new Date(h.at), sources: h.sources })),
     angles: (t.aiAngles == null ? null : PointsSchema.safeParse(t.aiAngles).data) ?? [],
     sourceIds: sources.data,

@@ -2,6 +2,7 @@ import { submitIndexNow } from "@/lib/indexnow";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { GeneratedArticle } from "./prompt";
+import type { BackgroundItem } from "./related";
 
 /** この媒体数以上が報じたトピックだけを対象にする */
 export const MIN_PUBLISHERS = Number(process.env.AI_MIN_PUBLISHERS ?? 2);
@@ -105,7 +106,7 @@ export function markAttempted(topicId: number) {
 }
 
 /** 検証済みのまとめ記事を保存する。sourceIds は出典番号 1, 2, ... に対応する記事 ID */
-export async function saveArticle(topicId: number, article: GeneratedArticle, sourceIds: number[], model: string) {
+export async function saveArticle(topicId: number, article: GeneratedArticle, sourceIds: number[], model: string, background: BackgroundItem[] = []) {
   const topic = await prisma.topic.findUniqueOrThrow({
     where: { id: topicId },
     select: { publisherCount: true, aiHistory: true, aiGeneratedAt: true, aiSourceCount: true },
@@ -126,6 +127,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiBody: article.body.join("\n\n"),
       aiPoints: article.points,
       aiAngles: article.angles ?? [],
+      aiBackground: background,
       aiCompanies: article.companies ?? [],
       aiMarketEvent: article.marketEvent ?? null,
       aiGameTitle: article.game?.title ?? null,

@@ -3,6 +3,7 @@ import { siteConfig } from "@/config/site";
 import { ArticleSchema, buildPrompt, SYSTEM } from "@/lib/ai/prompt";
 import { countNewDueTopics, findDueTopics, findUpgradeTopics, loadTopicSources } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
+import { buildRelatedPrompt, findRelatedEarlier } from "@/lib/ai/related";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +29,15 @@ export async function GET(request: Request) {
     submit: `POST ${siteConfig.url}/api/admin/articles/{id} に { "article": <outputSchema に従う JSON>, "sourceIds": <このトピックの sourceIds をそのまま> } を送る`,
     topics: await Promise.all(
       topics.map(async (t) => {
-        const sources = await loadTopicSources(t.id);
+        const [sources, related] = await Promise.all([loadTopicSources(t.id), findRelatedEarlier(t.id)]);
         return {
           id: t.id,
           url: `${siteConfig.url}/topic/${t.id}`,
           publisherCount: t.publisherCount,
           regenerate: Boolean(t.aiGeneratedAt),
           sourceIds: sources.map((s) => s.id),
-          prompt: buildPrompt(sources),
+          // このサイトの過去のまとめ記事（「これまでの経緯」の材料）を資料のあとに添える
+          prompt: buildPrompt(sources) + buildRelatedPrompt(related),
         };
       }),
     ),

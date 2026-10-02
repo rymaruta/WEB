@@ -8,6 +8,7 @@ const article = {
   points: [],
   angles: [],
   companies: [],
+      background: [],
   history: [],
   sourceIds: [1],
   model: "claude-code",
