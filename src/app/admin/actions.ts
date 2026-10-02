@@ -269,6 +269,27 @@ export async function publishBreakingAction(storyId: string, _: ActionState, for
   }
 }
 
+/** 「AI に確認させて投稿」: 速報用の解析（無料の定期実行）を今すぐ起動し、AI が確かめて問題なければ自動で投稿する */
+export async function requestAiBreakingAction(storyId: string): Promise<ActionState> {
+  await requireAdmin();
+  const { prisma } = await import("@/lib/db");
+  const { logEvent } = await import("@/lib/events");
+  const { REQUEST_SCOPE } = await import("@/lib/digest/breaking");
+  const { fireBreakingRoutine, routineFireReady } = await import("@/lib/digest/routine");
+  if (!routineFireReady()) return { error: "起動用のトークンが未設定です（Parameter Store の /zenbu-navi/ROUTINE_FIRE_TOKEN）" };
+  const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, topic: { select: { id: true, title: true } } } });
+  if (!story) return { error: "出来事が見つかりません。画面を開き直してください" };
+  const already = await prisma.eventLog.count({ where: { scope: REQUEST_SCOPE, ref: storyId, at: { gte: new Date(Date.now() - 30 * 60_000) } } });
+  if (already) return { ok: "AI が確認中です。数分で結果が出ます（投稿されるか、見送りの理由がメールで届きます）" };
+  try {
+    await fireBreakingRoutine({ storyId, topicId: story.topic.id, title: story.topic.title });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+  await logEvent("info", REQUEST_SCOPE, `AI に確認を依頼: ${story.topic.title}`, storyId);
+  return { ok: "AI に確認を頼みました。3〜5分で、問題なければ自動で投稿します（見送りのときは理由をメールで知らせます）" };
+}
+
 /** 下書きを取り消す。取り消した回は、下書きを作る時刻に自動で作り直される */
 export async function cancelAction(editionId: string): Promise<ActionState> {
   await requireAdmin();

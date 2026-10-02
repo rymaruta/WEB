@@ -2,7 +2,8 @@ import Link from "next/link";
 import { BREAKING_RULES, breakingPostText, draftHeadline, listBreakingCandidates, MANUAL_BREAKING_HOURS } from "@/lib/digest/breaking";
 import { jstTime } from "@/lib/digest/slots";
 import { RISK_LABELS } from "@/lib/stories/schema";
-import { publishBreakingAction } from "../../actions";
+import { publishBreakingAction, requestAiBreakingAction } from "../../actions";
+import { AiRequestForm } from "./ai-request-form";
 import { BreakingForm } from "./breaking-form";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,9 @@ export default async function BreakingPage() {
               </details>
               <div className="mt-3">
                 <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={headline} />
+                <div className="mt-2">
+                  <AiRequestForm action={requestAiBreakingAction.bind(null, s.id)} />
+                </div>
                 <Link href={`/topic/${s.topic.id}`} target="_blank" className="mt-2 inline-block text-sm text-fg-muted underline">
                   記事を確かめる ↗
                 </Link>

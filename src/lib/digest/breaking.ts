@@ -22,6 +22,8 @@ export const BREAKING_RULES = {
   hot: { minPublishers: 2, minConfidence: 0.85 },
   /** 1媒体だけの大きな出来事は、信頼できる媒体が報じ、確度がとても高いときだけ（解析は無料の定期実行が行う） */
   single: { minConfidence: 0.9 },
+  /** 人が「AI に確認させて投稿」を押した出来事は、媒体の数によらず、確度が高ければ出す（深夜でも出す） */
+  requested: { minConfidence: 0.85 },
   maxAgeHours: 3,
   minConfidence: 0.8,
   quietFrom: 23,
@@ -46,7 +48,12 @@ export type BreakingCandidate = {
   hot?: boolean;
   /** 信頼できる媒体（TRUSTED_PUBLISHERS）が報じているか */
   trusted?: boolean;
+  /** 人が「AI に確認させて投稿」を押した出来事か */
+  requested?: boolean;
 };
+
+/** 「AI に確認させて投稿」の記録（EventLog の scope）。ref はストーリーの ID */
+export const REQUEST_SCOPE = "breaking.requested";
 
 /** 1媒体だけでも自動の速報にしてよい、信頼できる媒体（通信社・全国紙・在京テレビ局・大手スポーツ紙・専門の大手媒体） */
 const TRUSTED_PUBLISHERS =
@@ -78,6 +85,42 @@ export async function autoBreakingWindow(now = new Date()) {
   return { open: posted < BREAKING_RULES.maxPerDay, quiet: isQuietHour(now) };
 }
 
+/** 見送りの理由（人が読む短い説明） */
+export function skipReason(c: Pick<BreakingCandidate, "confidence" | "assessment" | "riskFlags">): string {
+  if (c.assessment?.gossip) return "噂・私生活の話題と判断したため";
+  if (c.assessment?.promotional) return "宣伝の性格が強いと判断したため";
+  if (c.riskFlags.some((r) => (BREAKING_RULES.excludedRisks as readonly string[]).includes(r))) return "事件・訃報・選挙・政治の話題は自動では出さないため";
+  if ((c.confidence ?? 0) < BREAKING_RULES.requested.minConfidence) return `資料から確かめきれなかったため（確からしさ ${Math.round((c.confidence ?? 0) * 100)}%）`;
+  return "定時の配信の直前などの条件に当たったため";
+}
+
+/**
+ * 「AI に確認させて投稿」を押した出来事の、見送りを知らせる（1つの出来事につき1回）。
+ * 解析で照合に通らなかったもの（要確認・自動で除外）も知らせる
+ */
+async function notifyRequestedSkips(requested: Set<string | null>, skipped: BreakingCandidate[]) {
+  const ids = [...requested].filter((x): x is string => !!x);
+  if (ids.length === 0) return;
+  const [done, rejected] = await Promise.all([
+    prisma.eventLog.findMany({ where: { scope: "breaking.requested-result", ref: { in: ids } }, select: { ref: true } }),
+    prisma.story.findMany({ where: { id: { in: ids }, status: { in: ["REVIEW_REQUIRED", "REJECTED_AUTO"] } }, select: { id: true, status: true, headline: true } }),
+  ]);
+  const notified = new Set(done.map((d) => d.ref));
+  const items = [
+    ...skipped.map((c) => ({ id: c.id, reason: skipReason(c) })),
+    ...rejected.map((s) => ({ id: s.id, reason: s.status === "REVIEW_REQUIRED" ? "見出し・要点に資料と照合できない語があったため" : "資料が足りない・同じ出来事と言えないと判断したため" })),
+  ].filter((x) => !notified.has(x.id));
+  for (const x of items) {
+    await logEvent("info", "breaking.requested-result", `AI の確認で見送り: ${x.reason}`, x.id);
+    await notifyOwner({
+      title: "AI の確認の結果、速報を見送りました",
+      what: `「AI に確認させて投稿」を押した出来事を、AI が確認した結果、自動では投稿しませんでした。理由：${x.reason}。`,
+      action: "出す場合は、管理画面の「速報を作る」で見出しを確かめて、手動で投稿してください。",
+      url: "https://zenbu-navi.com/admin/breaking",
+    });
+  }
+}
+
 /** 条件に合う候補のうち、話題の最も大きいもの。なければ null */
 export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedToday: number): BreakingCandidate | null {
   if (postedToday >= BREAKING_RULES.maxPerDay || isJustBeforeSlot(now)) return null;
@@ -88,12 +131,14 @@ export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedT
     const asHot = Boolean(c.hot) && c.publisherCount >= BREAKING_RULES.hot.minPublishers && (c.confidence ?? 0) >= BREAKING_RULES.hot.minConfidence;
     // 1媒体だけの大きな出来事は、信頼できる媒体が報じ、確度がとても高いときだけ
     const asSingle = Boolean(c.hot) && Boolean(c.trusted) && (c.confidence ?? 0) >= BREAKING_RULES.single.minConfidence;
-    if (!asBreaking && !asHot && !asSingle) return false;
+    // 人が求めた出来事は、媒体の数によらず、確度が高ければ出す
+    const asRequested = Boolean(c.requested) && (c.confidence ?? 0) >= BREAKING_RULES.requested.minConfidence;
+    if (!asBreaking && !asHot && !asSingle && !asRequested) return false;
     if (now.getTime() - c.firstSeenAt.getTime() > BREAKING_RULES.maxAgeHours * 3_600_000) return false;
     if (c.confidence !== null && c.confidence < BREAKING_RULES.minConfidence) return false;
     if (c.assessment?.gossip || c.assessment?.promotional) return false;
     if (c.riskFlags.some((r) => (BREAKING_RULES.excludedRisks as readonly string[]).includes(r))) return false;
-    if (quiet && !c.riskFlags.some((r) => (BREAKING_RULES.nightAllowedRisks as readonly string[]).includes(r))) return false;
+    if (quiet && !asRequested && !c.riskFlags.some((r) => (BREAKING_RULES.nightAllowedRisks as readonly string[]).includes(r))) return false;
     return true;
   });
   return ok.sort((a, b) => b.score - a.score)[0] ?? null;
@@ -123,6 +168,11 @@ export async function runBreakingCheck(now = new Date()) {
   const postedToday = await prisma.edition.count({ where: { slot: "BREAKING", date, status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } });
   if (postedToday >= BREAKING_RULES.maxPerDay) return { result: "limit" as const };
 
+  const requested = new Set(
+    (await prisma.eventLog.findMany({ where: { scope: REQUEST_SCOPE, at: { gte: new Date(now.getTime() - BREAKING_RULES.maxAgeHours * 3_600_000) } }, select: { ref: true } })).map(
+      (l) => l.ref,
+    ),
+  );
   const stories = await prisma.story.findMany({
     where: {
       status: "PENDING",
@@ -140,11 +190,12 @@ export async function runBreakingCheck(now = new Date()) {
       topic: { select: { id: true, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true, articles: { select: { publisher: true }, take: 30 } } },
     },
   });
-  const pick = pickBreaking(
-    stories.map((s) => ({
+  const candidates = stories.map(
+    (s): BreakingCandidate => ({
       breaking: s.cardType === "BREAKING",
       hot: isHot(s.topic, now.getTime()),
       trusted: s.topic.articles.some((a) => isTrustedPublisher(a.publisher)),
+      requested: requested.has(s.id),
       id: s.id,
       score: s.score,
       publisherCount: s.topic.publisherCount,
@@ -152,10 +203,14 @@ export async function runBreakingCheck(now = new Date()) {
       riskFlags: s.riskFlags,
       confidence: s.confidence,
       assessment: s.assessment as Assessment | null,
-    })),
-    now,
-    postedToday,
+    }),
   );
+  const pick = pickBreaking(candidates, now, postedToday);
+  // 人が求めた出来事で、AI の確認の結果、出せなかったものを知らせる
+  await notifyRequestedSkips(
+    requested,
+    candidates.filter((c) => c.requested && c.id !== pick?.id && !pickBreaking([c], now, 0)),
+  ).catch((e) => logEvent("error", "breaking.requested", "見送りの通知に失敗", undefined, String(e)));
   if (!pick) return { result: "none" as const, candidates: stories.length };
   const story = stories.find((s) => s.id === pick.id)!;
 
@@ -285,7 +340,9 @@ export async function notifyHotTopics(now = new Date()) {
     await notifyOwner({
       title: `速報の候補：${title}`.slice(0, 60),
       what: `「${title}」（${hotReason(t, now.getTime())}）。最初の報道から${minutes}分で、${t.publisherCount}媒体が報じています。`,
-      action: "速報として出す場合は、管理画面の「速報を作る」で見出しを確かめて投稿してください。出さない場合は対応は不要です。",
+      action:
+        "速報として出す場合は、管理画面の「速報を作る」で、見出しを直して投稿するか、「AI に確認させて投稿」を押してください（AI が数分で確認し、問題なければ投稿します）。出さない場合は対応は不要です。",
+      url: "https://zenbu-navi.com/admin/breaking",
     });
   }
   return picked.length;

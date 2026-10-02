@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { hasCronSecret } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { buildFollowupPrompt, buildStoryPrompt, FOLLOWUP_SYSTEM, STORY_SYSTEM } from "@/lib/stories/prompt";
 import { FollowupAnalysisSchema, StoryAnalysisSchema } from "@/lib/stories/schema";
 import { findDeltaQueued, findHotQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
@@ -21,7 +22,16 @@ export async function GET(request: Request) {
   const limit = Math.min(10, Math.max(1, Number(params.get("limit")) || 5));
   // hot=1: 速報になりうる出来事だけ（速報用のこまめな解析が使う。続報は定時の解析に任せる）
   const hotOnly = params.get("hot") === "1";
-  const [queued, deltas] = await Promise.all([hotOnly ? findHotQueued(limit) : findQueued(limit), hotOnly ? Promise.resolve([]) : findDeltaQueued(limit)]);
+  // ids=…: 人が「AI に確認させて投稿」を押した出来事（解析待ちのものだけ）
+  const ids = (params.get("ids") ?? "").split(",").filter((x) => /^[a-z0-9]{10,40}$/.test(x)).slice(0, 5);
+  const [queued, deltas] = await Promise.all([
+    ids.length
+      ? prisma.story.findMany({ where: { id: { in: ids }, status: "QUEUED" }, select: { id: true, topicId: true } })
+      : hotOnly
+        ? findHotQueued(limit)
+        : findQueued(limit),
+    hotOnly || ids.length ? Promise.resolve([]) : findDeltaQueued(limit),
+  ]);
   const followups = await Promise.all(
     deltas.map(async (s) => {
       const previous = await loadPreviousCoverage(s.id);
