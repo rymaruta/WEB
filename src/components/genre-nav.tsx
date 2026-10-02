@@ -27,43 +27,58 @@ export function GenreNav({ genres }: Props) {
     { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true, icon: null },
     { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true, icon: null },
     ...genres.flatMap((g) => {
-      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | "video" | "flame" | null };
+      const genre = {
+        href: `/genre/${g.slug}`,
+        label: g.name,
+        slug: g.slug as string | null,
+        featured: false,
+        desktopOnly: false,
+        icon: null as "company" | "video" | "flame" | null,
+      };
       // 企業別ニュースは、経済の隣に置く（気になる企業のニュースだけを追いたい人が多いため）
-      if (g.slug === "business") return [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }];
+      if (g.slug === "business")
+        return [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }];
       // YouTube の新着動画は、エンタメの隣に置く
-      if (g.slug === "entertainment") return [genre, { href: "/youtube", label: "YouTube", slug: null, featured: false, desktopOnly: false, icon: "video" as const }];
+      if (g.slug === "entertainment")
+        return [genre, { href: "/youtube", label: "YouTube", slug: null, featured: false, desktopOnly: false, icon: "video" as const }];
       return [genre];
     }),
   ];
+  const renderItem = (item: (typeof items)[number]) => {
+    const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+    const color = item.slug ? `var(--g-${item.slug})` : "var(--accent)";
+    return (
+      <Link
+        // ジャンルは画面に並ぶだけで全部を先読みすると、閲覧のたびにサーバーへ十数回の問い合わせが走るため、触れたときだけ読み込む
+        prefetch={false}
+        {...intent(item.href)}
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`${item.desktopOnly ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-1.5 border-b-[3px] px-2.5 py-2.5 text-sm whitespace-nowrap transition-colors ${
+          active
+            ? "font-bold text-fg"
+            : item.featured
+              ? "border-transparent font-bold text-accent hover:text-fg"
+              : "border-transparent font-medium text-fg-muted hover:text-fg"
+        }`}
+        style={active ? { borderColor: color } : undefined}
+      >
+        {item.slug && <GenreIcon slug={item.slug} className="h-4 w-4" />}
+        {item.featured && !item.icon && <NavIcon name="ranking" className="h-4 w-4" />}
+        {item.icon && <NavIcon name={item.icon} className="h-4 w-4" />}
+        {item.label}
+      </Link>
+    );
+  };
+  const [pinned, ...rest] = items;
   return (
-    <nav ref={navRef} aria-label="ジャンル" className="scrollbar-none -mb-px flex gap-0.5 overflow-x-auto">
-      {items.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-        const color = item.slug ? `var(--g-${item.slug})` : "var(--accent)";
-        return (
-          <Link
-            // ジャンルは画面に並ぶだけで全部を先読みすると、閲覧のたびにサーバーへ十数回の問い合わせが走るため、触れたときだけ読み込む
-            prefetch={false}
-            {...intent(item.href)}
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`${item.desktopOnly ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-1.5 border-b-[3px] px-2.5 py-2.5 text-sm whitespace-nowrap transition-colors ${
-              active
-                ? "font-bold text-fg"
-                : item.featured
-                  ? "border-transparent font-bold text-accent hover:text-fg"
-                  : "border-transparent font-medium text-fg-muted hover:text-fg"
-            }`}
-            style={active ? { borderColor: color } : undefined}
-          >
-            {item.slug && <GenreIcon slug={item.slug} className="h-4 w-4" />}
-            {item.featured && !item.icon && <NavIcon name="ranking" className="h-4 w-4" />}
-            {item.icon && <NavIcon name={item.icon} className="h-4 w-4" />}
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
+    // 「話題」タブは左端に固定し、どのページを開いても見えるようにする（ほかのタブは横に動かせる列）
+    <div className="-mb-px flex">
+      <div className="shrink-0 border-r border-border pr-0.5">{renderItem(pinned)}</div>
+      <nav ref={navRef} aria-label="ジャンル" className="scrollbar-none flex min-w-0 gap-0.5 overflow-x-auto">
+        {rest.map(renderItem)}
+      </nav>
+    </div>
   );
 }

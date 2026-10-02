@@ -6,6 +6,7 @@ import { Fold } from "@/components/fold";
 import { SideFold } from "@/components/side-fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
+import { GroupTabs } from "@/components/group-tabs";
 import { HeroCarousel } from "@/components/hero-carousel";
 import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
 import { getCalendar, jstDate } from "@/lib/calendar";
@@ -99,18 +100,18 @@ export default async function HomePage() {
               )}
               {digest && !digestOnTop && <DigestSummaryCard digest={digest} />}
               {/* スマホではサイドバーが一番下になるため、ランキングを話題の一覧の後に出す */}
+              {/* スマホでは「よく読まれている・SNSで話題・新着」をタブで切り替え、縦に長く並べない */}
               <section className="card p-4 lg:hidden">
-                {mostRead.length > 0 ? (
-                  <>
-                    <SectionHeading title="よく読まれている" href="/ranking" moreLabel="ランキング" />
-                    <ArticleRanking items={mostRead.slice(0, 5)} metric="clicks" />
-                  </>
-                ) : (
-                  <>
-                    <SectionHeading title="SNSで話題" note="はてなブックマーク数" href="/ranking" moreLabel="ランキング" />
-                    <ArticleRanking items={buzz.slice(0, 5)} metric="social" showGenre />
-                  </>
-                )}
+                <SectionHeading title="ランキング" href="/ranking" moreLabel="もっと見る" />
+                <GroupTabs
+                  id="home-ranking"
+                  label="ランキングの種類"
+                  groups={[
+                    ...(mostRead.length > 0 ? [{ key: "read", label: "よく読まれている", content: <ArticleRanking items={mostRead.slice(0, 5)} metric="clicks" /> }] : []),
+                    { key: "buzz", label: "SNSで話題", content: <ArticleRanking items={buzz.slice(0, 5)} metric="social" showGenre /> },
+                    { key: "latest", label: "新着", content: <ArticleRanking items={latest.slice(0, 5)} showGenre /> },
+                  ]}
+                />
               </section>
             </div>
             <aside className="min-w-0 space-y-6">
@@ -120,13 +121,15 @@ export default async function HomePage() {
                   <ArticleRanking items={mostRead} metric="clicks" />
                 </section>
               )}
-              {/* スマホでは一番下に来るため、最初は閉じておく（見出しを押すと開く） */}
-              <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
-                <ArticleRanking items={buzz} metric="social" showGenre />
-              </SideFold>
-              <SideFold id="home-latest" title="新着">
-                <ArticleRanking items={latest} showGenre />
-              </SideFold>
+              {/* スマホでは上のランキングのタブに入っているため、PC でだけ出す */}
+              <div className="hidden space-y-6 lg:block">
+                <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
+                  <ArticleRanking items={buzz} metric="social" showGenre />
+                </SideFold>
+                <SideFold id="home-latest" title="新着">
+                  <ArticleRanking items={latest} showGenre />
+                </SideFold>
+              </div>
             </aside>
           </div>
         ) : (
