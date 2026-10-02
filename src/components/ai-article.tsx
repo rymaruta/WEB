@@ -44,11 +44,14 @@ export function AiArticleView({
   article,
   sources,
   showTitle = true,
+  hideLead = false,
   reportHref,
 }: {
   article: AiArticle;
   sources: Source[];
   showTitle?: boolean;
+  /** リードを出さない（話題ページの「3行でわかる」に同じ文を出しているとき） */
+  hideLead?: boolean;
   /** 誤りの報告先（メールの宛先と件名入りのリンク） */
   reportHref?: string;
 }) {
@@ -76,7 +79,7 @@ export function AiArticleView({
       <h2 id="ai-article" className={showTitle ? "text-lg leading-snug font-black sm:text-xl" : "sr-only"}>
         {article.title}
       </h2>
-      {article.lead && <p className="mt-2 font-medium">{article.lead}</p>}
+      {article.lead && !hideLead && <p className="mt-2 font-medium">{article.lead}</p>}
 
       <h3 className="mt-4 mb-1.5 text-sm font-bold text-fg-muted">ポイント</h3>
       <ul className="space-y-1.5">

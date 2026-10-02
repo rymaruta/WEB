@@ -8,6 +8,7 @@ import { isIndexableArticle } from "@/lib/indexing";
 import { featurePath, featureShortName, isFeatureMonth, type FeatureKind } from "@/lib/features";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
+import { TopicBrief } from "@/components/topic-brief";
 import { GroupTabs } from "@/components/group-tabs";
 import { ReadingProgress } from "@/components/scroll-helpers";
 import { FeedbackButtons } from "@/components/feedback-buttons";
@@ -25,6 +26,7 @@ import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
+import { buildBrief, getTopicWhy } from "@/lib/topics/brief";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { kindTone } from "@/components/kind-badge";
 import { workKey, workPath } from "@/lib/work-keys";
@@ -71,11 +73,13 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   // 同じ出来事の別の話題にまとめたページは、まとめた先へ移す（ブックマークや検索結果から来た人のため）
   if (topic.mergedIntoId) permanentRedirect(`/topic/${topic.mergedIntoId}`);
 
-  const [related, timeline, similar] = await Promise.all([
+  const [related, timeline, similar, why] = await Promise.all([
     getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] }),
     getEventTimeline(topic.id),
     // 関連するニュース（見出しが似た話題）。失敗してもページは出す
     getRelatedNews(topic.id).catch(() => []),
+    // なぜ重要か（照合を通った配信候補の文）。失敗してもページは出す
+    getTopicWhy(topic.id).catch(() => null),
   ]);
   // 同じ出来事の流れに出ている話題は、関連するニュースから外す
   const inTimeline = new Set(timeline.map((e) => e.id));
@@ -85,6 +89,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
   const featureLinks = relatedFeatures(topic);
+  const brief = buildBrief(ai?.lead, why, timeline, topic);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -150,9 +155,11 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         </header>
 
         <div className="px-5 pb-5 sm:px-6">
+          {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} />}
           {ai && (
             <div className="mb-6">
               <AiArticleView
+                hideLead={!!brief}
                 article={ai}
                 sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))}
                 showTitle={false}
