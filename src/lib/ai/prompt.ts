@@ -3,7 +3,7 @@ import { publisherLabel } from "@/lib/publisher";
 import { formatDateTime } from "@/lib/format";
 import { GameSchema, verifyGame } from "@/lib/game";
 import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
-import { BANNED_WORDS, extractFacts, factInSources } from "@/lib/stories/verify";
+import { BANNED_WORDS, extractFacts, extractNames, factInSources } from "@/lib/stories/verify";
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
 
@@ -132,7 +132,13 @@ export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): Gener
 
 export type FactSource = { publisher: string; publishedAt: Date; title: string; summary: string | null };
 
-export type FactCheck = { article: GeneratedArticle | null; missing: string[]; banned: string[] };
+export type FactCheck = {
+  article: GeneratedArticle | null;
+  missing: string[];
+  banned: string[];
+  /** 資料に見つからない人名の候補（試行中。記録だけして、採否には使わない） */
+  missingNames?: string[];
+};
 
 /**
  * 資料との照合。AI の文章を信用せず、数字・カギかっこの語・英数字の語が資料にあるかを機械的に確かめる。
@@ -147,6 +153,8 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
   const all = sources.map(text).join("\n");
   const missingIn = (t: string, corpus: string) => extractFacts(t).filter((f) => !factInSources(f, corpus));
 
+  // 人名（「◯◯氏」「◯◯選手」など）が資料にあるか。誤検出の割合を確かめるまで、記録だけする
+  const missingNames = extractNames([a.title, a.lead, ...a.points.map((p) => p.text), ...a.body].join("\n")).filter((n) => !factInSources(n, all));
   const missing = new Set<string>();
   for (const m of [...missingIn(a.title, all), ...missingIn(a.lead, all)]) missing.add(m);
   for (const p of a.points) {
@@ -155,7 +163,7 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
   }
   const visible = [a.title, a.lead, ...a.points.map((p) => p.text)].join("\n");
   const banned = BANNED_WORDS.filter((w) => visible.includes(w));
-  if (missing.size > 0 || banned.length > 0) return { article: null, missing: [...missing], banned };
+  if (missing.size > 0 || banned.length > 0) return { article: null, missing: [...missing], banned, missingNames };
 
   const bodyMissing: string[] = [];
   const body = a.body.filter((para) => {
@@ -163,7 +171,7 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
     bodyMissing.push(...m);
     return m.length === 0;
   });
-  if (body.length === 0) return { article: null, missing: bodyMissing, banned };
+  if (body.length === 0) return { article: null, missing: bodyMissing, banned, missingNames };
   const angles = (a.angles ?? []).filter((p) => {
     const cited = p.sources.map((n) => sources[n - 1]).filter(Boolean).map(text).join("\n");
     const m = missingIn(p.text, cited);
@@ -175,5 +183,5 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
   const companies = (a.companies ?? []).filter((c) => corpus.includes(c));
   const marketEvent = verifyMarketEvent(a.marketEvent, all);
   const game = verifyGame(a.game, all);
-  return { article: { ...a, body, angles, companies, marketEvent, game }, missing: bodyMissing, banned };
+  return { article: { ...a, body, angles, companies, marketEvent, game }, missing: bodyMissing, banned, missingNames };
 }
