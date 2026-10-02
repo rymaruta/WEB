@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { siteConfig } from "@/config/site";
 import { ArticleRanking } from "@/components/article-ranking";
 import { CalendarPreview } from "@/components/calendar-preview";
 import { DigestSummaryCard } from "@/components/digest-summary";
@@ -18,6 +20,10 @@ import { companyPath } from "@/lib/company";
 import { getGenres, getLatestArticles, getMostRead, getPinnedTopic, getSiteStats, getSocialBuzz, getTopCompanies, getTrendingTopics } from "@/lib/queries";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: `${siteConfig.name}（まとめ記事）` }] } },
+};
 
 /** 一番上の大きな枠に優先して置くジャンル（多くの読者に関わる出来事） */
 const HERO_GENRES = new Set(["domestic", "world", "business", "tech"]);
