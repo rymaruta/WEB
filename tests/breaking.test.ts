@@ -42,6 +42,9 @@ describe("pickBreaking", () => {
     expect(pickBreaking([hot], now, 0)?.id).toBe("a");
     expect(pickBreaking([{ ...hot, confidence: 0.8 }], now, 0)).toBeNull();
     expect(pickBreaking([{ ...hot, publisherCount: 1 }], now, 0)).toBeNull();
+    // 1媒体でも、信頼できる媒体で確度がとても高ければ出す
+    expect(pickBreaking([{ ...hot, publisherCount: 1, trusted: true, confidence: 0.95 }], now, 0)?.id).toBe("a");
+    expect(pickBreaking([{ ...hot, publisherCount: 1, trusted: true, confidence: 0.88 }], now, 0)).toBeNull();
     expect(pickBreaking([{ ...hot, hot: false }], now, 0)).toBeNull();
     expect(pickBreaking([{ ...hot, assessment: { gossip: true } as never }], now, 0)).toBeNull();
   });
