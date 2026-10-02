@@ -103,6 +103,15 @@ describe("selectForEdition", () => {
     expect(r.notes.filled).toBeGreaterThanOrEqual(1);
   });
 
+  it("ゆるめても、3本とも同じカテゴリー（スポーツ3本など）にはしない", () => {
+    const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
+    const econ = cand({ category: "ECONOMY", assessment: assess({ impact: 0, longevity: 0 }), publisherCount: 2 });
+    const r = selectForEdition([...sports, econ], SLOTS.LUNCH, new Set());
+    const ids = r.main.map((m) => m.id);
+    expect(ids).toContain(econ.id);
+    expect(ids.filter((id) => sports.some((s) => s.id === id))).toHaveLength(2);
+  });
+
   it("埋めるときも、ゴシップ・宣伝と同じ出来事は使わない", () => {
     const a = cand({ category: "ECONOMY" });
     const same = cand({ category: "ECONOMY", threadId: a.threadId });

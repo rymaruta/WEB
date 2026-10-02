@@ -101,10 +101,14 @@ export function scoreCandidate(c: Candidate): Scored {
 
 type Picked = Scored & { candidate: Candidate };
 
-function fits(picked: Picked[], c: Candidate): boolean {
+/** 3本に足りないときに埋める段階で、ゆるめた後の上限（同じカテゴリー・スポーツとエンタメの合計とも2本まで。3本とも同じにはしない） */
+const RELAXED_MAX = 2;
+
+function fits(picked: Picked[], c: Candidate, relaxed = false): boolean {
   if (c.threadId && picked.some((p) => p.candidate.threadId === c.threadId)) return false;
-  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= PER_CATEGORY) return false;
-  if (c.category && SOFT_NEWS.has(c.category) && picked.filter((p) => p.candidate.category && SOFT_NEWS.has(p.candidate.category)).length >= SOFT_MAX) return false;
+  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= (relaxed ? RELAXED_MAX : PER_CATEGORY)) return false;
+  if (c.category && SOFT_NEWS.has(c.category) && picked.filter((p) => p.candidate.category && SOFT_NEWS.has(p.candidate.category)).length >= (relaxed ? RELAXED_MAX : SOFT_MAX))
+    return false;
   return true;
 }
 
@@ -157,7 +161,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     }
   }
 
-  // 3本に足りなければ埋める。まず点数の基準をゆるめ、それでも足りなければカテゴリーの上限もゆるめる。
+  // 3本に足りなければ埋める。まず点数の基準をゆるめ、それでも足りなければカテゴリーの上限もゆるめる（ゆるめても同じカテゴリーは2本まで）。
   // ゴシップ・宣伝と、人の確認が要るもの（verifiedOnly のとき）は使わない
   const need = () => REQUIRED_ITEMS - main.length - followups.length;
   if (need() > 0) {
@@ -178,7 +182,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
         if (need() <= 0) break;
         if (main.includes(s)) continue;
         if (s.candidate.threadId && usedThreads.has(s.candidate.threadId)) continue;
-        if (!relaxCategories && !fits(main, s.candidate)) continue;
+        if (!fits(main, s.candidate, relaxCategories)) continue;
         main.push(s);
         if (s.candidate.threadId) usedThreads.add(s.candidate.threadId);
       }
