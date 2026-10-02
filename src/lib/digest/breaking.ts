@@ -20,6 +20,8 @@ export const BREAKING_RULES = {
   minPublishers: 3,
   /** 大きな出来事（速報の判定ではないもの）を自動で出す条件。人の確認なしで出すため、2媒体以上の一致と高い確度を求める */
   hot: { minPublishers: 2, minConfidence: 0.85 },
+  /** 1媒体だけの大きな出来事は、信頼できる媒体が報じ、確度がとても高いときだけ（解析は無料の定期実行が行う） */
+  single: { minConfidence: 0.9 },
   maxAgeHours: 3,
   minConfidence: 0.8,
   quietFrom: 23,
@@ -42,7 +44,15 @@ export type BreakingCandidate = {
   breaking?: boolean;
   /** 一斉に報じられた大きな出来事か（src/lib/stories/hot.ts） */
   hot?: boolean;
+  /** 信頼できる媒体（TRUSTED_PUBLISHERS）が報じているか */
+  trusted?: boolean;
 };
+
+/** 1媒体だけでも自動の速報にしてよい、信頼できる媒体（通信社・全国紙・在京テレビ局・大手スポーツ紙・専門の大手媒体） */
+const TRUSTED_PUBLISHERS =
+  /NHK|時事|共同通信|朝日新聞|読売|毎日新聞|日本経済新聞|日経|産経|TBS|日テレ|テレ朝|FNN|フジテレビ|スポニチ|日刊スポーツ|スポーツ報知|サンケイスポーツ|デイリースポーツ|中日スポーツ|ゲキサカ|サッカーキング|Full-Count|oricon|オリコン|BBC/i;
+
+export const isTrustedPublisher = (name: string) => TRUSTED_PUBLISHERS.test(name);
 
 /** 日本時間の時（0〜23） */
 const jstHour = (at: Date) => Number(jstTime(at).split(":")[0]);
@@ -76,7 +86,9 @@ export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedT
     const asBreaking = c.breaking !== false && c.publisherCount >= BREAKING_RULES.minPublishers;
     // 大きな出来事は、2媒体以上が報じ、照合の確度が特に高いときだけ（人の確認なしで出すため）
     const asHot = Boolean(c.hot) && c.publisherCount >= BREAKING_RULES.hot.minPublishers && (c.confidence ?? 0) >= BREAKING_RULES.hot.minConfidence;
-    if (!asBreaking && !asHot) return false;
+    // 1媒体だけの大きな出来事は、信頼できる媒体が報じ、確度がとても高いときだけ
+    const asSingle = Boolean(c.hot) && Boolean(c.trusted) && (c.confidence ?? 0) >= BREAKING_RULES.single.minConfidence;
+    if (!asBreaking && !asHot && !asSingle) return false;
     if (now.getTime() - c.firstSeenAt.getTime() > BREAKING_RULES.maxAgeHours * 3_600_000) return false;
     if (c.confidence !== null && c.confidence < BREAKING_RULES.minConfidence) return false;
     if (c.assessment?.gossip || c.assessment?.promotional) return false;
@@ -125,13 +137,14 @@ export async function runBreakingCheck(now = new Date()) {
       assessment: true,
       headline: true,
       cardType: true,
-      topic: { select: { id: true, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } },
+      topic: { select: { id: true, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true, articles: { select: { publisher: true }, take: 30 } } },
     },
   });
   const pick = pickBreaking(
     stories.map((s) => ({
       breaking: s.cardType === "BREAKING",
       hot: isHot(s.topic, now.getTime()),
+      trusted: s.topic.articles.some((a) => isTrustedPublisher(a.publisher)),
       id: s.id,
       score: s.score,
       publisherCount: s.topic.publisherCount,
