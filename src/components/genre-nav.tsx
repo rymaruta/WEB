@@ -19,13 +19,15 @@ export function GenreNav({ genres }: Props) {
     active?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [pathname]);
   const items = [
+    // いちばん大きな話題（まとめ記事つき）。一番先に置き、スマホでも出す
+    { href: "/trending", label: "話題", slug: null, featured: true, desktopOnly: false, icon: "flame" as "company" | "video" | "flame" | null },
     // トップ・ランキング・まとめ記事は、スマホでは下のメニューにあるため PC でだけ出す
     { href: "/", label: "トップ", slug: null, featured: false, desktopOnly: true, icon: null },
     // ランキングはよく見られるため、トップの次に置いてアクセント色で目立たせる
     { href: "/ranking", label: "ランキング", slug: null, featured: true, desktopOnly: true, icon: null },
     { href: "/articles", label: "まとめ記事", slug: null, featured: false, desktopOnly: true, icon: null },
     ...genres.flatMap((g) => {
-      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | "video" | null };
+      const genre = { href: `/genre/${g.slug}`, label: g.name, slug: g.slug as string | null, featured: false, desktopOnly: false, icon: null as "company" | "video" | "flame" | null };
       // 企業別ニュースは、経済の隣に置く（気になる企業のニュースだけを追いたい人が多いため）
       if (g.slug === "business") return [genre, { href: "/company", label: "企業別", slug: null, featured: false, desktopOnly: false, icon: "company" as const }];
       // YouTube の新着動画は、エンタメの隣に置く
@@ -56,7 +58,7 @@ export function GenreNav({ genres }: Props) {
             style={active ? { borderColor: color } : undefined}
           >
             {item.slug && <GenreIcon slug={item.slug} className="h-4 w-4" />}
-            {item.featured && <NavIcon name="ranking" className="h-4 w-4" />}
+            {item.featured && !item.icon && <NavIcon name="ranking" className="h-4 w-4" />}
             {item.icon && <NavIcon name={item.icon} className="h-4 w-4" />}
             {item.label}
           </Link>
