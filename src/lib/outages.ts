@@ -18,7 +18,7 @@ export type OutageStatus = "recovered" | "ongoing";
 
 /** 見出しに「復旧」とあれば復旧済み、なければ発生中として出す */
 export function outageStatus(title: string): OutageStatus {
-  return /復旧(した|しました|済|$|。|、| )|復旧へ|全面復旧|復旧完了|解消/.test(title.normalize("NFKC")) ? "recovered" : "ongoing";
+  return /復旧(した|しました|済|$|。|、| )|復旧へ|全面復旧|復旧完了|解消|修正/.test(title.normalize("NFKC")) ? "recovered" : "ongoing";
 }
 
 export const OUTAGE_STATUS_LABELS: Record<OutageStatus, string> = { recovered: "復旧", ongoing: "発生" };

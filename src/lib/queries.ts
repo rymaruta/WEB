@@ -453,6 +453,8 @@ export const getOutages = cache(async (hours = 72, take = 15): Promise<OutageIte
     where: {
       firstSeenAt: { gte: since(hours) },
       genre: { slug: { in: ["tech", "domestic", "business", "life", "game"] } },
+      // 報道機関の記事がある話題だけ（SNS の投稿だけの話題は、個人の体験談のことが多いため）
+      articles: { some: { source: { kind: "NEWS" } } },
       OR: [{ title: { contains: "障害" } }, { title: { contains: "不具合" } }, { title: { contains: "つなが" } }, { title: { contains: "繋が" } }, { title: { contains: "復旧" } }, { title: { contains: "できない" } }, { title: { contains: "停止" } }, { title: { contains: "ダウン" } }, { aiTitle: { contains: "障害" } }, { aiTitle: { contains: "不具合" } }],
     },
     orderBy: { firstSeenAt: "desc" },
