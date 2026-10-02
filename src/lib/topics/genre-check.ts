@@ -15,8 +15,9 @@ import { checkMerge } from "./merge-check";
  */
 
 /** 1回に判定する話題の数と、ジャンルごとの上限（どのジャンルの一覧も少しずつ整うように） */
-export const GENRE_CHECK_LIMIT = 120;
-const PER_GENRE = 15;
+export const GENRE_CHECK_LIMIT = 160;
+// ジャンルごとの一覧の上位 20 件まで AI が確かめる（2026-10-03 の測定で、15 件では一覧に出る話題の誤りが残った）
+const PER_GENRE = 20;
 /** 一覧に出る期間の話題だけを判定する */
 const WINDOW_HOURS = 48;
 

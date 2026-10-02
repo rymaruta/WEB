@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import gold from "./fixtures/genre-gold.json";
 import holdout from "./fixtures/genre-holdout.json";
+import displayed from "./fixtures/genre-displayed.json";
 import { confidentMove, judgeGenre } from "@/lib/topics/genre-rules";
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
@@ -61,6 +62,17 @@ describe("judgeGenre（2つ目の検証データ：AI が未判定の新しい�
   it("人名の中の1文字（久保建英の「英」）や「中国製」で国際にしない", () => {
     expect(judgeGenre("福原遥がサッカー久保建英と電撃婚", null, "entertainment").genre).not.toBe("world");
     expect(confidentMove(judgeGenre("中国製スマートグラスがリコール", null, "tech"), TOPIC_MIN_CONFIDENCE)).toBe(false);
+  });
+});
+
+describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャンルの一覧に出ていた話題 142件）", () => {
+  const rows3 = displayed as Row[];
+  it("一致率が 92% 以上（測定時の表示は 89.4%。ルールだけで 132/142）", () => {
+    expect(rows3.filter((r) => applied(r) === r.gold).length / rows3.length).toBeGreaterThanOrEqual(0.92);
+  });
+  it("フィギュアスケートの話題を新商品にしない・食品の試飲を新商品にする", () => {
+    expect(judgeGenre("【フィギュア】島田麻央がサンリオ社とスポンサー契約締結", null, "sports").genre).toBe("sports");
+    expect(judgeGenre("期間限定「よくばりプレート」登場、試食レビュー", null, "tech").genre).toBe("products");
   });
 });
 
