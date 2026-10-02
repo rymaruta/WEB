@@ -1,4 +1,5 @@
 import { hasCronSecret } from "@/lib/auth";
+import { logListings } from "@/lib/listings-log";
 import { syncAnimeListings } from "@/lib/anime-listings";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,11 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    return Response.json(await syncAnimeListings());
+    const result = await syncAnimeListings();
+    await logListings("listings.anime", result);
+    return Response.json(result);
   } catch (e) {
+    await logListings("listings.anime", null, e);
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }
 }
