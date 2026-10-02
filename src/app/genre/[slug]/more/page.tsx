@@ -104,7 +104,7 @@ export default async function GenrePage({ params, searchParams }: PageProps<"/ge
       </header>
 
       {companies.length > 0 && (
-        <nav aria-label="話題の企業" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <nav aria-label="話題の企業" className="flex flex-wrap items-center gap-2">
           <span className="shrink-0 text-xs font-bold text-fg-muted">話題の企業</span>
           {companies.map((c) => (
             <Link
