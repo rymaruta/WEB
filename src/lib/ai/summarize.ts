@@ -5,14 +5,14 @@ import { findDueTopics, loadTopicSources, markAttempted, saveArticle } from "./s
 
 /**
  * 複数の媒体が報じたトピックについて、各媒体の見出しと要約だけを材料に AI がまとめ記事を書く。
- * ANTHROPIC_API_KEY が未設定の場合は何もしない。
+ * ANTHROPIC_API_KEY があり、ARTICLE_AI=on のときだけ動く（キーは速報の解析にも使うため、記事の自動作成は明示的に有効にする）。
  */
 
 const MODEL = process.env.AI_MODEL ?? "claude-opus-5-5";
 /** 1回の収集で作成する最大本数（費用の上限管理） */
 const MAX_PER_RUN = Number(process.env.AI_MAX_PER_RUN ?? 10);
 
-export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
+export const aiEnabled = () => /^sk-ant-/.test(process.env.ANTHROPIC_API_KEY ?? "") && process.env.ARTICLE_AI === "on";
 
 /** 資料（プロンプト）からまとめ記事を生成する関数。テストでは差し替える */
 export type ArticleGenerator = (prompt: string) => Promise<{ article: GeneratedArticle | null; model: string }>;
