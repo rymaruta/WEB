@@ -6,7 +6,7 @@ import { Expandable } from "./expandable-list";
 import { Fold } from "./fold";
 
 /** エンタメのページの「映画の公開スケジュール」。月ごとに開け閉めでき、最初は今月だけ開く。作品名を押すとサイト内の関連ニュースを探す */
-export function MovieSchedule({ months, sourceUrl, today }: { months: { month: number; items: MovieItem[] }[]; sourceUrl: string; today: string }) {
+export function MovieSchedule({ months, sourceUrl }: { months: { month: number; items: MovieItem[] }[]; sourceUrl: string }) {
   if (months.every((m) => m.items.length === 0)) return null;
   const day = (date: string) => {
     const [, m, d] = date.split("-").map(Number);
@@ -42,9 +42,7 @@ export function MovieSchedule({ months, sourceUrl, today }: { months: { month: n
                 keyOf={(f) => `${f.release}-${f.title}`}
                 render={(f) => (
                   <Link href={`/search?q=${encodeURIComponent(f.title)}`} prefetch={false} className="group flex items-center gap-2 py-1.5">
-                    <span className={`w-10 shrink-0 text-xs font-bold tabular-nums ${f.release < today ? "text-fg-subtle" : "text-[var(--g-entertainment)]"}`}>
-                      {f.release < today ? "公開中" : day(f.release)}
-                    </span>
+                    <span className="w-10 shrink-0 text-xs font-bold text-[var(--g-entertainment)] tabular-nums">{day(f.release)}</span>
                     <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 font-bold text-fg-muted">
                       {f.country === "日本" ? "邦画" : "洋画"}
                     </span>
