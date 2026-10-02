@@ -86,6 +86,8 @@ model Topic {
   aiGenreId      Int?
   /// 記事作成の定期処理が、内容からジャンルを判定し直したか（src/lib/topics/genre-check.ts）
   aiGenreChecked Boolean   @default(false)
+  /// ジャンルを決めた方法と根拠（rule・ai・vote、信頼度、効いた語）。誤分類の調査と精度の測定に使う
+  genreNote      String?
   /// 読み物でない告知（占い・求人・IR 説明会・自治体のお知らせなど）。一覧には出さない
   aiNotNews      Boolean   @default(false)
   /// この時刻までトップの一番上に固定する（大きな出来事を運営者が選んで目立たせる）

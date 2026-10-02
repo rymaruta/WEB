@@ -2,6 +2,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { chunk } from "@/lib/sql";
 import { assignTopics, type TopicKey } from "./assign";
+import { TOPIC_MIN_CONFIDENCE } from "./genre-apply";
+import { judgeGenre } from "./genre-rules";
 import { topicScore } from "./score";
 
 /** この時間内に更新されたトピックだけを割り当て候補にする */
@@ -103,9 +105,12 @@ export async function refreshTopics(topicIds: number[]) {
   // ジャンルは報道記事の多数決（なければ全記事の多数決）。
   const articles = await prisma.article.findMany({
     where: { topicId: { in: topicIds } },
-    select: { topicId: true, title: true, genreId: true, publishedAt: true, source: { select: { kind: true } } },
+    select: { topicId: true, title: true, summary: true, publisher: true, genreId: true, publishedAt: true, source: { select: { kind: true } } },
     orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
   });
+  const genres = await prisma.genre.findMany({ select: { id: true, slug: true } });
+  const slugOf = new Map(genres.map((g) => [g.id, g.slug]));
+  const idOf = new Map(genres.map((g) => [g.slug, g.id]));
   const grouped = new Map<number, typeof articles>();
   for (const a of articles) {
     const list = grouped.get(a.topicId!) ?? [];
@@ -119,7 +124,10 @@ export async function refreshTopics(topicIds: number[]) {
     const votes = new Map<number, number>();
     for (const a of pool) votes.set(a.genreId, (votes.get(a.genreId) ?? 0) + 1);
     // 媒体の欄の多数決。AI が判定したジャンル（aiGenreId）があれば、更新時にそちらを優先する
-    const genreId = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const voted = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    // 多数決のジャンルを、話題の見出しと要約の語で確かめる（総合誌・総合欄の記事が内容と違うジャンルに入らないように）
+    const j = judgeGenre(pool[0].title, pool[0].summary, slugOf.get(voted) ?? "domestic", pool[0].publisher);
+    const genreId = j.moved && j.confidence >= TOPIC_MIN_CONFIDENCE ? (idOf.get(j.genre) ?? voted) : voted;
     return Prisma.sql`(${topicId}::int, ${pool[0].title}::text, ${genreId}::int)`;
   });
   for (const rows of chunk(updates, 5_000)) {

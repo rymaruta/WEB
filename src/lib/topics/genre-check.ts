@@ -25,6 +25,8 @@ export const GenreCheckSchema = z.object({
         id: z.number().int(),
         genre: z.enum(GENRE_SLUGS).nullable().describe("出来事の内容で決めるジャンル。迷う場合は null（今のジャンルのまま）"),
         notNews: z.boolean().describe("読み物でない告知なら true"),
+        confidence: z.number().min(0).max(1).optional().describe("genre の確からしさ（0〜1）。0.6 未満なら genre は使わない"),
+        reason: z.string().max(80).optional().describe("genre の根拠（例: 俳優の結婚の話題のため）"),
         sameAs: z
           .number()
           .int()
@@ -57,6 +59,8 @@ export const GENRE_CHECK_SYSTEM = `あなたはニュースサイトの編集者
 - ゲームが題材のグッズ・食品は products、ゲームそのものの話題だけを game にする
 - 政治家の発言でも、海外の出来事が中心なら world
 - どれとも決めにくい場合は genre を null にする
+- confidence に確からしさ（0〜1）、reason に根拠を短く書く。0.6 未満の判定は使われない
+- hint がある話題は、自動の判定が別のジャンルを示したもの。内容を読み直して決める（hint に合わせる必要はない）
 
 notNews（読み物でない告知）を true にするのは、次のようなものだけ:
 - 占い・運勢、求人や採用イベント、株主・投資家向けの説明会やセミナーの案内、展示会・講演会の出展や登壇の告知
@@ -70,7 +74,17 @@ sameAs（同じ出来事の話題をまとめる）:
 - 同じ人や会社の話題でも、別の出来事（別の日の別の発表、別の試合など）なら null
 - 迷う場合は null`;
 
-export type GenreCheckCandidate = { id: number; genre: string; title: string; articles: { publisher: string; title: string; summary: string | null }[] };
+export type GenreCheckCandidate = {
+  id: number;
+  genre: string;
+  title: string;
+  articles: { publisher: string; title: string; summary: string | null }[];
+  /** 見直しの依頼（ルールの判定が前の AI の判定と強く食い違った話題） */
+  hint?: string;
+};
+
+/** AI の判定として使う確からしさの下限 */
+export const AI_MIN_CONFIDENCE = 0.6;
 
 /** 同じ出来事かを見比べるための、すでに判定した一覧の上位の話題（ジャンルごと） */
 const CONTEXT_PER_GENRE = 10;
@@ -109,6 +123,7 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
       id: true,
       title: true,
       genre: { select: { slug: true } },
+      genreNote: true,
       articles: { take: 2, orderBy: [{ publishedAt: "asc" }, { id: "asc" }], select: { publisher: true, title: true, summary: true } },
     },
   });
@@ -116,7 +131,13 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
   return rows
     .map((r) => byId.get(r.id))
     .filter((t) => !!t)
-    .map((t) => ({ id: t.id, genre: t.genre.slug, title: t.title, articles: t.articles.map((a) => ({ ...a, summary: a.summary?.slice(0, 120) ?? null })) }));
+    .map((t) => ({
+      id: t.id,
+      genre: t.genre.slug,
+      title: t.title,
+      articles: t.articles.map((a) => ({ ...a, summary: a.summary?.slice(0, 120) ?? null })),
+      ...(t.genreNote?.startsWith("recheck ") ? { hint: `ルールによる判定（前回の AI の判定と食い違い）: ${t.genreNote.slice(8, 160)}` } : {}),
+    }));
 }
 
 /**
@@ -133,7 +154,7 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
   const ids = [...new Set(results.map((r) => r.id))];
   const topics = await prisma.topic.findMany({
     where: { id: { in: ids } },
-    select: { id: true, genreId: true, articles: { where: { source: { kind: "NEWS" } }, distinct: ["publisher"], take: 2, select: { publisher: true } } },
+    select: { id: true, genreId: true, genreNote: true, articles: { where: { source: { kind: "NEWS" } }, distinct: ["publisher"], take: 2, select: { publisher: true } } },
   });
   const known = new Map(topics.map((t) => [t.id, t]));
   let moved = 0;
@@ -142,11 +163,16 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
   for (const r of results) {
     const t = known.get(r.id);
     if (!t) continue;
-    const gid = r.genre ? (genreId.get(r.genre) ?? null) : null;
+    // 確からしさの低い判定は使わない（今のジャンルのまま）
+    const sure = r.confidence === undefined || r.confidence >= AI_MIN_CONFIDENCE;
+    const gid = r.genre && sure ? (genreId.get(r.genre) ?? null) : null;
+    // 判定の記録。見直しの依頼に答えたものは ai-final（以後ルールで変えない）
+    const method = t.genreNote?.startsWith("recheck ") ? "ai-final" : "ai";
+    const note = `${method} ${gid ? r.genre : "keep"} conf=${r.confidence ?? "-"} ${r.reason ?? ""}`.trim().slice(0, 500);
     const notNews = r.notNews && t.articles.length < 2;
     if (gid && gid !== t.genreId) moved++;
     if (notNews) hidden++;
-    rows.push(Prisma.sql`(${t.id}::int, ${gid}::int, ${notNews}::boolean)`);
+    rows.push(Prisma.sql`(${t.id}::int, ${gid}::int, ${notNews}::boolean, ${note}::text)`);
   }
   if (rows.length > 0) {
     await prisma.$executeRaw`
@@ -154,8 +180,9 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
       SET "aiGenreChecked" = true,
           "aiNotNews" = v.not_news,
           "aiGenreId" = COALESCE(v.gid, t."aiGenreId"),
-          "genreId" = COALESCE(v.gid, t."genreId")
-      FROM (VALUES ${Prisma.join(rows)}) AS v(id, gid, not_news)
+          "genreId" = COALESCE(v.gid, t."genreId"),
+          "genreNote" = v.note
+      FROM (VALUES ${Prisma.join(rows)}) AS v(id, gid, not_news, note)
       WHERE t.id = v.id`;
   }
   const pairs = results.filter((r) => known.has(r.id) && r.sameAs && r.sameAs !== r.id).map((r) => [r.id, r.sameAs!] as const);
