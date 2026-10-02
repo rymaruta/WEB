@@ -10,6 +10,12 @@ export function SiteFooter() {
           <span className="ml-2">見出しと要約は各媒体の配信情報に基づきます。記事の著作権は各媒体に帰属します。</span>
         </p>
         <nav className="flex flex-wrap gap-2">
+          <Link href="/calendar" className="rounded px-2 py-2 hover:text-fg">ぜんぶカレンダー</Link>
+          <Link href="/feature" className="rounded px-2 py-2 hover:text-fg">特集</Link>
+          <Link href="/weekly" className="rounded px-2 py-2 hover:text-fg">今週の10大ニュース</Link>
+          <Link href="/prices" className="rounded px-2 py-2 hover:text-fg">値上げ・値下げデータベース</Link>
+          <Link href="/compare" className="rounded px-2 py-2 hover:text-fg">報道くらべ</Link>
+          <Link href="/following" className="rounded px-2 py-2 hover:text-fg">フォロー中</Link>
           <Link href="/digest" className="rounded px-2 py-2 hover:text-fg">配信アーカイブ</Link>
           <Link href="/company" className="rounded px-2 py-2 hover:text-fg">企業別ニュース</Link>
           <Link href="/saved" className="rounded px-2 py-2 hover:text-fg">あとで読む</Link>

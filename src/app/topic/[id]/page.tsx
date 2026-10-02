@@ -4,6 +4,8 @@ import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { coverageTimes, elapsedLabel, numberDiffs } from "@/lib/coverage";
+import { isIndexableArticle } from "@/lib/indexing";
+import { featurePath, featureShortName, isFeatureMonth, type FeatureKind } from "@/lib/features";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
 import { FeedbackButtons } from "@/components/feedback-buttons";
@@ -48,9 +50,11 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
     alternates: { canonical: `/topic/${topic.id}` },
     // openGraph はレイアウトの値を丸ごと置き換えるため、サイト名と言語もここで指定する
     openGraph: { title, description: summary, type: "article", siteName: siteConfig.name, locale: "ja_JP" },
-    // 検索エンジンに登録するのは、独自の文章（AI まとめ記事）があるトピックだけ。
-    // 見出しと元記事へのリンクだけのページは付加価値が小さいため登録しない
-    robots: ai ? undefined : { index: false, follow: true },
+    // 検索エンジンに登録するのは、独自の価値があるまとめ記事だけ（src/lib/indexing.ts）。
+    // 見出しと元記事へのリンクだけのページや、1〜2媒体の言い換えにとどまる記事は登録しない
+    robots: isIndexableArticle({ publisherCount: topic.publisherCount, hasAi: !!ai, angles: ai?.angles.length ?? 0, background: ai?.background.length ?? 0 })
+      ? undefined
+      : { index: false, follow: true },
   };
 }
 
@@ -69,6 +73,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const coverage = topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, title: a.title, kind: a.source.kind }));
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
+  const featureLinks = relatedFeatures(topic);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -147,6 +152,17 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </div>
             </div>
           )}
+          {/* この話題に関わる特集・データのページ（発売日・放送日・値上げなど、日付のある話題だけ） */}
+          {featureLinks.length > 0 && (
+            <nav aria-label="関連する特集" className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-bold text-fg-muted">関連する特集</span>
+              {featureLinks.map((l) => (
+                <Link key={l.href} href={l.href} prefetch={false} className="rounded-full border border-accent/40 bg-accent-soft/40 px-3 py-1 font-bold text-accent hover:bg-accent-soft">
+                  {l.label} →
+                </Link>
+              ))}
+            </nav>
+          )}
           <EventTimeline entries={timeline} currentId={topic.id} />
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
         {/* 見出しの数字が媒体で分かれているとき（報じた時点の違いなど）。どの媒体がどの数字かを並べる */}
@@ -212,4 +228,19 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
       </aside>
     </div>
   );
+}
+
+/** 話題に読み取った日付（発売日・放送日・変更の日）から、関連する特集とデータのページを選ぶ */
+function relatedFeatures(t: { aiGameRelease: string | null; aiAnimeDate: string | null; aiChangeDate: string | null; aiChangeKind: string | null }) {
+  const links: { href: string; label: string }[] = [];
+  const add = (kind: FeatureKind, date: string | null) => {
+    const month = date?.slice(0, 7);
+    if (month && isFeatureMonth(month)) links.push({ href: featurePath(kind, month), label: featureShortName(kind, month) });
+  };
+  add("games", t.aiGameRelease);
+  add("anime", t.aiAnimeDate);
+  add("changes", t.aiChangeDate);
+  if (t.aiChangeKind === "price_up" || t.aiChangeKind === "price_down") links.push({ href: "/prices", label: "値上げ・値下げデータベース" });
+  if (links.length > 0) links.push({ href: "/calendar", label: "ぜんぶカレンダー" });
+  return links;
 }
