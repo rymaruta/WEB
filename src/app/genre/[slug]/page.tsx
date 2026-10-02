@@ -9,6 +9,8 @@ import { TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
 import { MonthlyChanges } from "@/components/monthly-changes";
 import { WeeklyProducts } from "@/components/weekly-products";
+import { AnimeSchedule } from "@/components/anime-schedule";
+import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
@@ -70,6 +72,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const changes = genre.slug === "domestic" || genre.slug === "life" ? await loadMonthlyChanges() : null;
   // 新商品・グルメのページは、今週・来週の新発売を出す
   const products = genre.slug === "products" ? await loadWeeklyProducts() : null;
+  // アニメ・漫画のページは、今月・来月に始まる放送・配信・劇場公開を出す
+  const anime = genre.slug === "anime" ? await loadAnimeSchedule() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -119,6 +123,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       {game && <GameHighlights {...game} />}
       {changes && <MonthlyChanges {...changes} />}
       {products && <WeeklyProducts {...products} />}
+      {anime && <AnimeSchedule {...anime} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
@@ -204,4 +209,14 @@ async function loadWeeklyProducts() {
   const { thisWeek, nextWeek } = jstWeeks();
   const [a, b] = await Promise.all([getProducts(thisWeek.from, thisWeek.to), getProducts(nextWeek.from, nextWeek.to)]);
   return { weeks: [{ label: "今週の新発売", items: a }, { label: "来週の新発売", items: b }] };
+}
+
+async function loadAnimeSchedule() {
+  const { year, thisKey, nextKey } = jstMonths();
+  const items = await getAnimeSchedule([thisKey, nextKey]);
+  const month = (key: string) => Number(key.slice(5, 7));
+  return {
+    thisYear: year,
+    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((a) => a.date.startsWith(key)) })),
+  };
 }

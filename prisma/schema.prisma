@@ -125,6 +125,14 @@ model Topic {
   aiProductDate    String?
   aiProductKind    String?
   aiProductChecked Boolean  @default(false)
+  /// アニメの放送・配信・劇場公開（「放送・配信スケジュール」に使う）
+  aiAnimeTitle   String?
+  /// 始まる日（YYYY-MM-DD か YYYY-MM）
+  aiAnimeDate    String?
+  aiAnimeKind    String?
+  /// 放送局・配信サービス（資料に書かれていれば）
+  aiAnimeChannel String?
+  aiAnimeChecked Boolean   @default(false)
   /// 生成時に参照した記事 ID の配列（出典番号の対応表）
   aiSources      Json?
   aiModel        String?
@@ -146,6 +154,7 @@ model Topic {
   @@index([aiGameRelease])
   @@index([aiChangeDate])
   @@index([aiProductDate])
+  @@index([aiAnimeDate])
 }
 
 // ---------------------------------------------------------------------------
