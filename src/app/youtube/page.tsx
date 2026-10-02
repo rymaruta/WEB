@@ -125,21 +125,35 @@ export default async function YouTubePage() {
               key: g,
               label: CHANNEL_GROUP_LABELS[g],
               content: (
-                <>
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {members.map(({ c }) => (
-                      <Link
-                        key={c.slug}
-                        href={`/youtube/${c.slug}`}
-                        prefetch={false}
-                        className="rounded-full border border-border px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
-                      >
-                        {c.name}
-                      </Link>
-                    ))}
-                  </div>
-                  {latest.length ? <VideoGrid videos={latest} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>}
-                </>
+                // 2段目のタブ：分類の中の YouTuber（「すべて」はその分類の最新動画をまとめたもの）
+                <GroupTabs
+                  id={`yt-${g}`}
+                  label={`${CHANNEL_GROUP_LABELS[g]}の YouTuber`}
+                  variant="sub"
+                  groups={[
+                    {
+                      key: "all",
+                      label: "すべて",
+                      content: latest.length ? <VideoGrid videos={latest} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>,
+                    },
+                    ...members.map(({ c, videos }) => ({
+                      key: c.slug,
+                      label: c.name.replace(/（.*）/, ""),
+                      content: (
+                        <>
+                          {videos.length ? (
+                            <VideoGrid videos={videos} showChannel={false} />
+                          ) : (
+                            <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>
+                          )}
+                          <Link href={`/youtube/${c.slug}`} prefetch={false} className="mt-3 inline-block text-xs font-bold text-accent hover:underline">
+                            {c.name}のすべての動画とニュース →
+                          </Link>
+                        </>
+                      ),
+                    })),
+                  ]}
+                />
               ),
             };
           })}
