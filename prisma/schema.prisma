@@ -126,6 +126,13 @@ model Topic {
   aiChangeDate    String?
   aiChangeKind    String?
   aiChangeChecked Boolean   @default(false)
+  /// 値上げ・値下げの詳しい情報（値上げ・値下げデータベース。src/lib/changes.ts）。資料に書かれているものだけ
+  aiChangeCompany      String?
+  aiChangeBefore       Int?
+  aiChangeAfter        Int?
+  aiChangeRate         Float?
+  /// 値段の情報まで読み取ったか（以前に読み取った値上げ・値下げを、もう一度読み取るため）
+  aiChangePriceChecked Boolean  @default(false)
   /// 新商品の発売（「今週の新発売」に使う）
   aiProductName    String?
   aiProductMaker   String?

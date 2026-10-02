@@ -136,6 +136,13 @@ export default async function FeaturePage({ params }: PageProps<"/feature/[kind]
         ニュースで報じられた日付をもとに自動でまとめています。日付は変わることがあるため、最新の情報は各社の発表でご確認ください。
         {f.sourceNote && <> {f.sourceNote}</>}
       </p>
+      {f.kind === "changes" && (
+        <p>
+          <Link href="/prices" prefetch={false} className="text-sm font-bold text-accent hover:underline">
+            値上げ・値下げを会社や品目で探す（値上げ・値下げデータベース） →
+          </Link>
+        </p>
+      )}
       <p>
         <Link href={`/genre/${f.genreSlug}`} className="text-sm font-bold text-accent hover:underline">
           ジャンルのニュース一覧へ →
