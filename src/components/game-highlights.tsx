@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { GAME_KIND_LABELS, GAME_PLATFORMS, releaseLabel, type GameKind } from "@/lib/game";
 import { Expandable } from "./expandable-list";
+import { Fold } from "./fold";
 import { ReadTitle } from "./read-title";
 
 /** 発売日の短い表示（10/2、10月中、2027年） */
@@ -107,82 +108,98 @@ export function GameHighlights({
       )}
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
-          <h2 className="text-base font-extrabold">発売スケジュール</h2>
-          <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日と、任天堂・PlayStation・Steam の公式ストアの発売予定日（↗ は公式ストアのページ）</p>
-          {/* 月ごとに開け閉めできる。最初は今月だけ開く */}
-          {months.map((m, i) =>
-            m.items.length === 0 ? null : (
-              <details key={m.title} open={i === 0} className="group/month mt-2">
-                <summary className="flex cursor-pointer list-none items-center gap-1 py-1 text-xs font-bold text-fg-muted [&::-webkit-details-marker]:hidden">
-                  <span aria-hidden className="inline-block transition-transform group-open/month:rotate-90">›</span>
-                  {m.title}
-                  <span className="font-normal text-fg-subtle">{m.items.length}本</span>
-                </summary>
-                <Expandable
-                  items={m.items}
-                  render={(r) => {
-                    const row = (
-                      <>
-                        <span className="w-14 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{shortRelease(r.release, thisYear)}</span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={`${releaseLabel(r.release, thisYear)} ${r.title}`}>
-                          {r.title}
-                          {!r.topicId && (
-                            <span aria-label="公式ストアのページ" className="ml-1 text-[10px] font-normal text-fg-subtle">
-                              ↗
+          <Fold
+            id="game-schedule"
+            summary={
+              <>
+                <h2 className="text-base font-extrabold">発売スケジュール</h2>
+                <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日と、任天堂・PlayStation・Steam の公式ストアの発売予定日（↗ は公式ストアのページ）</p>
+              </>
+            }
+          >
+            {/* 月ごとに開け閉めできる。最初は今月だけ開く */}
+            {months.map((m, i) =>
+              m.items.length === 0 ? null : (
+                <details key={m.title} open={i === 0} className="group/month mt-2">
+                  <summary className="flex cursor-pointer list-none items-center gap-1 py-1 text-xs font-bold text-fg-muted [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden className="inline-block transition-transform group-open/month:rotate-90">›</span>
+                    {m.title}
+                    <span className="font-normal text-fg-subtle">{m.items.length}本</span>
+                  </summary>
+                  <Expandable
+                    items={m.items}
+                    render={(r) => {
+                      const row = (
+                        <>
+                          <span className="w-14 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{shortRelease(r.release, thisYear)}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={`${releaseLabel(r.release, thisYear)} ${r.title}`}>
+                            {r.title}
+                            {!r.topicId && (
+                              <span aria-label="公式ストアのページ" className="ml-1 text-[10px] font-normal text-fg-subtle">
+                                ↗
+                              </span>
+                            )}
+                          </span>
+                          {r.platforms.length > 0 && (
+                            <span className="shrink-0 text-[11px] text-fg-subtle" title={r.platforms.join("・")}>
+                              {shortPlatforms(r.platforms)}
                             </span>
                           )}
-                        </span>
-                        {r.platforms.length > 0 && (
-                          <span className="shrink-0 text-[11px] text-fg-subtle" title={r.platforms.join("・")}>
-                            {shortPlatforms(r.platforms)}
-                          </span>
-                        )}
-                      </>
-                    );
-                    const cls = "group flex items-center gap-2 py-1.5";
-                    return r.topicId ? (
-                      <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className={cls}>
-                        {row}
-                      </Link>
-                    ) : (
-                      <a href={r.storeUrl ?? "#"} target="_blank" rel="noopener nofollow" className={cls}>
-                        {row}
-                      </a>
-                    );
-                  }}
-                  keyOf={(r) => r.storeUrl ?? `${r.topicId}`}
-                />
-              </details>
-            ),
-          )}
-          {months.every((m) => m.items.length === 0) && (
-            <p className="py-2 text-sm text-fg-subtle">{platform ? `${platform}で` : ""}発売日が報じられた作品はまだありません。</p>
-          )}
+                        </>
+                      );
+                      const cls = "group flex items-center gap-2 py-1.5";
+                      return r.topicId ? (
+                        <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className={cls}>
+                          {row}
+                        </Link>
+                      ) : (
+                        <a href={r.storeUrl ?? "#"} target="_blank" rel="noopener nofollow" className={cls}>
+                          {row}
+                        </a>
+                      );
+                    }}
+                    keyOf={(r) => r.storeUrl ?? `${r.topicId}`}
+                  />
+                </details>
+              ),
+            )}
+            {months.every((m) => m.items.length === 0) && (
+              <p className="py-2 text-sm text-fg-subtle">{platform ? `${platform}で` : ""}発売日が報じられた作品はまだありません。</p>
+            )}
+          </Fold>
         </section>
         <section className="card p-4">
-          <h2 className="text-base font-extrabold">新着ゲーム</h2>
-          <p className="mb-1 text-[11px] text-fg-subtle">この1週間の新作発表・発売日決定</p>
-          {fresh.length === 0 ? (
-            <p className="py-2 text-sm text-fg-subtle">この1週間の発表はまだありません。</p>
-          ) : (
-            <Expandable
-              items={fresh}
-              keyOf={(g) => `${g.topicId}`}
-              render={(g) => (
-                <Link href={`/topic/${g.topicId}`} data-topic-id={g.topicId} className="group flex items-start gap-2 py-1.5">
-                  <span className="mt-0.5 shrink-0 rounded bg-[var(--g-game)] px-1 text-[10px] leading-4 font-bold text-white">
-                    {GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm leading-snug font-bold group-hover:text-accent">
-                    <span className="line-clamp-2">
-                      <ReadTitle id={g.topicId}>{g.headline}</ReadTitle>
+          <Fold
+            id="game-new"
+            summary={
+              <>
+                <h2 className="text-base font-extrabold">新着ゲーム</h2>
+                <p className="mb-1 text-[11px] text-fg-subtle">この1週間の新作発表・発売日決定</p>
+              </>
+            }
+          >
+            {fresh.length === 0 ? (
+              <p className="py-2 text-sm text-fg-subtle">この1週間の発表はまだありません。</p>
+            ) : (
+              <Expandable
+                items={fresh}
+                keyOf={(g) => `${g.topicId}`}
+                render={(g) => (
+                  <Link href={`/topic/${g.topicId}`} data-topic-id={g.topicId} className="group flex items-start gap-2 py-1.5">
+                    <span className="mt-0.5 shrink-0 rounded bg-[var(--g-game)] px-1 text-[10px] leading-4 font-bold text-white">
+                      {GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"}
                     </span>
-                  </span>
-                  {g.release && <span className="mt-0.5 shrink-0 text-[11px] text-fg-subtle tabular-nums">{shortRelease(g.release, thisYear)}</span>}
-                </Link>
-              )}
-            />
-          )}
+                    <span className="min-w-0 flex-1 text-sm leading-snug font-bold group-hover:text-accent">
+                      <span className="line-clamp-2">
+                        <ReadTitle id={g.topicId}>{g.headline}</ReadTitle>
+                      </span>
+                    </span>
+                    {g.release && <span className="mt-0.5 shrink-0 text-[11px] text-fg-subtle tabular-nums">{shortRelease(g.release, thisYear)}</span>}
+                  </Link>
+                )}
+              />
+            )}
+          </Fold>
         </section>
       </div>
     </div>

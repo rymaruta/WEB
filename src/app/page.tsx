@@ -1,5 +1,6 @@
 import { ArticleRanking } from "@/components/article-ranking";
 import { DigestSummaryCard } from "@/components/digest-summary";
+import { Fold } from "@/components/fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroTopic, TopicCard, TopicList, TopicTile } from "@/components/topic-card";
@@ -119,24 +120,31 @@ export default async function HomePage() {
 
       {/* 企業別ニュースへの入口。この1週間によく取り上げられた企業を並べる */}
       {companies.length > 0 && (
-        <nav aria-label="話題の企業" className="card flex items-center gap-2 overflow-x-auto p-3 scrollbar-none">
-          <Link href="/company" prefetch={false} className="shrink-0 text-sm font-extrabold hover:text-accent">
-            企業別ニュース
-          </Link>
-          {companies.map((c) => (
-            <Link
-              key={c.name}
-              href={companyPath(c.name)}
-              prefetch={false}
-              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
-            >
-              {c.name}
+        <Fold
+          id="home-companies"
+          className="card px-4 py-3"
+          summary={
+            <Link href="/company" prefetch={false} className="text-sm font-extrabold hover:text-accent">
+              企業別ニュース
             </Link>
-          ))}
-          <Link href="/company" prefetch={false} className="shrink-0 text-xs font-bold text-accent hover:underline">
-            すべて見る →
-          </Link>
-        </nav>
+          }
+        >
+          <nav aria-label="話題の企業" className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
+            {companies.map((c) => (
+              <Link
+                key={c.name}
+                href={companyPath(c.name)}
+                prefetch={false}
+                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
+              >
+                {c.name}
+              </Link>
+            ))}
+            <Link href="/company" prefetch={false} className="shrink-0 text-xs font-bold text-accent hover:underline">
+              すべて見る →
+            </Link>
+          </nav>
+        </Fold>
       )}
 
       <section aria-labelledby="by-genre">

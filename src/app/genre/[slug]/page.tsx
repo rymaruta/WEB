@@ -19,6 +19,7 @@ import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
 import { MarketBar } from "@/components/market-bar";
+import { Fold } from "@/components/fold";
 import { getMarketSnapshot } from "@/lib/market";
 import { tagPath } from "@/lib/tags";
 import {
@@ -125,8 +126,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       {market && <MarketBar data={market} />}
 
       {companies.length > 0 && (
-        <nav aria-label="話題の企業" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="shrink-0 text-xs font-bold text-fg-muted">話題の企業</span>
+        <Fold id="companies" className="card px-4 py-3" summary={<span className="text-xs font-bold text-fg-muted">話題の企業</span>}>
+        <nav aria-label="話題の企業" className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
           {companies.map((c) => (
             <Link
               key={c.name}
@@ -141,11 +142,16 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
             すべて見る →
           </Link>
         </nav>
+        </Fold>
       )}
 
       {tags.length > 0 && (
-        <nav aria-label={tagKind === "country" ? "国・地域で見る" : "チームで見る"} className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="shrink-0 text-xs font-bold text-fg-muted">{tagKind === "country" ? "国・地域" : "チーム"}</span>
+        <Fold
+          id={`tags-${tagKind}`}
+          className="card px-4 py-3"
+          summary={<span className="text-xs font-bold text-fg-muted">{tagKind === "country" ? "国・地域" : "チーム"}</span>}
+        >
+        <nav aria-label={tagKind === "country" ? "国・地域で見る" : "チームで見る"} className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
           {tags.map(({ tag, count }) => (
             <Link
               key={tag.slug}
@@ -158,6 +164,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
             </Link>
           ))}
         </nav>
+        </Fold>
       )}
 
       {game && <GameHighlights {...game} />}
@@ -260,7 +267,7 @@ async function loadAnimeSchedule() {
   const month = (key: string) => Number(key.slice(5, 7));
   return {
     thisYear: year,
-    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((a) => a.date.startsWith(key)) })),
+    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: upcomingFirst(items.filter((a) => a.date.startsWith(key)), (a) => a.date) })),
   };
 }
 
@@ -270,6 +277,17 @@ async function loadMovieSchedule() {
   const month = (key: string) => Number(key.slice(5, 7));
   return {
     sourceUrl: moviePageUrl(year),
-    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((m) => m.release.startsWith(key)) })),
+    today: new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10),
+    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: upcomingFirst(items.filter((m) => m.release.startsWith(key)), (m) => m.release) })),
   };
+}
+
+/**
+ * 日付順の一覧で、今日以降のものを先に並べ、もう過ぎたものを後ろに回す（最初に見える数件が、これからの予定になるように）。
+ * 月だけの日付（YYYY-MM）は、その月の終わりまで「これから」として扱う
+ */
+function upcomingFirst<T>(items: T[], dateOf: (item: T) => string): T[] {
+  const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+  const past = (d: string) => d.length >= 10 && d < today;
+  return [...items.filter((i) => !past(dateOf(i))), ...items.filter((i) => past(dateOf(i)))];
 }
