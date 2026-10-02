@@ -126,6 +126,7 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiLead: article.lead,
       aiBody: article.body.join("\n\n"),
       aiPoints: article.points,
+      aiWhy: article.why ?? Prisma.DbNull,
       aiAngles: article.angles ?? [],
       aiBackground: background,
       aiCompanies: article.companies ?? [],

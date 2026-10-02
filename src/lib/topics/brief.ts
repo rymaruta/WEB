@@ -26,10 +26,16 @@ export async function getTopicWhy(topicId: number): Promise<string | null> {
   return typeof why?.text === "string" && why.text.trim() ? why.text.trim() : null;
 }
 
+/**
+ * 「その後」にする話題の、最初の報道からの間隔。これより早く出た同じ出来事の話題は、続報ではなく
+ * 同じ発表の別の媒体の記事であることが多い（例：結婚の発表の数時間後に出た別の媒体の記事）
+ */
+export const FOLLOWUP_MIN_HOURS = 12;
+
 /** 3行の材料をまとめる（DB に依存しない） */
 export function buildBrief(lead: string | null | undefined, why: string | null, timeline: TimelineEntry[], current: { id: number; firstSeenAt: Date }): TopicBrief | null {
   if (!lead?.trim()) return null;
-  const later = timeline.filter((e) => e.id !== current.id && e.firstSeenAt > current.firstSeenAt);
+  const later = timeline.filter((e) => e.id !== current.id && e.firstSeenAt.getTime() - current.firstSeenAt.getTime() >= FOLLOWUP_MIN_HOURS * 3_600_000);
   const last = later.at(-1);
   return { what: lead.trim(), why, next: last ? { id: last.id, title: last.title, at: last.firstSeenAt } : null };
 }

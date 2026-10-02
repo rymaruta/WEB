@@ -10,6 +10,8 @@ export type AiArticle = {
   lead: string;
   body: string[];
   points: { text: string; sources: number[] }[];
+  /** なぜ重要か（照合を通ったもの）。ないときは null */
+  why: { text: string; sources: number[] } | null;
   /** 各媒体の報じ方の違い（ないときは空配列） */
   angles: { text: string; sources: number[] }[];
   /** これまでの経緯（古い順。このサイトの過去のまとめ記事へつなぐ）。ないときは空配列 */
@@ -29,6 +31,7 @@ type TopicAiFields = {
   aiLead: string | null;
   aiBody: string | null;
   aiPoints: unknown;
+  aiWhy?: unknown;
   aiAngles?: unknown;
   aiBackground?: unknown;
   aiCompanies?: string[];
@@ -49,6 +52,7 @@ export function readAiArticle(t: TopicAiFields): AiArticle | null {
     lead: t.aiLead ?? "",
     body: t.aiBody.split(/\n{2,}/).filter(Boolean),
     points: points.data,
+    why: PointsSchema.element.safeParse(t.aiWhy).data ?? null,
     companies: t.aiCompanies ?? [],
     background: BackgroundSchema.safeParse(t.aiBackground).data ?? [],
     history: (HistorySchema.safeParse(t.aiHistory).data ?? []).map((h) => ({ at: new Date(h.at), sources: h.sources })),

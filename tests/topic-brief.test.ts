@@ -23,3 +23,13 @@ describe("buildBrief", () => {
     expect(buildBrief(null, "理由", timeline, { id: 3, firstSeenAt: at(3) })).toBeNull();
   });
 });
+
+describe("その後（続報）の判定", () => {
+  it("12時間以内に出た同じ出来事の話題は、続報にしない（同じ発表の別の媒体の記事）", () => {
+    const tl = [
+      { id: 1, title: "久保建英と福原遥が結婚を発表", firstSeenAt: new Date("2026-10-02T12:00:00Z"), publisherCount: 9 },
+      { id: 2, title: "福原遥がサッカー久保建英と電撃婚", firstSeenAt: new Date("2026-10-02T20:00:00Z"), publisherCount: 2 },
+    ];
+    expect(buildBrief("結婚を発表した。", null, tl, { id: 1, firstSeenAt: tl[0].firstSeenAt })?.next).toBeNull();
+  });
+});
