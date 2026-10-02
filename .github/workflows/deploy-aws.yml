@@ -163,6 +163,15 @@ jobs:
           echo "::error::デプロイが15分以内に有効になりませんでした"
           exit 1
 
+      # Lightsail は1つのサービスに保存できるイメージが150件までのため、古いものを消す（直近10件は戻せるよう残す。動いている版は消せない）
+      - name: Prune old images
+        if: success()
+        continue-on-error: true
+        run: |
+          aws lightsail get-container-images --service-name "$SERVICE" --query 'containerImages[].image' --output text \
+            | tr '\t' '\n' | sort -t. -k3 -n -r | tail -n +11 \
+            | while read -r img; do aws lightsail delete-container-image --service-name "$SERVICE" --image "$img" || true; done
+
       - name: Show URL
         run: |
           aws lightsail get-container-services --service-name "$SERVICE" --query 'containerServices[0].url' --output text
