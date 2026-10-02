@@ -143,8 +143,13 @@ export async function saveArticle(topicId: number, article: GeneratedArticle, so
       aiGeneratedAt: now,
       aiAttemptedAt: now,
       aiSourceCount: topic.publisherCount,
-      ...(genre ? { aiGenreId: genre.id, genreId: genre.id } : {}),
+      // ジャンルを決めた記録（genre-apply.ts の「ai」と同じ扱い。ルールでは変えず、強く食い違うときだけ見直しを頼む）
+      ...(genre ? { aiGenreId: genre.id, genreId: genre.id, genreNote: `ai ${article.genre} （まとめ記事の作成時）` } : {}),
     },
+  });
+  // 版を残す（記事を書き直しても、前の内容を確かめられるように）
+  await prisma.topicArticleVersion.create({
+    data: { topicId, title: article.title, lead: article.lead, body: article.body.join("\n\n"), points: article.points, sources: sourceIds, model },
   });
   // まとめ記事を書いた・更新したページを、検索エンジンにすぐ知らせる（待たない）
   void submitIndexNow([`/topic/${topicId}`]);
