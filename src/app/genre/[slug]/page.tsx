@@ -18,6 +18,8 @@ import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
+import { MarketBar } from "@/components/market-bar";
+import { getMarketSnapshot } from "@/lib/market";
 import { tagPath } from "@/lib/tags";
 import {
   countTopics,
@@ -74,6 +76,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
   // 経済のページだけ、話題の企業への入口を出す（企業を追いたい人が多いジャンル）
   const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
+  // 経済のページは、ドル円と長期金利を一番上に出す
+  const market = genre.slug === "business" ? await getMarketSnapshot() : null;
   // 国際のページは国・地域、スポーツのページはチームへの入口を出す（この1週間に話題の多い順）
   const tagKind = genre.slug === "world" ? "country" : genre.slug === "sports" ? "team" : null;
   const tags = tagKind ? await getTagCounts(tagKind, genre.id) : [];
@@ -117,6 +121,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
         </div>
         <SortButtons />
       </header>
+
+      {market && <MarketBar data={market} />}
 
       {companies.length > 0 && (
         <nav aria-label="話題の企業" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
