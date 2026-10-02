@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { GAME_KIND_LABELS, GAME_PLATFORMS, releaseLabel, type GameKind } from "@/lib/game";
 import { Expandable } from "./expandable-list";
 import { ReadTitle } from "./read-title";
@@ -19,12 +19,46 @@ function shortPlatforms(p: string[]): string {
   return p.length <= 1 ? (p[0] ?? "") : `${p[0]} 他${p.length - 1}`;
 }
 
+/**
+ * 選んだ機種は、その人の端末（localStorage）に覚えておき、次に開いたときも同じ機種で絞り込む。
+ * 自分の持っているゲーム機の作品だけを見たい人が多いため
+ */
+const PLATFORM_KEY = "zn:gamePlatform";
+const listeners = new Set<() => void>();
+/** 保存できない環境で選んだ機種 */
+let memory: string | null = null;
+
+function readPlatform(): string {
+  try {
+    return localStorage.getItem(PLATFORM_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writePlatform(value: string) {
+  try {
+    if (value) localStorage.setItem(PLATFORM_KEY, value);
+    else localStorage.removeItem(PLATFORM_KEY);
+  } catch {
+    // 保存できない環境（プライベートブラウズなど）でも、表示の切り替えはできるようにする
+    memory = value;
+  }
+  listeners.forEach((l) => l());
+}
+
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+const snapshot = () => memory ?? readPlatform();
+
 export type ReleaseItem = { topicId: number; title: string; release: string; platforms: string[] };
 export type NewGameItem = { topicId: number; headline: string; kind: string | null; release: string | null; platforms: string[] };
 
 /**
  * ゲームのジャンルページの一番上。今月・来月の発売（日付順）と新着ゲーム（新作発表・発売日決定）。
- * 機種のボタンで、その機種の作品だけに絞れる（もう一度押すと絞り込みを外す）
+ * 機種のボタンで、その機種の作品だけに絞れる（もう一度押すと絞り込みを外す。選んだ機種は次回も使う）
  */
 export function GameHighlights({
   thisMonth,
@@ -39,9 +73,12 @@ export function GameHighlights({
   thisYear: number;
   monthLabels: [string, string];
 }) {
-  const [platform, setPlatform] = useState<string>("");
+  const saved = useSyncExternalStore(subscribe, snapshot, () => "");
   if (thisMonth.length + nextMonth.length + newGames.length === 0) return null;
 
+  // 覚えている機種の作品が今は1本もなければ、絞り込まずに出す
+  const used = new Set([...thisMonth, ...nextMonth, ...newGames].flatMap((x) => x.platforms));
+  const platform = used.has(saved) ? saved : "";
   const match = (p: string[]) => !platform || p.includes(platform);
   const months = [
     { title: monthLabels[0], items: thisMonth.filter((r) => match(r.platforms)) },
@@ -49,7 +86,6 @@ export function GameHighlights({
   ];
   const fresh = newGames.filter((g) => match(g.platforms));
   // 実際に出てくる機種だけをボタンにする
-  const used = new Set([...thisMonth, ...nextMonth, ...newGames].flatMap((x) => x.platforms));
   const platforms = GAME_PLATFORMS.filter((p) => used.has(p));
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${active ? "border-[var(--g-game)] bg-[var(--g-game)] text-white" : "border-border bg-surface text-fg-muted hover:text-fg"}`;
@@ -59,7 +95,7 @@ export function GameHighlights({
       {platforms.length > 1 && (
         <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ゲーム機で絞り込む">
           {platforms.map((p) => (
-            <button key={p} type="button" className={chip(platform === p)} aria-pressed={platform === p} onClick={() => setPlatform(platform === p ? "" : p)}>
+            <button key={p} type="button" className={chip(platform === p)} aria-pressed={platform === p} onClick={() => writePlatform(platform === p ? "" : p)}>
               {p}
             </button>
           ))}
