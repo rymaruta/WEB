@@ -586,3 +586,17 @@ model YouTubeViewDaily {
   @@id([videoId, date])
   @@index([date])
 }
+
+/// 運営者が管理画面から AI（Claude Code の定期実行）に頼んだ作業
+model AdminTask {
+  id         String   @id @default(cuid())
+  prompt     String
+  /// queued（依頼済み）・done（完了）・failed（失敗）
+  status     String   @default("queued")
+  result     String?
+  sessionUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+}

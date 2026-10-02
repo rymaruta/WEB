@@ -14,6 +14,8 @@ export const ROUTINES = {
   articles: { id: "trig_01Kheeh9gjfuQtsKrXiELhnm", tokenEnv: "ROUTINE_TOKEN_ARTICLES", label: "まとめ記事作成" },
   /** ダイジェスト用AI解析（定時配信の候補） */
   digest: { id: "trig_01AWThNpgQHFCU1MmVM5a1vL", tokenEnv: "ROUTINE_TOKEN_DIGEST", label: "ダイジェスト用AI解析" },
+  /** 何でも頼める作業（管理画面の「AI に頼む」） */
+  tasks: { id: "trig_01CFkgRafxmGRrvxfCgZ79uA", tokenEnv: "ROUTINE_TOKEN_TASKS", label: "何でも頼める作業" },
 } as const;
 
 export type RoutineName = keyof typeof ROUTINES;

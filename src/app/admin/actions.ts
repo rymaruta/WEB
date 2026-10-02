@@ -290,6 +290,31 @@ export async function requestAiBreakingAction(storyId: string): Promise<ActionSt
   return { ok: "AI に確認を頼みました。3〜5分で、問題なければ自動で投稿します（見送りのときは理由をメールで知らせます）" };
 }
 
+/** 「AI に頼む」: 頼みたい作業を保存し、何でも頼める作業（無料の定期実行）を今すぐ起動する */
+export async function createTaskAction(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const prompt = String(form.get("prompt") ?? "").trim();
+  if (prompt.length < 2) return { error: "頼みたいことを書いてください" };
+  if (prompt.length > 4000) return { error: "4000字以内で書いてください" };
+  const { prisma } = await import("@/lib/db");
+  const { fireRoutine, routineReady } = await import("@/lib/digest/routine");
+  if (!routineReady("tasks")) return { error: "起動用のトークンが未設定です（Parameter Store の /zenbu-navi/ROUTINE_TOKEN_TASKS）" };
+  // 連打で同じ作業が並ばないよう、1時間に20件まで
+  const recent = await prisma.adminTask.count({ where: { createdAt: { gte: new Date(Date.now() - 3_600_000) } } });
+  if (recent >= 20) return { error: "1時間に頼めるのは20件までです。少し待ってから頼んでください" };
+  const task = await prisma.adminTask.create({ data: { prompt }, select: { id: true } });
+  try {
+    const { sessionUrl } = await fireRoutine("tasks", JSON.stringify({ request: "admin-task", taskId: task.id }));
+    await prisma.adminTask.update({ where: { id: task.id }, data: { sessionUrl } });
+  } catch (e) {
+    await prisma.adminTask.update({ where: { id: task.id }, data: { status: "failed", result: e instanceof Error ? e.message : String(e) } });
+    revalidatePath("/admin/tasks");
+    return { error: "AI を起動できませんでした。理由は一覧に出ています" };
+  }
+  revalidatePath("/admin/tasks");
+  return { ok: "AI に頼みました。数分〜数十分で、この画面とメールに結果が届きます" };
+}
+
 /** 下書きを取り消す。取り消した回は、下書きを作る時刻に自動で作り直される */
 export async function cancelAction(editionId: string): Promise<ActionState> {
   await requireAdmin();
