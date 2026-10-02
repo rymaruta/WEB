@@ -21,5 +21,6 @@ describe("outageStatus", () => {
     expect(outageStatus("ドコモの通信障害、全面復旧")).toBe("recovered");
     expect(outageStatus("ドコモの通信障害、復旧のめど立たず")).toBe("ongoing");
     expect(outageStatus("Xで障害")).toBe("ongoing");
+    expect(outageStatus("radiko、アプリが起動しない不具合を修正した最新版")).toBe("recovered");
   });
 });

@@ -74,8 +74,11 @@ export const TEAMS: Tag[] = [
   team("sanfrecce", "サンフレッチェ広島", "サンフレッチェ"),
 ];
 
-/** 国はどのジャンルの話題も集める。チームはスポーツの話題だけ（「巨人」「楽天」などは別の意味でも使われるため） */
-export const TAG_GENRES: Record<TagKind, string[] | null> = { country: null, team: ["sports"] };
+/**
+ * 集めるジャンル。国は国際・国内・経済の話題（新商品のジャンルの「米国株の新サービス」のようなお知らせは入れない）。
+ * チームはスポーツの話題だけ（「巨人」「楽天」などは別の意味でも使われるため）
+ */
+export const TAG_GENRES: Record<TagKind, string[] | null> = { country: ["world", "domestic", "business"], team: ["sports"] };
 
 export const TAG_KIND_LABELS: Record<TagKind, { list: string; path: string }> = {
   country: { list: "国・地域別ニュース", path: "/country" },
