@@ -2,11 +2,11 @@ import { prisma } from "@/lib/db";
 
 /**
  * 公式ストアの発売予定を取り込む（毎日1回）。記事から拾う発売日だけでは、話題になった作品しか載らないため、
- * 任天堂（My Nintendo Store のソフト検索）と Steam（人気の近日登場）の公式の発売予定日で補う。
+ * 任天堂（My Nintendo Store のソフト検索）・PlayStation Store（予約受付中）・Steam（人気の近日登場）の公式の発売予定日で補う。
  * 取り込むのは作品名・発売日・機種・発売元・ストアのページだけ。数百円の小品などは載せない。
  */
 
-export type Listing = { source: "nintendo" | "steam"; externalId: string; title: string; release: string; platforms: string[]; maker: string | null; url: string };
+export type Listing = { source: "nintendo" | "playstation" | "steam"; externalId: string; title: string; release: string; platforms: string[]; maker: string | null; url: string };
 
 const UA = "Mozilla/5.0 (compatible; ZenbuNaviBot/1.0; +https://zenbu-navi.com/about)";
 
@@ -85,6 +85,79 @@ async function fetchNintendo(): Promise<Listing[]> {
   return pickNintendo(items);
 }
 
+// ---- PlayStation ----
+
+/** PlayStation Store の「予約受付中」のカテゴリ */
+const PS_CATEGORY = "3bf499d7-7acf-4931-97dd-2667494ee2c9";
+/** PlayStation Store のカテゴリの一覧を返す問い合わせ（ストアのページが使っているもの） */
+const PS_GRID_QUERY = "4ce7d410a4db2c8b635a48c1dcec375906ff63b19dadd87e073f8fd0c0481d35";
+const PS_PAGE = 24;
+
+type PsProduct = { id: string; name: string; npTitleId: string; storeDisplayClassification: string; platforms: string[] };
+
+/** エディション違い（デラックス版など）を1件にまとめる。同じタイトル ID のうち、本編（FULL_GAME）か一番短い名前を使う。追加コンテンツは載せない */
+export function pickPlayStation(products: PsProduct[]): PsProduct[] {
+  const byTitle = new Map<string, PsProduct>();
+  const rank = (p: PsProduct) => (p.storeDisplayClassification === "FULL_GAME" ? 0 : 1);
+  for (const p of products) {
+    if (p.storeDisplayClassification === "ADD_ON_PACK") continue;
+    const prev = byTitle.get(p.npTitleId);
+    if (!prev || rank(p) < rank(prev) || (rank(p) === rank(prev) && p.name.length < prev.name.length)) byTitle.set(p.npTitleId, p);
+  }
+  return [...byTitle.values()];
+}
+
+/** 作品名から、機種や通常版の付け足しを除く（「PS4 & PS5」「スタンダードエディション」など） */
+export function psTitle(name: string): string {
+  return name
+    .replace(/\s*PS4\s*&\s*PS5\s*$/i, "")
+    .replace(/\s*(スタンダード\s*エディション|スタンダード版|通常版|Standard Edition)\s*$/i, "")
+    .replace(/^『(.+)』$/, "$1")
+    .trim();
+}
+
+/** 作品ページに書かれた発売日（UTC）を、日本の日付 YYYY-MM-DD にする */
+export function psReleaseDate(html: string): string | null {
+  const m = /"releaseDate":"(\d{4}-\d{2}-\d{2}T[\d:.]+Z)"/.exec(html);
+  if (!m) return null;
+  return new Date(new Date(m[1]).getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+}
+
+async function fetchPlayStation(): Promise<Listing[]> {
+  const products: PsProduct[] = [];
+  for (let offset = 0; offset < 300; offset += PS_PAGE) {
+    const params = new URLSearchParams({
+      operationName: "categoryGridRetrieve",
+      variables: JSON.stringify({ id: PS_CATEGORY, pageArgs: { size: PS_PAGE, offset } }),
+      extensions: JSON.stringify({ persistedQuery: { version: 1, sha256Hash: PS_GRID_QUERY } }),
+    });
+    const res = await fetch(`https://web.np.playstation.com/api/graphql/v1/op?${params}`, {
+      headers: { "user-agent": UA, "content-type": "application/json", "x-psn-store-locale-override": "ja-JP" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) throw new Error(`playstation: HTTP ${res.status}`);
+    const json = (await res.json()) as { data?: { categoryGridRetrieve?: { products?: PsProduct[]; pageInfo?: { isLast?: boolean } } } };
+    const grid = json.data?.categoryGridRetrieve;
+    if (!grid) throw new Error("playstation: no data");
+    products.push(...(grid.products ?? []));
+    if (grid.pageInfo?.isLast !== false) break;
+  }
+  const out: Listing[] = [];
+  // 発売日は一覧にないため、作品ごとのページから読む（1日1回、1件ずつ間をあけて）
+  for (const p of pickPlayStation(products)) {
+    const url = `https://store.playstation.com/ja-jp/product/${p.id}`;
+    try {
+      const res = await fetch(url, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20_000) });
+      const release = res.ok ? psReleaseDate(await res.text()) : null;
+      if (release) out.push({ source: "playstation", externalId: p.npTitleId, title: psTitle(p.name), release, platforms: p.platforms.filter((x) => /^PS[45]$/.test(x)).sort().reverse(), maker: null, url });
+    } catch {
+      // 1件読めなくても、ほかの作品は取り込む
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return out;
+}
+
 // ---- Steam ----
 
 /** Steam の人気の近日登場から載せる件数（人気順の上位だけ） */
@@ -145,6 +218,7 @@ export async function syncGameListings(now = new Date()) {
   const result: Record<string, { fetched: number; removed: number } | { error: string }> = {};
   for (const [source, fetcher] of [
     ["nintendo", fetchNintendo],
+    ["playstation", fetchPlayStation],
     ["steam", fetchSteam],
   ] as const) {
     try {
