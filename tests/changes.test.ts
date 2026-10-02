@@ -9,6 +9,8 @@ describe("isChangeCandidate", () => {
     expect(isChangeCandidate("郵便料金、10月1日から値上げ はがきは85円に")).toBe(true);
     expect(isChangeCandidate("マイナ保険証への移行、12月2日から本格開始")).toBe(true);
     expect(isChangeCandidate("改正道路交通法が11月から施行 自転車の罰則強化")).toBe(true);
+    expect(isChangeCandidate("加熱式たばこ、10月1日から増税")).toBe(true);
+    expect(isChangeCandidate("JR各社の運賃、来月から新しい額に")).toBe(true);
   });
   it("時期がない・変更でない記事は候補にしない", () => {
     expect(isChangeCandidate("電気料金の値上げを検討")).toBe(false);
