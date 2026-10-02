@@ -21,7 +21,7 @@ const CANDIDATE_DAYS = 21;
 /** 変更を表す語 */
 const CHANGE_RE = /値上げ|値下げ|価格改定|料金改定|改定|施行|義務化|廃止|終了|開始|改正|引き上げ|引き下げ|から変わる|が変わる|スタート|増税|減税|運賃|手数料|新料金|新制度|提供終了|サービス終了/;
 /** 始まる時期 */
-const WHEN_RE = /\d{1,2}月(\d{1,2}日)?(から|より|以降)|来月から|今月から|\d{1,2}月\d{1,2}日/;
+const WHEN_RE = /\d{1,2}月(\d{1,2}日)?(から|より|以降|分|は|に|中|上旬|中旬|下旬|末)|来月から|今月から|\d{1,2}月\d{1,2}日/;
 
 export function isChangeCandidate(text: string): boolean {
   const t = text.normalize("NFKC");
