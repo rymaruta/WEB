@@ -74,13 +74,15 @@ export function GameHighlights({
         <section className="card p-4">
           <h2 className="text-base font-extrabold">発売スケジュール</h2>
           <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日（延期は新しい日付）</p>
-          {months.map((m) =>
+          {/* 月ごとに開け閉めできる。最初は今月だけ開く */}
+          {months.map((m, i) =>
             m.items.length === 0 ? null : (
-              <div key={m.title} className="mt-2">
-                <h3 className="text-xs font-bold text-fg-muted">
+              <details key={m.title} open={i === 0} className="group/month mt-2">
+                <summary className="flex cursor-pointer list-none items-center gap-1 py-1 text-xs font-bold text-fg-muted [&::-webkit-details-marker]:hidden">
+                  <span aria-hidden className="inline-block transition-transform group-open/month:rotate-90">›</span>
                   {m.title}
-                  <span className="ml-1 font-normal text-fg-subtle">{m.items.length}本</span>
-                </h3>
+                  <span className="font-normal text-fg-subtle">{m.items.length}本</span>
+                </summary>
                 <Expandable
                   items={m.items}
                   render={(r) => (
@@ -98,7 +100,7 @@ export function GameHighlights({
                   )}
                   keyOf={(r) => `${r.topicId}`}
                 />
-              </div>
+              </details>
             ),
           )}
           {months.every((m) => m.items.length === 0) && (
