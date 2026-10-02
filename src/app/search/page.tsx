@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FollowButton } from "@/components/follow-button";
 import { Pagination, parsePage } from "@/components/pagination";
 import { SearchForm } from "@/components/search-form";
 import { TopicList } from "@/components/topic-card";
@@ -56,6 +57,9 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
               ))}
             </ul>
           )}
+          <div className="mt-4">
+            <FollowButton follow={{ kind: "word", key: q.slice(0, 40), label: q.slice(0, 40) }} />
+          </div>
           <p className="mt-5 mb-1 text-sm text-fg-muted">
             「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（見出しに含むものを先に、新しい順）
           </p>

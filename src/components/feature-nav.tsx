@@ -9,6 +9,13 @@ export function FeatureNav({ current, className = "mt-4" }: { current?: { kind: 
   return (
     <nav aria-label="特集" className={`scrollbar-none flex gap-2 overflow-x-auto pb-1 ${className}`}>
       <Link
+        href="/following"
+        prefetch={false}
+        className="shrink-0 rounded-full border border-accent bg-accent px-3 py-1 text-xs font-bold text-accent-fg hover:opacity-90"
+      >
+        ★ フォロー中
+      </Link>
+      <Link
         href="/calendar"
         prefetch={false}
         className="shrink-0 rounded-full border border-accent bg-accent-soft px-3 py-1 text-xs font-bold text-accent hover:bg-accent hover:text-accent-fg"

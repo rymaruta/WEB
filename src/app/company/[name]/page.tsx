@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FollowButton } from "@/components/follow-button";
 import { Pagination, parsePage } from "@/components/pagination";
 import { TopicList } from "@/components/topic-card";
 import { companyPath, readCompanyParam } from "@/lib/company";
@@ -48,7 +49,10 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
         <span>›</span>
         <Link href="/company" className="hover:text-fg">企業別ニュース</Link>
       </nav>
-      <h1 className="text-xl font-extrabold">{name}のニュース</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-extrabold">{name}のニュース</h1>
+        <FollowButton follow={{ kind: "company", key: name, label: name }} />
+      </div>
       <p className="mt-1 mb-2 text-sm text-fg-muted">
         {name}を取り上げた話題 {formatNumber(total)}件（新しい順）。各社の報道をまとめた記事を読めます。
       </p>
