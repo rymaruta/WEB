@@ -9,9 +9,9 @@ vi.mock("@/lib/digest/publish", () => ({ publishEdition: vi.fn() }));
 
 const { stampBreakingTime } = await import("@/lib/digest/breaking");
 
-const edition = (sent: boolean) => ({
+const edition = (sent: boolean, override: unknown = null) => ({
   slot: "BREAKING",
-  items: [{ story: { headline: ["日銀が追加利上げを決定"] } }],
+  items: [{ override, story: { headline: ["日銀が追加利上げを決定"] } }],
   publications: sent ? [{ parts: [{ position: 0 }] }] : [],
 });
 
@@ -27,7 +27,17 @@ describe("stampBreakingTime", () => {
     await stampBreakingTime("e1", now);
     expect(update).toHaveBeenCalledWith({
       where: { id: "e1" },
-      data: { scheduledAt: now, deadlineAt: now, postText: ["⚡ 速報（14:50時点）", "", "日銀が追加利上げを決定", "", "続報は定時のニュースでお伝えします"] },
+      data: { scheduledAt: now, deadlineAt: now, postText: ["⚡ 速報（14:50時点）", "", "日銀が追加利上げを決定"] },
+    });
+  });
+
+  it("人が直した見出しがあれば、その見出しで書き直す", async () => {
+    findUnique.mockResolvedValue(edition(false, { headline: ["日銀が利上げ", "0.25%幅"] }));
+    const now = new Date("2026-10-02T14:50:00+09:00");
+    await stampBreakingTime("e1", now);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { scheduledAt: now, deadlineAt: now, postText: ["⚡ 速報（14:50時点）", "", "日銀が利上げ0.25%幅"] },
     });
   });
 

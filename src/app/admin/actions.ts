@@ -239,16 +239,24 @@ export async function retryBlueskyAction(editionId: string): Promise<ActionState
 }
 
 /** 選んだ出来事を、いますぐ速報として X に投稿する（投稿文とカードの時刻は投稿した時刻になる） */
-export async function publishBreakingAction(storyId: string): Promise<ActionState> {
+export async function publishBreakingAction(storyId: string, _: ActionState, form: FormData): Promise<ActionState> {
   await requireAdmin();
   const { prisma } = await import("@/lib/db");
   const { createManualBreaking } = await import("@/lib/digest/breaking");
+  const { checkOverride } = await import("@/lib/digest/check");
+  // 見出しは投稿の前に直せる（カードと投稿文の両方に使う）
+  const headline = String(form.get("headline") ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const problems = headline.length ? checkOverride({ headline }) : [];
+  if (problems.length) return { error: problems.join("\n") };
   const { editionKey, jstDate } = await import("@/lib/digest/slots");
   const { publishEdition, PublishError } = await import("@/lib/digest/publish");
   // 失敗した速報の出し直しは、同じ回の続きとして投稿する（二重に投稿しない）
   const existing = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(new Date()), "BREAKING", storyId) }, select: { id: true, status: true } });
   if (existing?.status === "PUBLISHED") return { error: "この出来事の速報は、今日すでに投稿しています" };
-  const editionId = existing?.id ?? (await createManualBreaking(storyId))?.id;
+  const editionId = existing?.id ?? (await createManualBreaking(storyId, new Date(), headline.length ? headline : undefined))?.id;
   if (!editionId) return { error: "速報を作れませんでした。画面を開き直してください" };
   try {
     const r = await publishEdition(editionId);
