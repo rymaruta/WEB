@@ -70,4 +70,11 @@ export async function createPost(creds: OAuthCredentials, text: string, mediaIds
   return r.data.id;
 }
 
+/** 自分の投稿を削除する */
+export async function deletePost(creds: OAuthCredentials, id: string): Promise<void> {
+  const url = `${API}/tweets/${encodeURIComponent(id)}`;
+  const res = await fetch(url, { method: "DELETE", headers: { authorization: authorizationHeader("DELETE", url, creds) }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new XApiError(`X API DELETE /tweets が ${res.status} を返しました: ${(await res.text()).slice(0, 300)}`, res.status, null);
+}
+
 export const PRICES = { post: 0.015, mediaMetadata: 0.005 } as const;
