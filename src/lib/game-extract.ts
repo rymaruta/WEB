@@ -23,7 +23,7 @@ export function isGameReleaseCandidate(text: string): boolean {
 }
 
 /** 候補を探す範囲（最初の報道からの日数） */
-const CANDIDATE_DAYS = 14;
+const CANDIDATE_DAYS = 30;
 
 /** まだ確かめていない、ゲームの発売に関する候補の話題（新しい順） */
 export async function findGameCandidates(limit: number, now = new Date()) {
