@@ -21,7 +21,7 @@ export function Fold({ id, summary, children, className = "" }: { id: string; su
     <details
       ref={ref}
       open
-      className={`group/fold ${className}`}
+      className={className}
       onToggle={(e) => {
         try {
           localStorage.setItem(key, e.currentTarget.open ? "1" : "0");
@@ -30,7 +30,7 @@ export function Fold({ id, summary, children, className = "" }: { id: string; su
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1">{summary}</div>
-        <span aria-hidden className="shrink-0 text-lg leading-none text-fg-subtle transition-transform group-open/fold:rotate-90">
+        <span aria-hidden className="shrink-0 text-lg leading-none text-fg-subtle transition-transform [[open]>summary>&]:rotate-90">
           ›
         </span>
       </summary>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COUNTRIES, countTags, findTag, matchesTag, TEAMS } from "@/lib/tags";
+import { COUNTRIES, countTags, findTag, groupTagCounts, matchesTag, TEAMS } from "@/lib/tags";
 
 describe("matchesTag", () => {
   it("言い換えも拾い、別の意味の言葉は除く", () => {
@@ -28,5 +28,18 @@ describe("countTags", () => {
   });
   it("slug は重複しない", () => {
     for (const list of [COUNTRIES, TEAMS]) expect(new Set(list.map((t) => t.slug)).size).toBe(list.length);
+  });
+});
+
+describe("groupTagCounts", () => {
+  it("競技・地域ごとに分け、まとまりは定義の順、中は数えた順のまま", () => {
+    const counts = countTags(TEAMS, ["巨人が勝利", "巨人また勝利", "ドジャース大谷", "森保ジャパン招集", "阪神が連勝"]);
+    const groups = groupTagCounts(counts);
+    expect(groups.map((g) => g.group)).toEqual(["プロ野球", "大リーグ", "日本代表"]);
+    expect(groups[0]).toMatchObject({ total: 3, items: [{ tag: { name: "巨人" }, count: 2 }, { tag: { name: "阪神" }, count: 1 }] });
+  });
+  it("すべての国・チームが、どこかのまとまりに入っている", () => {
+    for (const t of [...COUNTRIES, ...TEAMS]) expect(t.group).toBeTruthy();
+    expect(new Set(COUNTRIES.map((t) => t.group))).toEqual(new Set(["北米", "アジア", "ヨーロッパ", "中東"]));
   });
 });
