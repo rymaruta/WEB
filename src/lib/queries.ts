@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { releaseSortKey } from "@/lib/game";
 import { titleKey } from "@/lib/game-listings";
+import { COUNTRIES, countTags, TAG_GENRES, TEAMS, type Tag, type TagKind } from "@/lib/tags";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
 
@@ -402,4 +403,45 @@ export const getNewGames = cache(async (days: number, take: number) => {
       return seen.has(key) ? false : (seen.add(key), true);
     })
     .slice(0, take);
+});
+
+/** 国別・チーム別のページ：見出しにその国・チームの言葉が入った話題（直近 days 日、新しい順） */
+export async function getTagTopics(tag: Tag, skip: number, take: number, days = 90) {
+  const genres = TAG_GENRES[tag.kind];
+  const genreIds = genres ? (await getGenres()).filter((g) => genres.includes(g.slug)).map((g) => g.id) : null;
+  const exclude = tag.exclude ?? null;
+  const rows = await prisma.$queryRaw<{ id: number; total: bigint }[]>`
+    SELECT t.id, COUNT(*) OVER () AS total
+    FROM "Topic" t
+    WHERE t."lastSeenAt" >= ${since(days * 24)}
+      AND (${genreIds}::int[] IS NULL OR t."genreId" = ANY(${genreIds}::int[]) OR t."aiGenreId" = ANY(${genreIds}::int[]))
+      AND (t.title ~ ${tag.pattern} OR COALESCE(t."aiTitle", '') ~ ${tag.pattern})
+      AND (${exclude}::text IS NULL OR NOT (t.title ~ ${exclude}::text OR COALESCE(t."aiTitle", '') ~ ${exclude}::text))
+    ORDER BY t."lastSeenAt" DESC, t.id DESC
+    OFFSET ${skip} LIMIT ${take}`;
+  const total = rows.length > 0 ? Number(rows[0].total) : skip > 0 ? await countTagTopics(tag, genreIds, days) : 0;
+  const topics = await prisma.topic.findMany({ where: { id: { in: rows.map((r) => r.id) } }, include: topicCardInclude });
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  return { items: rows.flatMap((r) => (byId.has(r.id) ? [byId.get(r.id)!] : [])), total };
+}
+
+async function countTagTopics(tag: Tag, genreIds: number[] | null, days: number) {
+  const exclude = tag.exclude ?? null;
+  const [row] = await prisma.$queryRaw<{ total: bigint }[]>`
+    SELECT COUNT(*) AS total FROM "Topic" t
+    WHERE t."lastSeenAt" >= ${since(days * 24)}
+      AND (${genreIds}::int[] IS NULL OR t."genreId" = ANY(${genreIds}::int[]) OR t."aiGenreId" = ANY(${genreIds}::int[]))
+      AND (t.title ~ ${tag.pattern} OR COALESCE(t."aiTitle", '') ~ ${tag.pattern})
+      AND (${exclude}::text IS NULL OR NOT (t.title ~ ${exclude}::text OR COALESCE(t."aiTitle", '') ~ ${exclude}::text))`;
+  return Number(row?.total ?? 0);
+}
+
+/** ジャンルのページの「国・地域」「チーム」の入口：直近 days 日の、そのジャンルの話題の数が多い順 */
+export const getTagCounts = cache(async (kind: TagKind, genreId: number, days = 7) => {
+  const topics = await prisma.topic.findMany({
+    where: { lastSeenAt: { gte: since(days * 24) }, OR: [{ genreId }, { aiGenreId: genreId }] },
+    select: { title: true, aiTitle: true },
+    take: 5000,
+  });
+  return countTags(kind === "country" ? COUNTRIES : TEAMS, topics.map((t) => `${t.title} ${t.aiTitle ?? ""}`));
 });

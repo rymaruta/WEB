@@ -14,11 +14,13 @@ import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
+import { tagPath } from "@/lib/tags";
 import {
   countTopics,
   getTopCompanies,
   countTrendingTopics,
   getGameReleases,
+  getTagCounts,
   getGenre,
   getNewGames,
   getLatestArticles,
@@ -66,6 +68,9 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const sidebar = buzz.length > 0 ? null : await getLatestArticles(8, genre.id);
   // 経済のページだけ、話題の企業への入口を出す（企業を追いたい人が多いジャンル）
   const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
+  // 国際のページは国・地域、スポーツのページはチームへの入口を出す（この1週間に話題の多い順）
+  const tagKind = genre.slug === "world" ? "country" : genre.slug === "sports" ? "team" : null;
+  const tags = tagKind ? await getTagCounts(tagKind, genre.id) : [];
   // ゲームのページだけ、発売スケジュール（今月・来月）と新着ゲームを出す
   const game = genre.slug === "game" ? await loadGameHighlights() : null;
   // 国内・ライフのページは、「◯月から変わること」（今月・来月）を出す
@@ -117,6 +122,23 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
           <Link href="/company" prefetch={false} className="shrink-0 text-xs font-bold text-accent hover:underline">
             すべて見る →
           </Link>
+        </nav>
+      )}
+
+      {tags.length > 0 && (
+        <nav aria-label={tagKind === "country" ? "国・地域で見る" : "チームで見る"} className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="shrink-0 text-xs font-bold text-fg-muted">{tagKind === "country" ? "国・地域" : "チーム"}</span>
+          {tags.map(({ tag, count }) => (
+            <Link
+              key={tag.slug}
+              href={tagPath(tag)}
+              prefetch={false}
+              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
+            >
+              {tag.name}
+              <span className="ml-1 font-normal text-fg-subtle">{count}</span>
+            </Link>
+          ))}
         </nav>
       )}
 
