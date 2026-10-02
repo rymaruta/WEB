@@ -6,6 +6,7 @@ import { GenreIcon } from "@/components/genre-icon";
 import { Pagination } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { HeroCarousel } from "@/components/hero-carousel";
+import { Rail } from "@/components/rail";
 import { HeroTopic, TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
 import { MonthlyChanges } from "@/components/monthly-changes";
@@ -204,15 +205,18 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
 
       {tagKind && tags.length > 0 && <TagGroups kind={tagKind} counts={tags} />}
 
-      {game && <GameHighlights {...game} />}
-      {changes && <MonthlyChanges {...changes} />}
-      {products && <WeeklyProducts {...products} />}
-      {anime && <AnimeSchedule {...anime} />}
-      {/* 一覧を1ページにまとめた特集への入口 */}
-      {FEATURE_OF[genre.slug] && <FeatureLinks kind={FEATURE_OF[genre.slug]!} />}
-      {outages.length > 0 && <OutageList items={outages} />}
-      {earnings.length > 0 && <RecentEarnings items={earnings} />}
-      {movies && <MovieSchedule {...movies} />}
+      {/* ジャンルの特集の箱は、スマホでは横にスライドして見る（縦に積むとニュース一覧が遠くなるため） */}
+      <Rail label={`${genre.name}の特集`}>
+        {game && <GameHighlights {...game} />}
+        {changes && <MonthlyChanges {...changes} />}
+        {products && <WeeklyProducts {...products} />}
+        {anime && <AnimeSchedule {...anime} />}
+        {outages.length > 0 && <OutageList items={outages} />}
+        {earnings.length > 0 && <RecentEarnings items={earnings} />}
+        {movies && <MovieSchedule {...movies} />}
+        {/* 一覧を1ページにまとめた特集への入口 */}
+        {FEATURE_OF[genre.slug] && <FeatureLinks kind={FEATURE_OF[genre.slug]!} />}
+      </Rail>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">

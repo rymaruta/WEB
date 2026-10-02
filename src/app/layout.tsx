@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { BottomNav } from "@/components/bottom-nav";
+import { BackToTop } from "@/components/scroll-helpers";
 import { FONT_SIZE_SCRIPT } from "@/components/font-size-toggle";
 import { ReadTracker } from "@/components/read-tracker";
 import { PageviewBeacon } from "@/components/pageview-beacon";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <SiteFooter />
         <BottomNav />
+        <BackToTop />
         <PageviewBeacon />
         <ReadTracker />
       </body>

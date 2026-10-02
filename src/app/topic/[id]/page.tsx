@@ -8,6 +8,8 @@ import { isIndexableArticle } from "@/lib/indexing";
 import { featurePath, featureShortName, isFeatureMonth, type FeatureKind } from "@/lib/features";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
+import { GroupTabs } from "@/components/group-tabs";
+import { ReadingProgress } from "@/components/scroll-helpers";
 import { FeedbackButtons } from "@/components/feedback-buttons";
 import { GenreBadge } from "@/components/genre-badge";
 import { GenreIcon } from "@/components/genre-icon";
@@ -86,6 +88,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <ReadingProgress />
       <article className="card min-w-0 overflow-hidden">
         {ai && (
           <script
@@ -233,17 +236,19 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
       </article>
 
       <aside className="min-w-0 space-y-6">
-        {similarNews.length > 0 && (
-          <section className="card p-4" aria-labelledby="similar-news">
-            <h2 id="similar-news" className="mb-1 text-base font-black">
-              関連するニュース
-            </h2>
-            <TopicList topics={similarNews} variant="compact" showGenre />
-          </section>
-        )}
-        <section className="card p-4">
-          <SectionHeading title={`${topic.genre.name}の話題`} href={`/genre/${topic.genre.slug}`} genreSlug={topic.genre.slug} />
-          <TopicList topics={related} variant="compact" showGenre={false} />
+        {/* 関連するニュースと同じジャンルの話題は、タブで切り替える（スマホで縦に2つ並べると長くなるため） */}
+        <section className="card p-4" aria-label="次に読む">
+          <SectionHeading title="次に読む" href={`/genre/${topic.genre.slug}`} moreLabel={`${topic.genre.name}をもっと`} genreSlug={topic.genre.slug} />
+          <GroupTabs
+            id="topic-next"
+            label="次に読むニュースの種類"
+            groups={[
+              ...(similarNews.length > 0
+                ? [{ key: "similar", label: "関連するニュース", content: <TopicList topics={similarNews} variant="compact" showGenre /> }]
+                : []),
+              { key: "genre", label: `${topic.genre.name}の話題`, content: <TopicList topics={related} variant="compact" showGenre={false} /> },
+            ]}
+          />
         </section>
       </aside>
     </div>

@@ -34,7 +34,7 @@ export async function SiteHeader() {
           <GenreNav genres={genres.map((g) => ({ slug: g.slug, name: g.name }))} />
         </div>
         {/* スマホで左右になぞってタブを切り替える。並びは上のタブと同じ（企業別は経済の隣） */}
-        <SwipeTabs hrefs={["/", ...genres.flatMap((g) => (g.slug === "business" ? [`/genre/${g.slug}`, "/company"] : [`/genre/${g.slug}`]))]} />
+        <SwipeTabs hrefs={["/trending", "/", ...genres.flatMap((g) => (g.slug === "business" ? [`/genre/${g.slug}`, "/company"] : [`/genre/${g.slug}`]))]} />
       </header>
       {/* 流れる新着はスマホでは出さない（狭い画面で動き続けると読みにくい） */}
       <div className="hidden sm:block">
