@@ -12,6 +12,8 @@ import { WeeklyProducts } from "@/components/weekly-products";
 import { AnimeSchedule } from "@/components/anime-schedule";
 import { OutageList } from "@/components/outage-list";
 import { RecentEarnings } from "@/components/recent-earnings";
+import { MovieSchedule } from "@/components/movie-schedule";
+import { getMovieSchedule, moviePageUrl } from "@/lib/movie-listings";
 import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
@@ -87,6 +89,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const outages = genre.slug === "tech" ? await getOutages() : [];
   // 経済のページは、この1週間の決算・業績予想を企業ごとに出す
   const earnings = genre.slug === "business" ? await getRecentEarnings() : [];
+  // エンタメのページは、今月・来月の映画の公開スケジュールを出す
+  const movies = genre.slug === "entertainment" ? await loadMovieSchedule() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -156,6 +160,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       {anime && <AnimeSchedule {...anime} />}
       {outages.length > 0 && <OutageList items={outages} />}
       {earnings.length > 0 && <RecentEarnings items={earnings} />}
+      {movies && <MovieSchedule {...movies} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
@@ -250,5 +255,15 @@ async function loadAnimeSchedule() {
   return {
     thisYear: year,
     months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((a) => a.date.startsWith(key)) })),
+  };
+}
+
+async function loadMovieSchedule() {
+  const { year, thisKey, nextKey } = jstMonths();
+  const items = await getMovieSchedule([thisKey, nextKey]);
+  const month = (key: string) => Number(key.slice(5, 7));
+  return {
+    sourceUrl: moviePageUrl(year),
+    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((m) => m.release.startsWith(key)) })),
   };
 }
