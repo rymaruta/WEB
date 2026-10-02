@@ -137,7 +137,7 @@ export default async function HomePage() {
             </Link>
           }
         >
-          <nav aria-label="話題の企業" className="mt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <nav aria-label="話題の企業" className="mt-2 flex flex-wrap items-center gap-2">
             {companies.map((c) => (
               <Link
                 key={c.name}
