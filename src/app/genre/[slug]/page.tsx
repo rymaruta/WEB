@@ -15,6 +15,7 @@ import { RecentEarnings } from "@/components/recent-earnings";
 import { MovieSchedule } from "@/components/movie-schedule";
 import { getMovieSchedule, moviePageUrl } from "@/lib/movie-listings";
 import { getAnimeSchedule } from "@/lib/anime";
+import { featurePath, featureShortName, jstMonth, type FeatureKind } from "@/lib/features";
 import { animePageUrl } from "@/lib/anime-listings";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
@@ -208,6 +209,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       {changes && <MonthlyChanges {...changes} />}
       {products && <WeeklyProducts {...products} />}
       {anime && <AnimeSchedule {...anime} />}
+      {/* 一覧を1ページにまとめた特集への入口 */}
+      {FEATURE_OF[genre.slug] && <FeatureLinks kind={FEATURE_OF[genre.slug]!} />}
       {outages.length > 0 && <OutageList items={outages} />}
       {earnings.length > 0 && <RecentEarnings items={earnings} />}
       {movies && <MovieSchedule {...movies} />}
@@ -317,4 +320,21 @@ async function loadMovieSchedule() {
     sourceUrl: moviePageUrl(year),
     months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((m) => m.release.startsWith(key)) })),
   };
+}
+
+/** ジャンルごとの特集（今月・来月の一覧ページ） */
+const FEATURE_OF: Partial<Record<string, FeatureKind>> = { domestic: "changes", life: "changes", game: "games", anime: "anime" };
+
+function FeatureLinks({ kind }: { kind: FeatureKind }) {
+  const months = [jstMonth(), jstMonth(new Date(), 1)];
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm font-bold">
+      <span className="text-xs font-normal text-fg-subtle">特集</span>
+      {months.map((m) => (
+        <Link key={m} href={featurePath(kind, m)} prefetch={false} className="text-accent hover:underline">
+          {featureShortName(kind, m)}の一覧 →
+        </Link>
+      ))}
+    </p>
+  );
 }

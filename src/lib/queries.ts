@@ -353,8 +353,17 @@ export type GameRelease = {
  * ゲームの発売予定。作品ごとに最も新しい報道の発売日を使い（延期などで変わった日付を反映する）、
  * まだ来ていない日付だけを日付順に返す。日付が月・年までのものは、その月・年の終わりまで残す
  */
-export const getGameReleases = cache(async (now = new Date()): Promise<GameRelease[]> => {
-  const today = new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+export const getGameReleases = cache(async (now = new Date()): Promise<GameRelease[]> =>
+  loadGameReleases(new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10)),
+);
+
+/** ある月（YYYY-MM）に発売される作品。すでに発売された日の作品も含める（特集ページ用） */
+export async function getGameReleasesInMonth(month: string): Promise<GameRelease[]> {
+  return (await loadGameReleases(`${month}-01`)).filter((r) => r.release.startsWith(month));
+}
+
+/** today（YYYY-MM-DD）以降の発売予定 */
+async function loadGameReleases(today: string): Promise<GameRelease[]> {
   const [topics, listings] = await Promise.all([
     prisma.topic.findMany({
       // ゲーム本体の発表・発売日の決定・発売の報道だけ（噂・リークは公式の日付ではないので載せない。アップデートやセールの日付も載せない）
@@ -395,7 +404,7 @@ export const getGameReleases = cache(async (now = new Date()): Promise<GameRelea
     byTitle.set(titleKey(l.title), item);
   }
   return out.sort((a, b) => releaseSortKey(a.release).localeCompare(releaseSortKey(b.release)));
-});
+}
 
 /** 新着ゲーム：直近に新作の発表・発売日の決定が報じられた作品（新しい順、作品ごとに1件） */
 export const getNewGames = cache(async (days: number, take: number) => {
