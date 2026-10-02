@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
-import { VideoCard, VideoGrid } from "@/components/youtube/video-card";
+import { VideoGrid, VideoRow } from "@/components/youtube/video-card";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { GroupTabs } from "@/components/group-tabs";
 import {
@@ -77,11 +77,8 @@ export default async function YouTubePage() {
           </h2>
           <ol className="space-y-3">
             {rising.map((v, i) => (
-              <li key={v.videoId} className="flex gap-3">
-                <span className="w-5 shrink-0 pt-1 text-center text-sm font-black text-accent tabular-nums">{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <VideoCard v={v} note={v.gain > 0 ? `+${viewsLabel(v.gain)}` : undefined} />
-                </div>
+              <li key={v.videoId}>
+                <VideoRow v={v} rank={i + 1} note={`+${viewsLabel(v.gain)}`} />
               </li>
             ))}
           </ol>

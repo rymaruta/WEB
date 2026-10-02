@@ -23,6 +23,26 @@ export function VideoCard({ v, showChannel = true, note }: { v: Video; showChann
   );
 }
 
+/** 1行の動画（小さなサムネイルの横に題名）。ランキングなど、縦に並べる一覧に使う */
+export function VideoRow({ v, rank, note }: { v: Video; rank?: number; note?: string }) {
+  return (
+    <Link href={videoPath(v.videoId)} prefetch={false} className="group flex items-center gap-3">
+      {rank !== undefined && <span className="w-5 shrink-0 text-center text-sm font-black text-accent tabular-nums">{rank}</span>}
+      <span className="relative w-32 shrink-0 overflow-hidden rounded-md">
+        <Thumbnail src={v.thumbnail} genreSlug="entertainment" className="aspect-video w-full" sizes="128px" />
+        {v.isShort && <span className="absolute top-1 left-1 rounded bg-red-600 px-1 text-[9px] leading-4 font-bold text-white">ショート</span>}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 text-sm leading-snug font-bold group-hover:text-accent">{v.title}</span>
+        <span className="mt-0.5 block text-[11px] text-fg-subtle">
+          {channelById(v.channelId)?.name ?? ""}
+          {note && <span className="ml-1 font-bold text-accent">{note}</span>}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
 /** 動画カードを2列（広い画面は3列）に並べる */
 export function VideoGrid({ videos, showChannel = true }: { videos: Video[]; showChannel?: boolean }) {
   return (
