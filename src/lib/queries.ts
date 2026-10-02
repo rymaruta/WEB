@@ -7,6 +7,7 @@ import { isOutage, outageStatus, type OutageItem } from "@/lib/outages";
 import { COUNTRIES, countTags, TAG_GENRES, TEAMS, type Tag, type TagKind } from "@/lib/tags";
 import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
+import { workKey } from "@/lib/work-keys";
 
 /** 「いま話題」の対象期間 */
 export const TRENDING_HOURS = 48;
@@ -25,7 +26,7 @@ const articlePreview = {
   orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
 } satisfies Prisma.Topic$articlesArgs;
 
-const topicCardInclude = {
+export const topicCardInclude = {
   genre: true,
   articles: articlePreview,
 } satisfies Prisma.TopicInclude;
@@ -347,6 +348,8 @@ export type GameRelease = {
   kind: string | null;
   /** 公式ストアだけの作品のストアのページ */
   storeUrl: string | null;
+  /** 作品ページの呼び名（記事のある作品だけ。src/lib/works.ts） */
+  workKey?: string | null;
 };
 
 /**
@@ -386,7 +389,7 @@ async function loadGameReleases(today: string): Promise<GameRelease[]> {
     const r = t.aiGameRelease!;
     // まだ来ていないか（月・年までの予定は、その期間が終わるまで）
     if (today.slice(0, r.length) > r) continue;
-    const item = { topicId: t.id, title: t.aiGameTitle!, release: r, platforms: t.aiGamePlatforms, kind: t.aiGameKind, storeUrl: null };
+    const item = { topicId: t.id, title: t.aiGameTitle!, release: r, platforms: t.aiGamePlatforms, kind: t.aiGameKind, storeUrl: null, workKey: workKey(t.aiGameKey || t.aiGameTitle!) };
     out.push(item);
     byTitle.set(titleKey(t.aiGameTitle!), item);
   }

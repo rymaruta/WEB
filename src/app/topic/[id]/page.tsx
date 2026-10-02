@@ -25,6 +25,7 @@ import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { kindTone } from "@/components/kind-badge";
+import { workKey, workPath } from "@/lib/work-keys";
 
 export const revalidate = 60;
 
@@ -232,8 +233,19 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
 }
 
 /** 話題に読み取った日付（発売日・放送日・変更の日）から、関連する特集とデータのページを選ぶ */
-function relatedFeatures(t: { aiGameRelease: string | null; aiAnimeDate: string | null; aiChangeDate: string | null; aiChangeKind: string | null }) {
+function relatedFeatures(t: {
+  aiGameRelease: string | null;
+  aiAnimeDate: string | null;
+  aiChangeDate: string | null;
+  aiChangeKind: string | null;
+  aiGameTitle: string | null;
+  aiGameKey: string | null;
+  aiAnimeTitle: string | null;
+}) {
   const links: { href: string; label: string }[] = [];
+  // 作品ページ（発売日・放送日とこれまでのニュース）を先に
+  if (t.aiGameTitle) links.push({ href: workPath("game", workKey(t.aiGameKey || t.aiGameTitle)), label: `${t.aiGameTitle}の発売日・最新情報` });
+  if (t.aiAnimeTitle) links.push({ href: workPath("anime", workKey(t.aiAnimeTitle)), label: `${t.aiAnimeTitle}はいつから？` });
   const add = (kind: FeatureKind, date: string | null) => {
     const month = date?.slice(0, 7);
     if (month && isFeatureMonth(month)) links.push({ href: featurePath(kind, month), label: featureShortName(kind, month) });
