@@ -7,6 +7,8 @@ import { Pagination } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
+import { MonthlyChanges } from "@/components/monthly-changes";
+import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
 import {
   countTopics,
@@ -62,6 +64,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const companies = genre.slug === "business" ? await getTopCompanies(7, 8) : [];
   // ゲームのページだけ、発売スケジュール（今月・来月）と新着ゲームを出す
   const game = genre.slug === "game" ? await loadGameHighlights() : null;
+  // 国内・ライフのページは、「◯月から変わること」（今月・来月）を出す
+  const changes = genre.slug === "domestic" || genre.slug === "life" ? await loadMonthlyChanges() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -109,6 +113,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       )}
 
       {game && <GameHighlights {...game} />}
+      {changes && <MonthlyChanges {...changes} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
@@ -177,5 +182,15 @@ async function loadGameHighlights() {
     })),
     thisYear: year,
     monthLabels: labels,
+  };
+}
+
+async function loadMonthlyChanges() {
+  const { year, thisKey, nextKey } = jstMonths();
+  const items = await getChanges([thisKey, nextKey]);
+  const month = (key: string) => Number(key.slice(5, 7));
+  return {
+    thisYear: year,
+    months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((c) => c.date.startsWith(key)) })),
   };
 }
