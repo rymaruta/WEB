@@ -19,7 +19,7 @@ export default async function TasksPage() {
       <header>
         <h1 className="text-xl font-extrabold">AI に頼む</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          サイトの調べもの・数字の確認・記事の見直しなどを、AI（Claude）が行います。料金はかかりません。X への投稿や削除など、外への操作はしません（必要なときは結果で知らせます）。
+          サイトの調べもの・数字の確認・記事の見直しなどを、AI（Claude）が行います（AI の料金はかかりません）。X への投稿・削除は、頼んだときだけ行い、そのたびにメールで知らせます（X の投稿料金は1件約2円、URL 付きは約30円。URL 付きは「リンク」「URL」と頼んだときだけ）。
         </p>
       </header>
       <section className="card p-4">
