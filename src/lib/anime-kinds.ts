@@ -9,4 +9,5 @@ export const ANIME_KIND_LABELS: Record<AnimeKind, string> = {
   other: "その他",
 };
 
-export type AnimeItem = { topicId: number; title: string; date: string; kind: AnimeKind; channel: string | null };
+/** topicId がなければ、放送開始予定の一覧（Wikipedia）だけに載っている作品 */
+export type AnimeItem = { topicId: number | null; title: string; date: string; kind: AnimeKind; channel: string | null };

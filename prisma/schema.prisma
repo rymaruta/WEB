@@ -521,3 +521,18 @@ model MovieListing {
   @@unique([title, release])
   @@index([release])
 }
+
+/// テレビアニメの放送開始予定（Wikipedia「日本のテレビアニメ作品一覧」から毎日取り込む。src/lib/anime-listings.ts）
+model AnimeListing {
+  id        Int      @id @default(autoincrement())
+  title     String
+  /// 放送開始日（YYYY-MM-DD。日が書かれていなければ YYYY-MM）
+  start     String
+  /// 主な放送局（例: TOKYO MXほか）
+  channel   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([title, start])
+  @@index([start])
+}

@@ -122,7 +122,7 @@ export async function getAnimeSchedule(months: string[]): Promise<AnimeItem[]> {
       kind: (t.aiAnimeKind ?? "other") as AnimeKind,
       channel: t.aiAnimeChannel,
     })),
-    ...(await getAnimeFilms(months)),
+    ...(await getListedAnime(months)),
   ]);
 }
 
@@ -134,15 +134,18 @@ export function filmKeys(title: string): string[] {
 }
 
 /**
- * 映画の公開予定（src/lib/movie-listings.ts）のうち、アニメの映画。
- * 一覧にはアニメかどうかが書かれていないため、アニメ・漫画のジャンルの話題の見出しに題名が出てくる作品をアニメの映画とみなす
+ * 公開・放送の予定の一覧（Wikipedia から取り込んだもの）にある作品。
+ * - 映画の公開予定（src/lib/movie-listings.ts）は、アニメかどうかが書かれていないため、
+ *   アニメ・漫画のジャンルの話題の見出しに題名が出てくる作品だけをアニメの映画とみなす
+ * - テレビアニメの放送開始予定（src/lib/anime-listings.ts）は、すべて載せる。見出しに題名が出てくる話題があれば、その話題へつなぐ
  */
-async function getAnimeFilms(months: string[]): Promise<AnimeItem[]> {
-  const films = await prisma.movieListing.findMany({
-    where: { OR: months.map((m) => ({ release: { startsWith: m } })) },
-    select: { title: true, release: true },
-  });
-  if (films.length === 0) return [];
+async function getListedAnime(months: string[]): Promise<AnimeItem[]> {
+  const inMonths = (field: "release" | "start") => ({ OR: months.map((m) => ({ [field]: { startsWith: m } })) });
+  const [films, shows] = await Promise.all([
+    prisma.movieListing.findMany({ where: inMonths("release"), select: { title: true, release: true } }),
+    prisma.animeListing.findMany({ where: inMonths("start"), select: { title: true, start: true, channel: true } }),
+  ]);
+  if (films.length + shows.length === 0) return [];
   const topics = await prisma.topic.findMany({
     where: { genre: { slug: "anime" }, lastSeenAt: { gte: new Date(Date.now() - 180 * 86_400_000) } },
     orderBy: { score: "desc" },
@@ -150,11 +153,17 @@ async function getAnimeFilms(months: string[]): Promise<AnimeItem[]> {
     select: { id: true, title: true, aiTitle: true },
   });
   const heads = topics.map((t) => ({ id: t.id, text: fold(`${t.title} ${t.aiTitle ?? ""}`) }));
-  return films.flatMap((f) => {
-    const keys = filmKeys(f.title);
-    const hit = heads.find((h) => keys.some((k) => h.text.includes(k)));
-    return hit ? [{ topicId: hit.id, title: f.title, date: f.release, kind: "movie" as const, channel: null }] : [];
-  });
+  const topicFor = (title: string) => {
+    const keys = filmKeys(title);
+    return heads.find((h) => keys.some((k) => h.text.includes(k)))?.id ?? null;
+  };
+  return [
+    ...films.flatMap((f) => {
+      const id = topicFor(f.title);
+      return id ? [{ topicId: id, title: f.title, date: f.release, kind: "movie" as const, channel: null }] : [];
+    }),
+    ...shows.map((s) => ({ topicId: topicFor(s.title), title: s.title, date: s.start, kind: "tv" as const, channel: s.channel })),
+  ];
 }
 
 /** 同じ作品・同じ種類は1件に（話題の大きいものを残す。月だけのものより、日まで分かるものを優先する）して、日付順に並べる */
