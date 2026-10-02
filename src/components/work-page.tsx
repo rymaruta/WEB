@@ -5,11 +5,15 @@ import { siteConfig } from "@/config/site";
 import { jstDate } from "@/lib/calendar";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { daysUntil, isPast, longDate, readWorkParam } from "@/lib/work-keys";
-import { getAnimeWork, getGameWork, workPath, type Work, type WorkKind } from "@/lib/works";
+import { getAnimeWork, getGameWork, getMovieWork, workPath, type Work, type WorkKind } from "@/lib/works";
 import { TopicList } from "./topic-card";
 
-const LOAD: Record<WorkKind, (key: string) => Promise<Work | null>> = { game: getGameWork, anime: getAnimeWork };
-const GENRE: Record<WorkKind, { slug: string; name: string }> = { game: { slug: "game", name: "ゲーム" }, anime: { slug: "anime", name: "アニメ・漫画" } };
+const LOAD: Record<WorkKind, (key: string) => Promise<Work | null>> = { game: getGameWork, anime: getAnimeWork, movie: getMovieWork };
+const GENRE: Record<WorkKind, { slug: string; name: string }> = {
+  game: { slug: "game", name: "ゲーム" },
+  anime: { slug: "anime", name: "アニメ・漫画" },
+  movie: { slug: "entertainment", name: "エンタメ" },
+};
 
 /** アニメの種類ごとの言い方 */
 const ANIME_VERB: Record<string, { start: string; label: string }> = {
@@ -20,6 +24,7 @@ const ANIME_VERB: Record<string, { start: string; label: string }> = {
 
 function words(w: Work) {
   if (w.kind === "game") return { start: "発売", label: "発売日", where: "機種" };
+  if (w.kind === "movie") return { start: "公開", label: "公開日", where: "製作国" };
   const v = ANIME_VERB[w.animeKind ?? ""] ?? { start: "放送開始", label: "放送開始日" };
   return { ...v, where: "放送・配信" };
 }
@@ -28,7 +33,8 @@ function words(w: Work) {
 export function answer(w: Work, today: string): string {
   const { start } = words(w);
   if (!w.date) return `${w.title}の${start}日は、まだ発表されていません。決まりしだい、このページでお知らせします。`;
-  const where = w.platforms.length ? `${w.platforms.slice(0, 4).join("・")}で` : "";
+  // 映画の国は製作国で、公開する場所ではないため、文には入れない
+  const where = w.kind !== "movie" && w.platforms.length ? `${w.platforms.slice(0, 4).join("・")}で` : "";
   if (isPast(w.date, today)) return `${w.title}は${longDate(w.date)}に${where}${start}されました。`;
   const d = daysUntil(w.date, today);
   const left = d === null ? "" : d === 0 ? "きょうが当日です。" : `${start}まであと${d}日です。`;
@@ -39,7 +45,8 @@ export async function workMetadata(kind: WorkKind, raw: string): Promise<Metadat
   const w = await LOAD[kind](readWorkParam(raw));
   if (!w) return {};
   const { label } = words(w);
-  const title = kind === "game" ? `${w.title}の発売日はいつ？対応機種と最新情報` : `${w.title}はいつから？${label}と最新情報`;
+  const title =
+    kind === "game" ? `${w.title}の発売日はいつ？対応機種と最新情報` : kind === "movie" ? `映画「${w.title}」の公開日はいつ？最新情報` : `${w.title}はいつから？${label}と最新情報`;
   return {
     title,
     description: `${answer(w, jstDate())}${w.title}に関する最新ニュースを、複数の媒体の報道からまとめています。`.slice(0, 160),
@@ -60,7 +67,9 @@ export async function WorkPage({ kind, raw }: { kind: WorkKind; raw: string }) {
   const jsonLd =
     kind === "game"
       ? { "@context": "https://schema.org", "@type": "VideoGame", name: w.title, url, ...(w.platforms.length ? { gamePlatform: w.platforms } : {}) }
-      : { "@context": "https://schema.org", "@type": "TVSeries", name: w.title, url, ...(w.date && w.date.length === 10 ? { startDate: w.date } : {}) };
+      : kind === "movie"
+        ? { "@context": "https://schema.org", "@type": "Movie", name: w.title, url, ...(w.platforms.length ? { countryOfOrigin: w.platforms[0] } : {}) }
+        : { "@context": "https://schema.org", "@type": "TVSeries", name: w.title, url, ...(w.date && w.date.length === 10 ? { startDate: w.date } : {}) };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -117,7 +126,12 @@ export async function WorkPage({ kind, raw }: { kind: WorkKind; raw: string }) {
           </Link>
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">
-          日付は、ニュースで報じられた内容{kind === "game" ? "と公式ストア" : "とテレビアニメの放送予定の一覧（Wikipedia）"}
+          日付は、
+          {kind === "game"
+            ? "ニュースで報じられた内容と公式ストア"
+            : kind === "movie"
+              ? "日本で公開される映画の一覧（Wikipedia、CC BY-SA）"
+              : "ニュースで報じられた内容とテレビアニメの放送予定の一覧（Wikipedia）"}
           をもとに自動でまとめています。変更されることがあるため、最新の情報は公式の発表でご確認ください。
         </p>
       </header>

@@ -3,7 +3,7 @@
  * 同じ作品の話題を1つのページにまとめるための呼び名と、ページのアドレス
  */
 
-export type WorkKind = "game" | "anime";
+export type WorkKind = "game" | "anime" | "movie";
 
 /** 作品をまとめる呼び名（大文字小文字・空白・記号の違いを吸収する） */
 export function workKey(title: string): string {

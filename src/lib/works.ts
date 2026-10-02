@@ -131,6 +131,29 @@ export const getAnimeWork = cache(async (key: string): Promise<Work | null> => {
   };
 });
 
+/**
+ * 映画の作品ページ。日本での公開予定の一覧（Wikipedia）にある作品を、見出しに題名が入った話題と合わせて出す
+ */
+export const getMovieWork = cache(async (key: string): Promise<Work | null> => {
+  const rows = await prisma.movieListing.findMany({ where: { release: { gte: "2025" } }, orderBy: { release: "desc" }, take: 3000 });
+  const listing = rows.find((r) => workKey(r.title) === key);
+  if (!listing) return null;
+  const ids = await topicsMentioning(listing.title, "entertainment");
+  const anime = await topicsMentioning(listing.title, "anime");
+  const topics = await loadTopics([...new Set([...ids, ...anime])]);
+  return {
+    kind: "movie",
+    key,
+    title: listing.title,
+    date: listing.release,
+    platforms: listing.country ? [listing.country] : [],
+    animeKind: null,
+    storeUrl: null,
+    topics,
+    indexable: topics.length >= 2,
+  };
+});
+
 /** サイトマップ用：検索エンジンに出す作品ページ（話題が2つ以上か、まとめ記事がある作品） */
 export async function listIndexableWorks(): Promise<{ kind: WorkKind; key: string }[]> {
   const out: { kind: WorkKind; key: string }[] = [];

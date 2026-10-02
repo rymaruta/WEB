@@ -37,3 +37,10 @@ describe("いつ？への答え", () => {
     expect(answer({ ...base, kind: "anime", animeKind: "tv", platforms: ["TOKYO MX"], date: "2026-10" }, "2026-10-02")).toBe("ゲームXは2026年10月にTOKYO MXで放送開始予定です。");
   });
 });
+
+describe("映画", () => {
+  it("製作国を「公開する場所」として書かない", () => {
+    const w = { kind: "movie" as const, key: "x", title: "映画X", platforms: ["アメリカ"], animeKind: null, storeUrl: null, topics: [], indexable: true };
+    expect(answer({ ...w, date: "2026-10-12" }, "2026-10-02")).toBe("映画Xは2026年10月12日（月）に公開予定です。公開まであと10日です。");
+  });
+});
