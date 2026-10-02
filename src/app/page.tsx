@@ -1,5 +1,6 @@
 import { ArticleRanking } from "@/components/article-ranking";
 import { DigestSummaryCard } from "@/components/digest-summary";
+import { FeatureNav } from "@/components/feature-nav";
 import { Fold } from "@/components/fold";
 import { SideFold } from "@/components/side-fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
@@ -115,6 +116,14 @@ export default async function HomePage() {
         ) : (
           <p className="card p-6 text-sm text-fg-subtle">ニュースを準備しています。しばらくしてから再度お越しください。</p>
         )}
+      </section>
+
+      {/* 特集への入口（今月・来月に始まること・発売のゲーム・始まるアニメの一覧） */}
+      <section className="card px-4 py-3" aria-labelledby="home-features">
+        <Link href="/feature" prefetch={false} id="home-features" className="text-sm font-extrabold hover:text-accent">
+          特集
+        </Link>
+        <FeatureNav className="mt-2" />
       </section>
 
       {/* 企業別ニュースへの入口。この1週間によく取り上げられた企業を並べる */}
