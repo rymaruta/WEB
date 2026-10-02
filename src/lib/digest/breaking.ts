@@ -1,22 +1,25 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
-import { HOT, hotReason } from "@/lib/stories/hot";
+import { HOT, hotReason, isHot } from "@/lib/stories/hot";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
 import { editionKey, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
 
 /**
  * 速報の自動投稿。誤報を出さないことを最優先に、条件を厳しく絞る。
- * - AI 解析で「速報（BREAKING）」と判定され、照合で問題がなかった（要確認でない）新しい出来事
- * - 3媒体以上が報じている、最初の報道から3時間以内
+ * - AI 解析で「速報（BREAKING）」と判定され、照合で問題がなかった（要確認でない）新しい出来事で、3媒体以上が報じている
+ *   または、一斉に報じられた大きな出来事（src/lib/stories/hot.ts。結婚・引退・優勝など）で、2媒体以上が報じ、確度が特に高い
+ * - 最初の報道から3時間以内
  * - 事件・死亡・選挙・政治の分野は出さない（誤りや配慮の問題が大きいため、定時の配信で扱う）
- * - 1日2本まで。23時〜6時は出さない（大地震・津波など災害だけは例外）
+ * - 1日3本まで。23時〜6時は出さない（大地震・津波など災害だけは例外）
  * - 定時の配信の直前（20分以内）は出さない（その回に載る）
  */
 export const BREAKING_RULES = {
-  maxPerDay: 2,
+  maxPerDay: 3,
   minPublishers: 3,
+  /** 大きな出来事（速報の判定ではないもの）を自動で出す条件。人の確認なしで出すため、2媒体以上の一致と高い確度を求める */
+  hot: { minPublishers: 2, minConfidence: 0.85 },
   maxAgeHours: 3,
   minConfidence: 0.8,
   quietFrom: 23,
@@ -35,6 +38,10 @@ export type BreakingCandidate = {
   riskFlags: string[];
   confidence: number | null;
   assessment: Assessment | null;
+  /** AI が「速報（BREAKING）」と判定した出来事か（省略時は true） */
+  breaking?: boolean;
+  /** 一斉に報じられた大きな出来事か（src/lib/stories/hot.ts） */
+  hot?: boolean;
 };
 
 /** 日本時間の時（0〜23） */
@@ -59,7 +66,10 @@ export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedT
   if (postedToday >= BREAKING_RULES.maxPerDay || isJustBeforeSlot(now)) return null;
   const quiet = isQuietHour(now);
   const ok = candidates.filter((c) => {
-    if (c.publisherCount < BREAKING_RULES.minPublishers) return false;
+    const asBreaking = c.breaking !== false && c.publisherCount >= BREAKING_RULES.minPublishers;
+    // 大きな出来事は、2媒体以上が報じ、照合の確度が特に高いときだけ（人の確認なしで出すため）
+    const asHot = Boolean(c.hot) && c.publisherCount >= BREAKING_RULES.hot.minPublishers && (c.confidence ?? 0) >= BREAKING_RULES.hot.minConfidence;
+    if (!asBreaking && !asHot) return false;
     if (now.getTime() - c.firstSeenAt.getTime() > BREAKING_RULES.maxAgeHours * 3_600_000) return false;
     if (c.confidence !== null && c.confidence < BREAKING_RULES.minConfidence) return false;
     if (c.assessment?.gossip || c.assessment?.promotional) return false;
@@ -96,7 +106,6 @@ export async function runBreakingCheck(now = new Date()) {
 
   const stories = await prisma.story.findMany({
     where: {
-      cardType: "BREAKING",
       status: "PENDING",
       kind: "NEW",
       topic: { firstSeenAt: { gte: new Date(now.getTime() - BREAKING_RULES.maxAgeHours * 3_600_000) } },
@@ -108,11 +117,14 @@ export async function runBreakingCheck(now = new Date()) {
       confidence: true,
       assessment: true,
       headline: true,
-      topic: { select: { id: true, publisherCount: true, firstSeenAt: true } },
+      cardType: true,
+      topic: { select: { id: true, title: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true } },
     },
   });
   const pick = pickBreaking(
     stories.map((s) => ({
+      breaking: s.cardType === "BREAKING",
+      hot: isHot(s.topic, now.getTime()),
       id: s.id,
       score: s.score,
       publisherCount: s.topic.publisherCount,
