@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV = [
   { href: "/admin", label: "配信", match: (p: string) => p === "/admin" || p.startsWith("/admin/editions") || p.startsWith("/admin/breaking") },
   { href: "/admin/analytics", label: "数字", match: (p: string) => p.startsWith("/admin/analytics") },
-  { href: "/admin/tasks", label: "AI に頼む", match: (p: string) => p.startsWith("/admin/tasks") },
+  { href: "/admin/tasks", label: "AIに頼む", match: (p: string) => p.startsWith("/admin/tasks") },
   { href: "/admin/logs", label: "記録", match: (p: string) => p.startsWith("/admin/logs") },
 ];
 
@@ -14,7 +14,8 @@ const NAV = [
 export function AdminNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1" aria-label="管理メニュー">
+    // スマホでも1行に収め、収まらないときは横に動かせるようにする（文字が縦に折り返さないように）
+    <nav className="scrollbar-none flex min-w-0 gap-1 overflow-x-auto" aria-label="管理メニュー">
       {NAV.map((n) => {
         const active = n.match(pathname);
         return (
@@ -22,7 +23,7 @@ export function AdminNav() {
             key={n.href}
             href={n.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${
               active ? "border-accent bg-accent text-accent-fg" : "border-border text-fg-muted hover:border-accent hover:text-accent"
             }`}
           >
