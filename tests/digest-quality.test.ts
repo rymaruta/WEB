@@ -51,6 +51,17 @@ describe("載らなかった理由の記録", () => {
     for (const m of r.main) expect(reason.has(m.id)).toBe(false);
   });
 
+  it("基準点以上の候補は、ふだんの上限（芸能・スポーツは合わせて1本）で理由を付ける", () => {
+    const cs = [
+      cand({ id: "sp1", category: "SPORTS", publisherCount: 9 }),
+      cand({ id: "en1", category: "ENTERTAINMENT", publisherCount: 8 }),
+      cand({ id: "so1", category: "SOCIETY" }),
+      cand({ id: "ec1", category: "ECONOMY" }),
+    ];
+    const r = selectForEdition(cs, SLOTS.MORNING, new Set());
+    expect(r.notes.rejected.find((x) => x.id === "en1")?.reason).toBe("芸能・スポーツの合計の上限");
+  });
+
   it("人の確認が要る候補は、おまかせ投稿では理由つきで外す", () => {
     const r = selectForEdition([cand({ id: "rv", status: "REVIEW_REQUIRED" })], SLOTS.LUNCH, new Set(), { verifiedOnly: true });
     expect(r.notes.rejected[0]).toMatchObject({ id: "rv", reason: "人の確認が必要（おまかせ投稿では使わない）" });
