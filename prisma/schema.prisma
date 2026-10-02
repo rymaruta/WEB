@@ -602,3 +602,26 @@ model AdminTask {
 
   @@index([createdAt(sort: Desc)])
 }
+
+/// 話題をまとめた記録（同じ出来事の話題を1つにした）。誤ってまとめたときに取り消せるよう、移した記事を残す
+model TopicMerge {
+  id             Int       @id @default(autoincrement())
+  /// 残した話題
+  keepId         Int
+  /// まとめた（一覧から外した）話題
+  dropId         Int
+  /// まとめた側から残した側へ移した記事
+  articleIds     Int[]
+  /// まとめる前の、まとめた側の「読み物でない」の印（取り消すときに戻す）
+  dropWasNotNews Boolean   @default(false)
+  /// ai（ジャンルの見直しで AI が同じ出来事と判定）・admin（運営者）
+  source         String
+  /// まとめた理由（共通の語など）
+  reason         String?
+  createdAt      DateTime  @default(now())
+  undoneAt       DateTime?
+
+  @@index([keepId])
+  @@index([dropId])
+  @@index([createdAt])
+}

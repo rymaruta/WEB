@@ -2,7 +2,9 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { GENRE_SLUGS } from "@/lib/ai/prompt";
+import { logEvent } from "@/lib/events";
 import { refreshTopics } from "./cluster";
+import { checkMerge } from "./merge-check";
 
 /**
  * 話題のジャンルを、内容から判定し直す。
@@ -206,15 +208,22 @@ export function pickKeeper<T extends { id: number; publisherCount: number; aiGen
 
 /**
  * 同じ出来事の話題を1つにまとめる。まとめた側の記事はすべて残す側へ移し、まとめた側には移した先を記録する
- * （一覧には出さず、ページはまとめた先へ移す）。一覧に出る期間の、まだまとめていない話題どうしだけ
+ * （一覧には出さず、ページはまとめた先へ移す）。一覧に出る期間の、まだまとめていない話題どうしだけ。
+ * - AI の判定（source: "ai"）は、見出しに共通の固有の語があり、時期が近いものだけまとめる（checkMerge）。運営者の指示はそのまま
+ * - まとめた記録（移した記事）を TopicMerge に残し、undoMerge で取り消せる
  */
-export async function mergeTopics(pairs: readonly (readonly [number, number])[], now = new Date()): Promise<number> {
+export async function mergeTopics(
+  pairs: readonly (readonly [number, number])[],
+  now = new Date(),
+  opts: { source?: "ai" | "admin" } = {},
+): Promise<number> {
   if (pairs.length === 0) return 0;
+  const source = opts.source ?? "ai";
   const since = new Date(now.getTime() - WINDOW_HOURS * 3_600_000);
   const ids = [...new Set(pairs.flat())];
   const rows = await prisma.topic.findMany({
     where: { id: { in: ids } },
-    select: { id: true, publisherCount: true, aiGeneratedAt: true, mergedIntoId: true, lastSeenAt: true },
+    select: { id: true, title: true, firstSeenAt: true, publisherCount: true, aiGeneratedAt: true, aiNotNews: true, mergedIntoId: true, lastSeenAt: true },
   });
   const byId = new Map(rows.map((t) => [t.id, t]));
   const done = new Set<number>();
@@ -224,10 +233,19 @@ export async function mergeTopics(pairs: readonly (readonly [number, number])[],
     const b = byId.get(y);
     if (!a || !b || done.has(a.id) || done.has(b.id) || a.mergedIntoId || b.mergedIntoId) continue;
     if (a.lastSeenAt < since || b.lastSeenAt < since) continue;
+    const check = checkMerge(a, b);
+    if (source === "ai" && !check.ok) {
+      await logEvent("info", "topic.merge-rejected", `${a.id} と ${b.id} はまとめない（${check.reason}）: ${a.title.slice(0, 40)} / ${b.title.slice(0, 40)}`);
+      continue;
+    }
     const [keep, drop] = pickKeeper(a, b);
+    const moved = await prisma.article.findMany({ where: { topicId: drop.id }, select: { id: true } });
     await prisma.$transaction([
       prisma.article.updateMany({ where: { topicId: drop.id }, data: { topicId: keep.id } }),
       prisma.topic.update({ where: { id: drop.id }, data: { mergedIntoId: keep.id, aiNotNews: true } }),
+      prisma.topicMerge.create({
+        data: { keepId: keep.id, dropId: drop.id, articleIds: moved.map((m) => m.id), dropWasNotNews: drop.aiNotNews, source, reason: check.reason },
+      }),
     ]);
     // まとめた側の記事を、残す側の件数・媒体数・見出しに反映する
     await refreshTopics([keep.id]);
@@ -235,4 +253,22 @@ export async function mergeTopics(pairs: readonly (readonly [number, number])[],
     merged++;
   }
   return merged;
+}
+
+/** まとめたのを取り消す。移した記事を元の話題へ戻し、元の話題を一覧に戻す */
+export async function undoMerge(mergeId: number): Promise<{ ok: boolean; error?: string; restored?: number }> {
+  const m = await prisma.topicMerge.findUnique({ where: { id: mergeId } });
+  if (!m) return { ok: false, error: "merge not found" };
+  if (m.undoneAt) return { ok: false, error: "already undone" };
+  const drop = await prisma.topic.findUnique({ where: { id: m.dropId }, select: { mergedIntoId: true } });
+  if (!drop) return { ok: false, error: "dropped topic no longer exists" };
+  const [restored] = await prisma.$transaction([
+    // 残した側にまだある記事だけを戻す（その後さらに別の話題へまとめられた記事は動かさない）
+    prisma.article.updateMany({ where: { id: { in: m.articleIds }, topicId: m.keepId }, data: { topicId: m.dropId } }),
+    prisma.topic.update({ where: { id: m.dropId }, data: { mergedIntoId: null, aiNotNews: m.dropWasNotNews } }),
+    prisma.topicMerge.update({ where: { id: m.id }, data: { undoneAt: new Date() } }),
+  ]);
+  await refreshTopics([m.keepId, m.dropId]);
+  await logEvent("info", "topic.merge-undone", `${m.keepId} から ${m.dropId} を戻した（記事 ${restored.count} 件）`);
+  return { ok: true, restored: restored.count };
 }
