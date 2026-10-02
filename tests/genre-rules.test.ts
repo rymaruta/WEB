@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import gold from "./fixtures/genre-gold.json";
+import holdout from "./fixtures/genre-holdout.json";
 import { confidentMove, judgeGenre } from "@/lib/topics/genre-rules";
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
@@ -46,6 +47,20 @@ describe("judgeGenre（本番の試算で誤って動かした例。手がかり
   it.each(cases)("%s は %s のまま", (title, genre, publisher) => {
     const j = judgeGenre(title, null, genre, publisher);
     expect(confidentMove(j, TOPIC_MIN_CONFIDENCE)).toBe(false);
+  });
+});
+
+describe("judgeGenre（2つ目の検証データ：AI が未判定の新しい話題 73件）", () => {
+  const hold = holdout as Row[];
+  it("一致率が 82% 以上（ルールの見直し前は 76.7%）。正しいジャンルを動かさない", () => {
+    // 2026-10-02 に正解を付けた。このデータでも語を足したため、次回は別の新しい話題で測る
+    expect(hold.filter((r) => applied(r) === r.gold).length / hold.length).toBeGreaterThanOrEqual(0.82);
+    expect(hold.filter((r) => r.current === r.gold && applied(r) !== r.gold).map((r) => r.title)).toEqual([]);
+  });
+
+  it("人名の中の1文字（久保建英の「英」）や「中国製」で国際にしない", () => {
+    expect(judgeGenre("福原遥がサッカー久保建英と電撃婚", null, "entertainment").genre).not.toBe("world");
+    expect(confidentMove(judgeGenre("中国製スマートグラスがリコール", null, "tech"), TOPIC_MIN_CONFIDENCE)).toBe(false);
   });
 });
 
