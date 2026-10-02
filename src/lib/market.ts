@@ -48,7 +48,8 @@ export function parseJgbCsv(csv: string): MarketPoint | null {
 }
 
 async function fetchText(url: string, encoding = "utf-8"): Promise<string> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
+  // ページは一定時間ごとに作り直す（ISR）ため、毎回取りに行く指定（no-store）にすると作り直しが失敗する。30分ごとに取り直す
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000), next: { revalidate: 1800 } });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return new TextDecoder(encoding).decode(await res.arrayBuffer());
 }
