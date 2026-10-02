@@ -9,7 +9,7 @@ import { fireRoutine, routineReady, ROUTINES, type RoutineName } from "./routine
  * - ダイジェスト用の解析: 解析待ちの出来事が一定数たまったら
  * 一度起動したら、作業が終わるまで（最短の間隔）は起動しない。深夜は起動しない（朝にまとめて処理する）
  */
-export const DISPATCH_RULES: Record<Exclude<RoutineName, "breaking">, { minPending: number; minIntervalMinutes: number; staleMinutes: number }> = {
+export const DISPATCH_RULES: Record<Exclude<RoutineName, "breaking" | "tasks">, { minPending: number; minIntervalMinutes: number; staleMinutes: number }> = {
   // 5件たまったら起動。1件でも2時間たてば起動する
   articles: { minPending: 5, minIntervalMinutes: 50, staleMinutes: 120 },
   digest: { minPending: 5, minIntervalMinutes: 50, staleMinutes: 120 },
@@ -31,7 +31,7 @@ export function shouldFire(rule: { minPending: number; minIntervalMinutes: numbe
 
 const jstHour = (d: Date) => (d.getUTCHours() + 9) % 24;
 
-async function pendingOf(name: Exclude<RoutineName, "breaking">) {
+async function pendingOf(name: keyof typeof DISPATCH_RULES) {
   if (name === "articles") return countNewDueTopics();
   return prisma.story.count({ where: { status: { in: ["QUEUED", "DELTA_QUEUED"] } } });
 }
