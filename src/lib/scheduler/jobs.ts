@@ -58,6 +58,8 @@ export const DAILY_JOBS: DailyJob[] = [
   { name: "game-listings", path: "/api/cron/game-listings", at: "05:10", timeoutMs: 300_000 },
   // 映画の公開予定の取り込み（src/lib/movie-listings.ts）
   { name: "movie-listings", path: "/api/cron/movie-listings", at: "05:20", timeoutMs: 120_000 },
+  // テレビアニメの放送開始予定の取り込み（src/lib/anime-listings.ts）
+  { name: "anime-listings", path: "/api/cron/anime-listings", at: "05:25", timeoutMs: 120_000 },
   // Threads への1日1本の投稿（src/lib/digest/threads-daily.ts）。認証情報がなければ何もしない
   // 時刻は THREADS_DAILY.at と合わせる（DB を使うモジュールをここで読み込まないため直接書く）
   { name: "threads-daily", path: "/api/cron/threads-daily?run=1", at: "21:00", timeoutMs: 180_000, publish: true },

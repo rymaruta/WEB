@@ -25,13 +25,14 @@ describe("selfHost", () => {
 });
 
 describe("DAILY_JOBS", () => {
-  it("朝・昼・夜の下書きを投稿の50分前に作り、公式ストアの発売予定を朝に取り込む", () => {
+  it("朝・昼・夜の下書きを投稿の50分前に作り、公式ストア・映画・テレビアニメの予定を朝に取り込む", () => {
     expect(DAILY_JOBS.filter((j) => !j.publish).map((j) => [j.path, j.at])).toEqual([
       ["/api/cron/digest?slot=MORNING", "06:10"],
       ["/api/cron/digest?slot=LUNCH", "11:10"],
       ["/api/cron/digest?slot=EVENING", "19:10"],
       ["/api/cron/game-listings", "05:10"],
       ["/api/cron/movie-listings", "05:20"],
+      ["/api/cron/anime-listings", "05:25"],
     ]);
   });
   it("承認済みの回を 7:00・12:00・20:00 に、Threads の1本を 21:00 に投稿する", () => {

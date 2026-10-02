@@ -15,6 +15,7 @@ import { RecentEarnings } from "@/components/recent-earnings";
 import { MovieSchedule } from "@/components/movie-schedule";
 import { getMovieSchedule, moviePageUrl } from "@/lib/movie-listings";
 import { getAnimeSchedule } from "@/lib/anime";
+import { animePageUrl } from "@/lib/anime-listings";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
@@ -303,6 +304,7 @@ async function loadAnimeSchedule() {
   const month = (key: string) => Number(key.slice(5, 7));
   return {
     thisYear: year,
+    sourceUrl: animePageUrl(year),
     months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((a) => a.date.startsWith(key)) })),
   };
 }
