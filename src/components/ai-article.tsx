@@ -109,6 +109,22 @@ export function AiArticleView({
         </>
       )}
 
+      {article.background.length > 0 && (
+        <>
+          <h3 className="mt-4 mb-1.5 text-sm font-bold text-fg-muted">これまでの経緯</h3>
+          <ol className="space-y-1.5 border-l-2 border-accent/40 pl-3">
+            {article.background.map((b) => (
+              <li key={b.topicId} className="text-[14px] leading-relaxed">
+                {b.text}
+                <Link href={`/topic/${b.topicId}`} prefetch={false} className="ml-1 text-xs font-bold whitespace-nowrap text-accent hover:underline">
+                  当時のまとめ →
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+
       <div className="mt-4 space-y-3 text-[15px] leading-relaxed">
         {bodyWithoutLead(article).map((para, i) => (
           <p key={i}>{para}</p>

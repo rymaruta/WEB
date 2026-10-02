@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   openGraph: { siteName: siteConfig.name, locale: "ja_JP", type: "website" },
   twitter: { card: "summary_large_image" },
+  // Google の検索結果や「おすすめ（Discover）」で、大きい画像と長めの説明を表示してよいと伝える
+  robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: `${siteConfig.name}（まとめ記事）` }] } },
 };
 
