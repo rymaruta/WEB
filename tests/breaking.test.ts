@@ -5,7 +5,7 @@ vi.mock("@/lib/events", () => ({ logEvent: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyOwner: vi.fn() }));
 vi.mock("@/lib/digest/publish", () => ({ publishEdition: vi.fn() }));
 
-const { breakingPostText, HOT_RULES, isJustBeforeSlot, isQuietHour, pickBreaking, pickHotTopics } = await import("@/lib/digest/breaking");
+const { BREAKING_RULES, breakingPostText, HOT_RULES, isJustBeforeSlot, isQuietHour, pickBreaking, pickHotTopics } = await import("@/lib/digest/breaking");
 
 // 日本時間の時刻
 const jst = (hhmm: string) => new Date(`2026-10-02T${hhmm}:00+09:00`);
@@ -34,8 +34,16 @@ describe("pickBreaking", () => {
     expect(pickBreaking([{ ...base, riskFlags: ["CRIME"] }], now, 0)).toBeNull();
     expect(pickBreaking([{ ...base, riskFlags: ["MARKET"] }], now, 0)?.id).toBe("a");
   });
-  it("1日2本まで", () => {
-    expect(pickBreaking([base], now, 2)).toBeNull();
+  it("1日の上限まで", () => {
+    expect(pickBreaking([base], now, BREAKING_RULES.maxPerDay)).toBeNull();
+  });
+  it("大きな出来事は、速報の判定でなくても2媒体・高い確度なら出す", () => {
+    const hot = { ...base, breaking: false, hot: true, publisherCount: 2, confidence: 0.9 };
+    expect(pickBreaking([hot], now, 0)?.id).toBe("a");
+    expect(pickBreaking([{ ...hot, confidence: 0.8 }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...hot, publisherCount: 1 }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...hot, hot: false }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...hot, assessment: { gossip: true } as never }], now, 0)).toBeNull();
   });
   it("深夜は災害だけ", () => {
     const night = jst("23:30");

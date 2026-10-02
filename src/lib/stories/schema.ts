@@ -85,7 +85,7 @@ export const StoryAnalysisSchema = z.object({
       longevity: z.number().int().describe("1週間後も意味があるか 0〜3。制度・市場・国際情勢への波及が大きいほど高い"),
       publicInterest: z.number().int().describe("公共性 0〜3。生活・安全・お金・社会の仕組みに関わるほど高い"),
       actionable: z.boolean().describe("読んだ人が今日、行動を変える必要がある（移動・安全・手続き・お金）"),
-      gossip: z.boolean().describe("私生活・恋愛・不祥事の噂など、公共性の低いゴシップ"),
+      gossip: z.boolean().describe("私生活・恋愛・不祥事の噂など、公共性の低いゴシップ。本人や所属先が公式に発表した結婚・引退などは false"),
       promotional: z.boolean().describe("新商品・キャンペーンなど、宣伝の性格が強い"),
     })
     .describe("選定に使う評価。資料から分かる範囲で、控えめに付ける"),
