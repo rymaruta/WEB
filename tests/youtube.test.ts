@@ -50,3 +50,22 @@ describe("viewsLabel", () => {
     expect(viewsLabel(250_000_000)).toBe("2.5億回");
   });
 });
+
+describe("チャンネルの設定", () => {
+  it("ID・アドレス名が重ならず、すべて分類がある", async () => {
+    const { YOUTUBE_CHANNELS, CHANNEL_GROUPS } = await import("@/lib/youtube-channels");
+    expect(new Set(YOUTUBE_CHANNELS.map((c) => c.id)).size).toBe(YOUTUBE_CHANNELS.length);
+    expect(new Set(YOUTUBE_CHANNELS.map((c) => c.slug)).size).toBe(YOUTUBE_CHANNELS.length);
+    for (const c of YOUTUBE_CHANNELS) {
+      expect(c.id).toMatch(/^UC[\w-]{22}$/);
+      expect(CHANNEL_GROUPS).toContain(c.group);
+    }
+  });
+  it("ニュースの見分け方が、別のものを拾わない", async () => {
+    const { findChannel } = await import("@/lib/youtube-channels");
+    const re = (slug: string) => new RegExp(findChannel(slug)!.keywords);
+    expect(re("pds").test("江崎グリコ、ポッキーの新商品を発売")).toBe(false);
+    expect(re("ryuji").test("俳優の山田リュウジさんが結婚")).toBe(false);
+    expect(re("ryuji").test("料理研究家リュウジ、新刊を発売")).toBe(true);
+  });
+});

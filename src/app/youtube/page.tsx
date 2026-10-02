@@ -15,12 +15,14 @@ import {
   viewsLabel,
   YOUTUBE_CHANNELS,
 } from "@/lib/youtube";
+import { CHANNEL_GROUP_LABELS, CHANNEL_GROUPS } from "@/lib/youtube-channels";
 
 export const revalidate = 900;
 
 export const metadata: Metadata = {
-  title: "YouTube 新着動画｜ヒカキン・はじめしゃちょーの最新動画と伸びている動画",
-  description: "HIKAKIN（HikakinTV）・はじめしゃちょーの最新動画、いま再生数が伸びている動画、YouTuber に関するニュースを1ページにまとめています。",
+  title: "YouTube 新着動画｜ヒカキン・はじめしゃちょー・東海オンエアほか人気YouTuberの最新動画",
+  description:
+    "HIKAKIN・はじめしゃちょー・東海オンエア・コムドット・中田敦彦のYouTube大学・兎田ぺこらなど人気YouTuberの最新動画と、いま再生数が伸びている動画、YouTuber のニュースを1ページにまとめています。",
   alternates: { canonical: "/youtube" },
 };
 
@@ -32,7 +34,7 @@ export default async function YouTubePage() {
     Promise.all(
       YOUTUBE_CHANNELS.map(async (c) => ({
         c,
-        videos: (await getChannelVideos(c.id, 30)).filter((v) => !v.isShort).slice(0, 4),
+        videos: (await getChannelVideos(c.id, 30)).filter((v) => !v.isShort).slice(0, 6),
         news: await getChannelNews(c, 5),
       })),
     ),
@@ -58,14 +60,9 @@ export default async function YouTubePage() {
       />
       <header className="card p-5 sm:p-6">
         <h1 className="text-2xl font-black">YouTube 新着動画</h1>
-        <p className="mt-2 text-sm leading-relaxed text-fg-muted">人気 YouTuber の最新動画と、いま再生数が伸びている動画、YouTuber に関するニュースをまとめています。</p>
-        <nav aria-label="チャンネル" className="mt-3 flex flex-wrap gap-2">
-          {YOUTUBE_CHANNELS.map((c) => (
-            <Link key={c.slug} href={`/youtube/${c.slug}`} prefetch={false} className="rounded-full border border-border px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent">
-              {c.name}
-            </Link>
-          ))}
-        </nav>
+        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+          人気 YouTuber の最新動画と、いま再生数が伸びている動画、YouTuber に関するニュースをまとめています。
+        </p>
       </header>
 
       {rising.length > 0 && (
@@ -117,19 +114,35 @@ export default async function YouTubePage() {
         </h2>
         <GroupTabs
           id="yt-channels"
-          label="YouTuber"
-          groups={channels.map(({ c, videos }) => ({
-            key: c.slug,
-            label: c.name.replace(/（.*）/, ""),
-            content: (
-              <>
-                {videos.length ? <VideoGrid videos={videos} showChannel={false} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>}
-                <Link href={`/youtube/${c.slug}`} prefetch={false} className="mt-3 inline-block text-xs font-bold text-accent hover:underline">
-                  {c.name.replace(/（.*）/, "")}のすべての動画とニュース →
-                </Link>
-              </>
-            ),
-          }))}
+          label="YouTuber の分類"
+          groups={CHANNEL_GROUPS.map((g) => {
+            const members = channels.filter((x) => x.c.group === g);
+            const latest = members
+              .flatMap((x) => x.videos)
+              .sort((p, q) => q.publishedAt.getTime() - p.publishedAt.getTime())
+              .slice(0, 6);
+            return {
+              key: g,
+              label: CHANNEL_GROUP_LABELS[g],
+              content: (
+                <>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {members.map(({ c }) => (
+                      <Link
+                        key={c.slug}
+                        href={`/youtube/${c.slug}`}
+                        prefetch={false}
+                        className="rounded-full border border-border px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
+                      >
+                        {c.name}
+                      </Link>
+                    ))}
+                  </div>
+                  {latest.length ? <VideoGrid videos={latest} /> : <p className="py-4 text-sm text-fg-subtle">動画を取り込んでいます。</p>}
+                </>
+              ),
+            };
+          })}
         />
       </section>
 
@@ -141,8 +154,8 @@ export default async function YouTubePage() {
       )}
 
       <p className="text-xs leading-relaxed text-fg-subtle">
-        動画の情報は、YouTube が公開している各チャンネルの新着情報をもとに自動でまとめています（このサイトは各チャンネルの公式ページではありません）。動画は YouTube
-        の埋め込みプレーヤーで再生します。
+        動画の情報は、YouTube が公開している各チャンネルの新着情報をもとに自動でまとめています（このサイトは各チャンネルの公式ページではありません）。動画は
+        YouTube の埋め込みプレーヤーで再生します。
       </p>
     </div>
   );
