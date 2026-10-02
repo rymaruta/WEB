@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { CALENDAR_CATEGORIES, CALENDAR_COLORS, CALENDAR_LABELS, type CalendarCategory, type CalendarItem } from "@/lib/calendar-kinds";
+import { CALENDAR_CATEGORIES, CALENDAR_COLORS, CALENDAR_LABELS, eventId, type CalendarCategory, type CalendarItem } from "@/lib/calendar-kinds";
 
 /** 選んだ分野は、その人の端末（localStorage）に覚えておく */
 const KEY = "zn:calendar";
@@ -36,12 +36,29 @@ function dayLabel(date: string): { label: string; weekend: "sat" | "sun" | null 
   return { label: `${m}月${d}日（${"日月火水木金土"[dow]}）`, weekend: dow === 0 ? "sun" : dow === 6 ? "sat" : null };
 }
 
+/** 一度に選べる予定の数 */
+const MAX_PICK = 30;
+
+/** 10/3 のような短い日付 */
+const shortDate = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+
+/** Google カレンダーに1件を追加するページ（開いた先で確かめてから保存する） */
+function googleHref(it: CalendarItem): string {
+  const day = it.date.replace(/-/g, "");
+  const next = new Date(Date.parse(`${it.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, "");
+  const url = it.href ? (it.external ? it.href : `https://zenbu-navi.com${it.href}`) : "https://zenbu-navi.com/calendar";
+  return `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: "TEMPLATE", text: `【${CALENDAR_LABELS[it.category]}】${it.title}`, dates: `${day}/${next}`, details: [it.note, url].filter(Boolean).join("\n") })}`;
+}
+
 /** 最初に出す日数。続きは「もっと見る」で（閉じた日は1行なので、多めに出す） */
 const FIRST_DAYS = 21;
 
 export function CalendarView({ items, counts }: { items: CalendarItem[]; counts: Record<string, number> }) {
   const saved = useSyncExternalStore(subscribe, read, () => "");
-  const selected = useMemo(() => new Set(saved.split(",").filter((c): c is CalendarCategory => (CALENDAR_CATEGORIES as readonly string[]).includes(c))), [saved]);
+  const selected = useMemo(
+    () => new Set(saved.split(",").filter((c): c is CalendarCategory => (CALENDAR_CATEGORIES as readonly string[]).includes(c))),
+    [saved],
+  );
   const [showAll, setShowAll] = useState(false);
   const shown = selected.size ? items.filter((it) => selected.has(it.category)) : items;
   const days = useMemo(() => {
@@ -56,16 +73,20 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
     else next.add(c);
     write([...next].join(","));
   };
-  const icsPath = `/calendar.ics${selected.size ? `?c=${[...selected].join(",")}` : ""}`;
-  const calendarName = selected.size ? `ぜんぶカレンダー（${[...selected].map((c) => CALENDAR_LABELS[c]).join("・")}）` : "ぜんぶカレンダー";
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [links, setLinks] = useState<{ apple: string; google: string } | null>(null);
-  // 購読の形で追加する（予定を1件ずつ取り込むのではなく、まとめて消せる別のカレンダーにする）
-  const openAdd = () => {
-    const webcal = `webcal://${location.host}${icsPath}`;
-    setLinks({ apple: webcal, google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}` });
-    dialogRef.current?.showModal();
+  // スマホのカレンダーに追加する予定（ユーザーが「＋」で選んだものだけ）
+  const [picked, setPicked] = useState<Map<string, CalendarItem>>(new Map());
+  const togglePick = (it: CalendarItem) => {
+    const next = new Map(picked);
+    const id = eventId(it);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < MAX_PICK) next.set(id, it);
+    setPicked(next);
+    // 確かめる画面で全部外したら、画面を閉じる
+    if (next.size === 0) dialogRef.current?.close();
   };
+  const pickedList = [...picked.values()].sort((x, y) => x.date.localeCompare(y.date));
+  const appleHref = `/calendar/add.ics?${new URLSearchParams(pickedList.map((it) => ["id", eventId(it)]))}`;
 
   return (
     <div className="space-y-4">
@@ -94,47 +115,70 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
           )}
         </div>
         <p className="text-xs text-fg-muted">
-          <button type="button" onClick={openAdd} className="font-bold text-accent hover:underline">
-            スマホのカレンダーに追加
-          </button>
-          <span className="ml-1 text-fg-subtle">（{selected.size ? "選んだ分野だけ。" : ""}予定は自動で増えます）</span>
+          予定の右の「＋」で選ぶと、<span className="font-bold">選んだ予定だけ</span>をスマホのカレンダーに追加できます。
         </p>
       </div>
 
-      {/* 追加の前に、何が起きるかを見せて確かめる（押してすぐ大量の予定が入らないように） */}
+      {/* 追加の前に、選んだ予定を見せて確かめる（選んだもの以外は入らない） */}
       <dialog
         ref={dialogRef}
         aria-labelledby="add-calendar-title"
-        className="m-auto w-[min(92vw,26rem)] rounded-2xl border border-border bg-surface p-5 text-fg backdrop:bg-black/50"
+        className="m-auto max-h-[85vh] w-[min(92vw,26rem)] rounded-2xl border border-border bg-surface p-5 text-fg backdrop:bg-black/50"
         onClick={(e) => e.target === e.currentTarget && dialogRef.current?.close()}
       >
         <h2 id="add-calendar-title" className="text-lg font-black">
-          スマホのカレンダーに追加しますか？
+          この{pickedList.length}件をカレンダーに追加しますか？
         </h2>
-        <ul className="mt-3 space-y-2 text-sm leading-relaxed">
-          <li>
-            ・「<span className="font-bold">{calendarName}</span>」という<span className="font-bold">別のカレンダー</span>として追加されます。いまお使いのカレンダーの予定は変わりません。
-          </li>
-          <li>・これから90日分の予定が入り、新しい予定は自動で増えます。</li>
-          <li>・やめたいときは、カレンダーのアプリでこのカレンダーを削除すれば、まとめて消えます。</li>
+        <ul className="mt-3 max-h-[35vh] divide-y divide-border overflow-y-auto rounded-lg border border-border">
+          {pickedList.map((it) => (
+            <li key={eventId(it)} className="flex items-center gap-2 px-3 py-2 text-sm">
+              <span className="shrink-0 text-xs font-bold tabular-nums text-fg-muted">{shortDate(it.date)}</span>
+              <span className="min-w-0 flex-1 truncate font-bold">{it.title}</span>
+              <a
+                href={googleHref(it)}
+                target="_blank"
+                rel="noopener"
+                className="shrink-0 text-[11px] font-bold text-accent hover:underline"
+                aria-label={`${it.title}を Google カレンダーに追加`}
+              >
+                Google
+              </a>
+              <button type="button" onClick={() => togglePick(it)} aria-label={`${it.title}を外す`} className="shrink-0 px-1 text-fg-subtle hover:text-fg">
+                ×
+              </button>
+            </li>
+          ))}
         </ul>
-        <div className="mt-5 space-y-2">
-          <a href={links?.apple} className="block rounded-lg bg-accent py-2.5 text-center text-sm font-bold text-accent-fg hover:opacity-90">
-            iPhone・Mac のカレンダーに追加
+        <p className="mt-2 text-xs leading-relaxed text-fg-subtle">選んだ予定だけが、終日の予定として入ります。ほかの予定は入りません。</p>
+        <div className="mt-4 space-y-2">
+          <a href={appleHref} className="block rounded-lg bg-accent py-2.5 text-center text-sm font-bold text-accent-fg hover:opacity-90">
+            iPhone・Mac のカレンダーに追加（{pickedList.length}件）
           </a>
-          <a
-            href={links?.google}
-            target="_blank"
-            rel="noopener"
-            className="block rounded-lg border border-accent py-2.5 text-center text-sm font-bold text-accent hover:bg-accent-soft"
+          <p className="text-center text-[11px] text-fg-subtle">Google カレンダー（Android）は、上の一覧の「Google」から1件ずつ追加できます</p>
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className="block w-full rounded-lg border border-border py-2.5 text-sm font-bold text-fg-muted hover:text-fg"
           >
-            Google カレンダー（Android）に追加
-          </a>
-          <button type="button" onClick={() => dialogRef.current?.close()} className="block w-full rounded-lg border border-border py-2.5 text-sm font-bold text-fg-muted hover:text-fg">
             キャンセル
           </button>
         </div>
       </dialog>
+
+      {/* 選んでいる間だけ、画面の下に出す */}
+      {picked.size > 0 && (
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 px-4 pb-2 sm:bottom-4">
+          <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-xl border border-accent bg-surface p-2 pl-4 shadow-lg">
+            <span className="flex-1 text-sm font-bold">{picked.size}件を選択中</span>
+            <button type="button" onClick={() => setPicked(new Map())} className="px-2 text-xs text-fg-subtle underline">
+              選び直す
+            </button>
+            <button type="button" onClick={() => dialogRef.current?.showModal()} className="rounded-lg bg-accent px-3 py-2 text-sm font-bold text-accent-fg">
+              カレンダーに追加
+            </button>
+          </div>
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <p className="card p-6 text-sm text-fg-subtle">この期間の予定はまだありません。</p>
@@ -188,18 +232,29 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
                             );
                             const cls = "group flex items-center gap-2 py-1";
                             return (
-                              <li key={`${it.title}-${i}`}>
-                                {it.href && !it.external ? (
-                                  <Link href={it.href} prefetch={false} className={cls}>
-                                    {body}
-                                  </Link>
-                                ) : it.href ? (
-                                  <a href={it.href} target="_blank" rel="noopener nofollow" className={cls}>
-                                    {body}
-                                  </a>
-                                ) : (
-                                  <div className={cls}>{body}</div>
-                                )}
+                              <li key={`${it.title}-${i}`} className="flex items-center gap-1">
+                                <div className="min-w-0 flex-1">
+                                  {it.href && !it.external ? (
+                                    <Link href={it.href} prefetch={false} className={cls}>
+                                      {body}
+                                    </Link>
+                                  ) : it.href ? (
+                                    <a href={it.href} target="_blank" rel="noopener nofollow" className={cls}>
+                                      {body}
+                                    </a>
+                                  ) : (
+                                    <div className={cls}>{body}</div>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePick(it)}
+                                  aria-pressed={picked.has(eventId(it))}
+                                  aria-label={picked.has(eventId(it)) ? `${it.title}の選択をやめる` : `${it.title}をカレンダーに追加する予定に選ぶ`}
+                                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${picked.has(eventId(it)) ? "border-accent bg-accent text-accent-fg" : "border-border text-fg-muted hover:border-accent hover:text-accent"}`}
+                                >
+                                  {picked.has(eventId(it)) ? "✓" : "＋"}
+                                </button>
                               </li>
                             );
                           })}
@@ -214,7 +269,11 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
         </ol>
       )}
       {!showAll && days.length > FIRST_DAYS && (
-        <button type="button" onClick={() => setShowAll(true)} className="w-full rounded-lg border border-border bg-surface py-2 text-sm font-bold text-accent hover:border-accent">
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full rounded-lg border border-border bg-surface py-2 text-sm font-bold text-accent hover:border-accent"
+        >
           この先の予定も見る（あと{days.length - FIRST_DAYS}日分）
         </button>
       )}

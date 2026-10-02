@@ -32,5 +32,12 @@ export type CalendarItem = {
   external: boolean;
 };
 
+/** 予定ごとに決まる ID（同じ予定にはいつも同じ値。選んだ予定だけをカレンダーに追加するときの目印にも使う） */
+export function eventId(it: Pick<CalendarItem, "category" | "date" | "title">): string {
+  let h = 5381;
+  for (const ch of `${it.category}|${it.date}|${it.title}`) h = ((h * 33) ^ ch.codePointAt(0)!) >>> 0;
+  return `${it.category}-${it.date}-${h.toString(36)}`;
+}
+
 export const isCalendarCategory = (c: string): c is CalendarCategory => (CALENDAR_CATEGORIES as readonly string[]).includes(c);
 

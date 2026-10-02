@@ -13,8 +13,8 @@ import { getGameReleases } from "@/lib/queries";
  * どれもすでに集めている日付（記事から読み取ったもの・公式ストア・Wikipedia）を使う
  */
 
-export { CALENDAR_CATEGORIES, CALENDAR_COLORS, CALENDAR_LABELS, isCalendarCategory, type CalendarCategory, type CalendarItem } from "./calendar-kinds";
-import { CALENDAR_CATEGORIES, CALENDAR_LABELS, type CalendarCategory, type CalendarItem } from "./calendar-kinds";
+export { CALENDAR_CATEGORIES, CALENDAR_COLORS, CALENDAR_LABELS, eventId, isCalendarCategory, type CalendarCategory, type CalendarItem } from "./calendar-kinds";
+import { CALENDAR_CATEGORIES, CALENDAR_LABELS, eventId, type CalendarCategory, type CalendarItem } from "./calendar-kinds";
 
 /** 表示する日数（今日から） */
 export const CALENDAR_DAYS = 45;
@@ -127,14 +127,13 @@ function fold(line: string): string {
 }
 
 /** 同じ予定に毎回同じ ID を付ける（カレンダーのアプリが重複させないように） */
-function uid(it: CalendarItem): string {
-  let h = 5381;
-  for (const ch of `${it.category}|${it.date}|${it.title}`) h = ((h * 33) ^ ch.codePointAt(0)!) >>> 0;
-  return `${it.category}-${it.date}-${h.toString(36)}@zenbu-navi.com`;
-}
+const uid = (it: CalendarItem) => `${eventId(it)}@zenbu-navi.com`;
 
-/** スマホのカレンダーに読み込める形式（終日の予定） */
-export function toIcs(items: CalendarItem[], siteUrl: string, name: string, now = new Date()): string {
+/**
+ * スマホのカレンダーに読み込める形式（終日の予定）。
+ * subscribe=false は、選んだ予定を1回だけ取り込む用（読み直しの指定を付けない）
+ */
+export function toIcs(items: CalendarItem[], siteUrl: string, name: string, now = new Date(), subscribe = true): string {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   const next = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, "");
   const lines = [
@@ -143,9 +142,9 @@ export function toIcs(items: CalendarItem[], siteUrl: string, name: string, now 
     "PRODID:-//zenbu-navi//calendar//JA",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${icsText(name)}`,
+    ...(subscribe ? [`X-WR-CALNAME:${icsText(name)}`] : []),
     "X-WR-TIMEZONE:Asia/Tokyo",
-    "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
+    ...(subscribe ? ["REFRESH-INTERVAL;VALUE=DURATION:PT12H"] : []),
     ...items.flatMap((it) => {
       const url = it.href ? (it.external ? it.href : `${siteUrl}${it.href}`) : `${siteUrl}/calendar`;
       return [
