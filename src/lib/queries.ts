@@ -47,6 +47,7 @@ export function getTrendingTopics(opts: {
   return prisma.topic.findMany({
     where: {
       lastSeenAt: { gte: since(TRENDING_HOURS) },
+      aiNotNews: false,
       ...(opts.genreId ? { genreId: opts.genreId } : {}),
       ...(opts.minPublishers ? { publisherCount: { gte: opts.minPublishers } } : {}),
       ...(opts.excludeIds?.length ? { id: { notIn: opts.excludeIds } } : {}),
@@ -60,14 +61,14 @@ export function getTrendingTopics(opts: {
 
 export function countTrendingTopics(genreId?: number) {
   return prisma.topic.count({
-    where: { lastSeenAt: { gte: since(TRENDING_HOURS) }, ...(genreId ? { genreId } : {}) },
+    where: { lastSeenAt: { gte: since(TRENDING_HOURS) }, aiNotNews: false, ...(genreId ? { genreId } : {}) },
   });
 }
 
 /** 新着順のトピック */
 export function getLatestTopics(opts: { genreId?: number; skip?: number; take: number }) {
   return prisma.topic.findMany({
-    where: opts.genreId ? { genreId: opts.genreId } : {},
+    where: { aiNotNews: false, ...(opts.genreId ? { genreId: opts.genreId } : {}) },
     orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
     skip: opts.skip,
     take: opts.take,
@@ -76,7 +77,7 @@ export function getLatestTopics(opts: { genreId?: number; skip?: number; take: n
 }
 
 export function countTopics(genreId?: number) {
-  return prisma.topic.count({ where: genreId ? { genreId } : {} });
+  return prisma.topic.count({ where: { aiNotNews: false, ...(genreId ? { genreId } : {}) } });
 }
 
 export const getTopic = cache((id: number) =>
@@ -106,13 +107,19 @@ export function getMostRead(take: number) {
   });
 }
 
+/**
+ * 記事のジャンル。話題にまとめた記事は、話題のジャンル（内容から判定し直したもの）を使う
+ * （媒体の欄のジャンルのままだと、SNS の「アニメとゲーム」欄の漫画の話題がゲームに出るなど、ずれることがある）
+ */
+const articleInGenre = (genreId: number): Prisma.ArticleWhereInput => ({ OR: [{ topic: { is: { genreId } } }, { topicId: null, genreId }] });
+
 /** SNS（はてなブックマーク）で話題の記事 */
 export function getSocialBuzz(take: number, genreId?: number) {
   return prisma.article.findMany({
     where: {
       publishedAt: { gte: since(TRENDING_HOURS) },
       socialCount: { gt: 0 },
-      ...(genreId ? { genreId } : {}),
+      ...(genreId ? articleInGenre(genreId) : {}),
     },
     orderBy: [{ socialCount: "desc" }, { publishedAt: "desc" }],
     take,
@@ -122,7 +129,7 @@ export function getSocialBuzz(take: number, genreId?: number) {
 
 export function getLatestArticles(take: number, genreId?: number) {
   return prisma.article.findMany({
-    where: genreId ? { genreId } : {},
+    where: { NOT: { topic: { is: { aiNotNews: true } } }, ...(genreId ? articleInGenre(genreId) : {}) },
     orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
     take,
     include: withTopic,
