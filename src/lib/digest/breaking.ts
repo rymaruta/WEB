@@ -61,6 +61,13 @@ export function isJustBeforeSlot(now: Date): boolean {
   });
 }
 
+/** 自動の速報を今出せる状態か（今日の上限に達していない）。深夜かどうかも返す。API の解析を無駄にしないために使う */
+export async function autoBreakingWindow(now = new Date()) {
+  if (!breakingEnabled()) return { open: false, quiet: isQuietHour(now) };
+  const posted = await prisma.edition.count({ where: { slot: "BREAKING", date: jstDate(now), status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } });
+  return { open: posted < BREAKING_RULES.maxPerDay, quiet: isQuietHour(now) };
+}
+
 /** 条件に合う候補のうち、話題の最も大きいもの。なければ null */
 export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedToday: number): BreakingCandidate | null {
   if (postedToday >= BREAKING_RULES.maxPerDay || isJustBeforeSlot(now)) return null;

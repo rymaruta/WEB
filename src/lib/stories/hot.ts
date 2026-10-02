@@ -18,6 +18,22 @@ const BIG_WORDS =
 /** 言葉が入っていても、大きな出来事ではない言い方 */
 const NOT_BIG = /結婚式場|婚活|優勝候補|優勝争い|引退試合|地震対策|地震保険|防災|ランキング|特集|まとめ|PR|セール/;
 
+/** 自動の速報では出さない分野（事件・訃報・政治。src/lib/digest/breaking.ts の excludedRisks）を表す言葉 */
+const NOT_AUTO = /逮捕|書類送検|死去|急死|逝去|訃報|亡くなっ|辞任|辞職|退任|選挙/;
+/** 深夜でも自動で出す災害の言葉 */
+const DISASTER = /地震|津波|噴火|緊急事態|台風|大雨|避難/;
+
+/**
+ * API（有料）で解析する価値があるか。自動の速報で出せる見込みのない話題には使わない。
+ * - 事件・訃報・政治の言葉がある → 自動では出さないため、無料の定期実行に任せる
+ * - 深夜（自動の速報を出さない時間）は、災害の言葉があるものだけ
+ */
+export function worthApi(title: string, { quiet }: { quiet: boolean }): boolean {
+  if (NOT_AUTO.test(title)) return false;
+  if (quiet) return DISASTER.test(title);
+  return true;
+}
+
 export function bigWord(title: string): string | null {
   if (NOT_BIG.test(title)) return null;
   return title.match(BIG_WORDS)?.[0] ?? null;
