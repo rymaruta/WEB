@@ -5,6 +5,22 @@ import { useState } from "react";
 import { GAME_KIND_LABELS, GAME_PLATFORMS, releaseLabel, type GameKind } from "@/lib/game";
 import { ReadTitle } from "./read-title";
 
+/** 一度に見せる件数（それ以上は「すべて見る」で開く） */
+const VISIBLE = 5;
+
+/** 発売日の短い表示（10/2、10月中、2027年） */
+function shortRelease(date: string, thisYear: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!m) return `${y}年`;
+  const prefix = y === thisYear ? "" : `${y}/`;
+  return d ? `${prefix}${m}/${d}` : `${prefix}${m}月中`;
+}
+
+/** 機種の短い表示（1つならそのまま、2つ以上は「PS5 他2」） */
+function shortPlatforms(p: string[]): string {
+  return p.length <= 1 ? (p[0] ?? "") : `${p[0]} 他${p.length - 1}`;
+}
+
 export type ReleaseItem = { topicId: number; title: string; release: string; platforms: string[] };
 export type NewGameItem = { topicId: number; headline: string; kind: string | null; release: string | null; platforms: string[] };
 
@@ -56,25 +72,32 @@ export function GameHighlights({
       )}
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-4">
-          <h2 className="mb-1 text-base font-extrabold">発売スケジュール</h2>
-          <p className="mb-2 text-xs text-fg-subtle">記事に書かれた発売日です。延期などで変わったときは、新しい報道の日付にしています</p>
+          <h2 className="text-base font-extrabold">発売スケジュール</h2>
+          <p className="mb-1 text-[11px] text-fg-subtle">記事に書かれた発売日（延期は新しい日付）</p>
           {months.map((m) =>
             m.items.length === 0 ? null : (
               <div key={m.title} className="mt-2">
-                <h3 className="mb-1 text-xs font-bold text-fg-muted">{m.title}</h3>
-                <ul className="divide-y divide-border">
-                  {m.items.map((r) => (
-                    <li key={r.title}>
-                      <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className="group flex items-baseline gap-3 py-2">
-                        <span className="w-20 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{releaseLabel(r.release, thisYear)}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm leading-snug font-bold group-hover:text-accent">{r.title}</span>
-                          {r.platforms.length > 0 && <span className="text-xs text-fg-subtle">{r.platforms.join("・")}</span>}
+                <h3 className="text-xs font-bold text-fg-muted">
+                  {m.title}
+                  <span className="ml-1 font-normal text-fg-subtle">{m.items.length}本</span>
+                </h3>
+                <Expandable
+                  items={m.items}
+                  render={(r) => (
+                    <Link href={`/topic/${r.topicId}`} data-topic-id={r.topicId} className="group flex items-center gap-2 py-1.5">
+                      <span className="w-14 shrink-0 text-xs font-bold text-[var(--g-game)] tabular-nums">{shortRelease(r.release, thisYear)}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold group-hover:text-accent" title={`${releaseLabel(r.release, thisYear)} ${r.title}`}>
+                        {r.title}
+                      </span>
+                      {r.platforms.length > 0 && (
+                        <span className="shrink-0 text-[11px] text-fg-subtle" title={r.platforms.join("・")}>
+                          {shortPlatforms(r.platforms)}
                         </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                      )}
+                    </Link>
+                  )}
+                  keyOf={(r) => `${r.topicId}`}
+                />
               </div>
             ),
           )}
@@ -83,32 +106,51 @@ export function GameHighlights({
           )}
         </section>
         <section className="card p-4">
-          <h2 className="mb-1 text-base font-extrabold">新着ゲーム</h2>
-          <p className="mb-2 text-xs text-fg-subtle">直近1週間に新作の発表・発売日の決定が報じられた作品</p>
+          <h2 className="text-base font-extrabold">新着ゲーム</h2>
+          <p className="mb-1 text-[11px] text-fg-subtle">この1週間の新作発表・発売日決定</p>
           {fresh.length === 0 ? (
             <p className="py-2 text-sm text-fg-subtle">この1週間の発表はまだありません。</p>
           ) : (
-            <ul className="divide-y divide-border">
-              {fresh.map((g) => (
-                <li key={g.topicId}>
-                  <Link href={`/topic/${g.topicId}`} data-topic-id={g.topicId} className="group block py-2.5">
-                    <span className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded bg-[var(--g-game)] px-1.5 py-px font-bold text-white">
-                        {GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"}
-                      </span>
-                      {g.release && <span className="text-fg-subtle">発売 {releaseLabel(g.release, thisYear)}</span>}
-                      {g.platforms.length > 0 && <span className="text-fg-subtle">{g.platforms.join("・")}</span>}
-                    </span>
-                    <span className="mt-1 block text-sm leading-snug font-bold group-hover:text-accent">
+            <Expandable
+              items={fresh}
+              keyOf={(g) => `${g.topicId}`}
+              render={(g) => (
+                <Link href={`/topic/${g.topicId}`} data-topic-id={g.topicId} className="group flex items-start gap-2 py-1.5">
+                  <span className="mt-0.5 shrink-0 rounded bg-[var(--g-game)] px-1 text-[10px] leading-4 font-bold text-white">
+                    {GAME_KIND_LABELS[(g.kind ?? "other") as GameKind] || "新作"}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm leading-snug font-bold group-hover:text-accent">
+                    <span className="line-clamp-2">
                       <ReadTitle id={g.topicId}>{g.headline}</ReadTitle>
                     </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                  </span>
+                  {g.release && <span className="mt-0.5 shrink-0 text-[11px] text-fg-subtle tabular-nums">{shortRelease(g.release, thisYear)}</span>}
+                </Link>
+              )}
+            />
           )}
         </section>
       </div>
     </div>
+  );
+}
+
+/** 最初は VISIBLE 件だけを見せ、残りは「すべて見る」で開く */
+function Expandable<T>({ items, render, keyOf }: { items: T[]; render: (item: T) => React.ReactNode; keyOf: (item: T) => string }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? items : items.slice(0, VISIBLE);
+  return (
+    <>
+      <ul className="divide-y divide-border">
+        {shown.map((item) => (
+          <li key={keyOf(item)}>{render(item)}</li>
+        ))}
+      </ul>
+      {items.length > VISIBLE && (
+        <button type="button" onClick={() => setOpen(!open)} className="mt-1 text-xs font-bold text-accent hover:underline" aria-expanded={open}>
+          {open ? "閉じる" : `すべて見る（${items.length}本）`}
+        </button>
+      )}
+    </>
   );
 }
