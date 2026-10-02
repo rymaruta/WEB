@@ -12,8 +12,8 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex items-center justify-between gap-3">
         <AdminNav />
-        <form action={logout}>
-          <button type="submit" className="rounded px-2 py-2 text-sm text-fg-muted hover:text-fg">
+        <form action={logout} className="shrink-0">
+          <button type="submit" className="rounded px-1 py-2 text-xs whitespace-nowrap text-fg-muted hover:text-fg">
             ログアウト
           </button>
         </form>
