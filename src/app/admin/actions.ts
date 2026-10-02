@@ -257,7 +257,7 @@ export async function publishBreakingAction(storyId: string, _: ActionState, for
   const existing = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(new Date()), "BREAKING", storyId) }, select: { id: true, status: true } });
   if (existing?.status === "PUBLISHED") return { error: "この出来事の速報は、今日すでに投稿しています" };
   const editionId = existing?.id ?? (await createManualBreaking(storyId, new Date(), headline.length ? headline : undefined))?.id;
-  if (!editionId) return { error: "速報を作れませんでした。画面を開き直してください" };
+  if (!editionId) return { error: headline.length ? "速報を作れませんでした。画面を開き直してください" : "見出しを入力してください" };
   try {
     const r = await publishEdition(editionId);
     revalidatePath("/admin/breaking");

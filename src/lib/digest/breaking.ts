@@ -86,6 +86,8 @@ export function breakingEnabled(env: Record<string, string | undefined> = proces
 
 /** 定期的に呼ぶ。条件に合う速報があれば1本だけ投稿する */
 export async function runBreakingCheck(now = new Date()) {
+  // 自動の速報を止めていても、大きな出来事の知らせは出す（人が出すかどうかを決める）
+  await notifyHotTopics(now).catch((e) => logEvent("error", "breaking.hot", "速報の候補の通知に失敗", undefined, String(e)));
   if (!breakingEnabled()) return { result: "disabled" as const };
   const date = jstDate(now);
   const postedToday = await prisma.edition.count({ where: { slot: "BREAKING", date, status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } });
@@ -172,18 +174,20 @@ export async function runBreakingCheck(now = new Date()) {
 /** 管理画面の候補に出す範囲（最初の報道からの時間） */
 export const MANUAL_BREAKING_HOURS = 6;
 
-/** 速報の候補：直近に最初に報じられた、まだ配信していない出来事（話題の大きい順） */
+/** 速報の候補：直近に最初に報じられた、まだ配信していない出来事（媒体の多い順。解析待ちも含む） */
 export async function listBreakingCandidates(now = new Date(), take = 20) {
   const since = new Date(now.getTime() - MANUAL_BREAKING_HOURS * 3_600_000);
   const [stories, postedToday] = await Promise.all([
     prisma.story.findMany({
       where: {
-        status: { in: ["PENDING", "REVIEW_REQUIRED", "APPROVED"] },
+        // 解析待ち（QUEUED）も出す。大きな出来事は解析を待たずに、人が見出しを書いて出せるようにする
+        status: { in: ["QUEUED", "PENDING", "REVIEW_REQUIRED", "APPROVED"] },
         kind: "NEW",
         topic: { firstSeenAt: { gte: since } },
         items: { none: { edition: { slot: "BREAKING" } } },
       },
-      orderBy: { score: "desc" },
+      // いま報じている媒体の多い順（話題度の数値より、一斉に報じられていることを重く見る）
+      orderBy: [{ topic: { publisherCount: "desc" } }, { score: "desc" }],
       take,
       select: {
         id: true,
@@ -192,7 +196,7 @@ export async function listBreakingCandidates(now = new Date(), take = 20) {
         cardType: true,
         riskFlags: true,
         confidence: true,
-        topic: { select: { id: true, publisherCount: true, firstSeenAt: true } },
+        topic: { select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true } },
       },
     }),
     prisma.edition.count({ where: { slot: "BREAKING", date: jstDate(now), status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } }),
@@ -200,10 +204,70 @@ export async function listBreakingCandidates(now = new Date(), take = 20) {
   return { stories, postedToday };
 }
 
+/** 解析待ちの出来事に出す、見出しの下書き（話題の見出し。投稿の前に人が12字×2行に直す） */
+export function draftHeadline(topic: { title: string; aiTitle: string | null }): string[] {
+  return [topic.aiTitle || topic.title];
+}
+
+// ---------------------------------------------------------------------------
+// 大きな出来事の知らせ（解析を待たずに、運営者に速報の候補があることを知らせる）
+// ---------------------------------------------------------------------------
+
+export const HOT_RULES = {
+  /** この媒体数以上が報じたら知らせる */
+  minPublishers: 5,
+  /** 最初の報道から、この時間以内の出来事だけ */
+  maxAgeHours: 3,
+  /** 24時間に知らせる上限 */
+  maxPerDay: 6,
+} as const;
+
+type HotTopic = { id: number; publisherCount: number; firstSeenAt: Date };
+
+/** 知らせる出来事を選ぶ（まだ知らせていない・新しい・多くの媒体が報じている） */
+export function pickHotTopics<T extends HotTopic>(topics: T[], notified: Set<number>, now: Date, sentToday: number): T[] {
+  const room = Math.max(0, HOT_RULES.maxPerDay - sentToday);
+  return topics
+    .filter(
+      (t) =>
+        !notified.has(t.id) && t.publisherCount >= HOT_RULES.minPublishers && now.getTime() - t.firstSeenAt.getTime() <= HOT_RULES.maxAgeHours * 3_600_000,
+    )
+    .sort((a, b) => b.publisherCount - a.publisherCount)
+    .slice(0, room);
+}
+
+/** 速報の確認のたびに呼ぶ。多くの媒体が一斉に報じた出来事があれば、運営者に知らせる（深夜も知らせる） */
+export async function notifyHotTopics(now = new Date()) {
+  const since = new Date(now.getTime() - HOT_RULES.maxAgeHours * 3_600_000);
+  const [topics, logs] = await Promise.all([
+    prisma.topic.findMany({
+      where: { firstSeenAt: { gte: since }, publisherCount: { gte: HOT_RULES.minPublishers }, mergedIntoId: null, aiNotNews: false, stories: { some: { kind: "NEW" } } },
+      select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true, stories: { where: { kind: "NEW" }, select: { id: true }, take: 1 } },
+    }),
+    prisma.eventLog.findMany({ where: { scope: "breaking.hot", at: { gte: new Date(now.getTime() - 24 * 3_600_000) } }, select: { ref: true } }),
+  ]);
+  const picked = pickHotTopics(topics, new Set(logs.map((l) => Number(l.ref))), now, logs.length);
+  for (const t of picked) {
+    const title = t.aiTitle || t.title;
+    await logEvent("info", "breaking.hot", `速報の候補: ${title}`, String(t.id), { publishers: t.publisherCount });
+    // 速報としてすでに出していれば知らせない
+    const posted = await prisma.editionItem.count({ where: { storyId: t.stories[0].id, edition: { slot: "BREAKING" } } });
+    if (posted) continue;
+    const minutes = Math.max(1, Math.round((now.getTime() - t.firstSeenAt.getTime()) / 60_000));
+    await notifyOwner({
+      title: `速報の候補：${title}`.slice(0, 60),
+      what: `「${title}」を、最初の報道から${minutes}分で${t.publisherCount}媒体が報じています。`,
+      action: "速報として出す場合は、管理画面の「速報を作る」で見出しを確かめて投稿してください。出さない場合は対応は不要です。",
+    });
+  }
+  return picked.length;
+}
+
 /** 選んだ出来事で速報の回を作る（承認済み）。同じ出来事の速報が今日すでにあれば null */
 export async function createManualBreaking(storyId: string, now = new Date(), headline?: string[]) {
   const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
-  if (!story) return null;
+  // 解析待ちの出来事は見出しがまだないため、人が書いた見出しが必要
+  if (!story || (!story.headline.length && !headline?.length)) return null;
   const date = jstDate(now);
   // 人が見出しを直したときは、配信回の項目に上書きとして残す（カードの見出しにも使われる）
   const edited = headline?.length && headline.join("") !== story.headline.join("") ? headline : null;

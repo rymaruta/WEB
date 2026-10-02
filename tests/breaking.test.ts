@@ -5,7 +5,7 @@ vi.mock("@/lib/events", () => ({ logEvent: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyOwner: vi.fn() }));
 vi.mock("@/lib/digest/publish", () => ({ publishEdition: vi.fn() }));
 
-const { breakingPostText, isJustBeforeSlot, isQuietHour, pickBreaking } = await import("@/lib/digest/breaking");
+const { breakingPostText, HOT_RULES, isJustBeforeSlot, isQuietHour, pickBreaking, pickHotTopics } = await import("@/lib/digest/breaking");
 
 // 日本時間の時刻
 const jst = (hhmm: string) => new Date(`2026-10-02T${hhmm}:00+09:00`);
@@ -64,5 +64,22 @@ describe("時刻の判定", () => {
 describe("breakingPostText", () => {
   it("時刻を明記する", () => {
     expect(breakingPostText(["東海道新幹線", "全線で運転見合わせ"], jst("14:32"))[0]).toBe("⚡ 速報（14:32時点）");
+  });
+});
+
+describe("pickHotTopics", () => {
+  const now = new Date("2026-10-02T14:30:00Z");
+  const t = (id: number, publisherCount: number, minutesAgo: number) => ({ id, publisherCount, firstSeenAt: new Date(now.getTime() - minutesAgo * 60_000) });
+
+  it("一斉に報じられた新しい出来事を、媒体の多い順に選ぶ", () => {
+    expect(pickHotTopics([t(1, 5, 30), t(2, 8, 60), t(3, 4, 10)], new Set(), now, 0).map((x) => x.id)).toEqual([2, 1]);
+  });
+
+  it("知らせ済み・古い出来事は選ばない", () => {
+    expect(pickHotTopics([t(1, 9, 30), t(2, 9, 200)], new Set([1]), now, 0)).toEqual([]);
+  });
+
+  it("1日の上限を超えない", () => {
+    expect(pickHotTopics([t(1, 9, 30), t(2, 8, 30)], new Set(), now, HOT_RULES.maxPerDay - 1).map((x) => x.id)).toEqual([1]);
   });
 });

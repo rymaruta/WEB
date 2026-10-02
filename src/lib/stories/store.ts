@@ -111,19 +111,34 @@ const HARD_NEWS_GENRES = new Set(["domestic", "world", "business"]);
 const HARD_NEWS_BOOST = 1.5;
 
 /**
+ * 多くの媒体が一斉に報じている、出たばかりの出来事（速報になりうる）。分野を問わず最優先で解析する。
+ * 有名人の結婚発表のように、話題度の数値がまだ育っていなくても、短時間に多くの媒体が報じた出来事を後回しにしない
+ */
+const BREAKING_NOW = { minPublishers: 5, maxAgeHours: 3 } as const;
+
+/**
  * 解析待ちのストーリー。話題度（媒体数・SNS の反応・新しさ）の高い順で、国内・国際・経済を少し優先する。
  * 完全に国内・国際・経済を先にすると、話題性の高い芸能・スポーツの出来事がいつまでも解析されないため、倍率で優先する。
  */
 export async function findQueued(limit: number) {
-  const rows = await prisma.story.findMany({
-    where: { status: "QUEUED" },
-    orderBy: { score: "desc" },
-    take: limit * 5,
-    select: { id: true, topicId: true, score: true, topic: { select: { genre: { select: { slug: true } } } } },
-  });
+  const now = Date.now();
+  const select = { id: true, topicId: true, score: true, topic: { select: { genre: { select: { slug: true } } } } } as const;
+  const [rows, hot] = await Promise.all([
+    prisma.story.findMany({ where: { status: "QUEUED" }, orderBy: { score: "desc" }, take: limit * 5, select }),
+    // 一斉に報じられている出来事は、話題度の数値がまだ低くても先に解析する
+    prisma.story.findMany({
+      where: {
+        status: "QUEUED",
+        topic: { publisherCount: { gte: BREAKING_NOW.minPublishers }, firstSeenAt: { gte: new Date(now - BREAKING_NOW.maxAgeHours * 3_600_000) } },
+      },
+      orderBy: { topic: { publisherCount: "desc" } },
+      take: limit,
+      select,
+    }),
+  ]);
   const priority = (r: (typeof rows)[number]) => r.score * (HARD_NEWS_GENRES.has(r.topic.genre?.slug ?? "") ? HARD_NEWS_BOOST : 1);
-  return rows
-    .sort((a, b) => priority(b) - priority(a))
+  const first = new Set(hot.map((r) => r.id));
+  return [...hot, ...rows.filter((r) => !first.has(r.id)).sort((a, b) => priority(b) - priority(a))]
     .slice(0, limit)
     .map(({ id, topicId }) => ({ id, topicId }));
 }
