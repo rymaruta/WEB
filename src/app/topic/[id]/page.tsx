@@ -89,7 +89,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
   const featureLinks = relatedFeatures(topic);
-  const brief = buildBrief(ai?.lead, why, timeline, topic);
+  // なぜ重要かは、まとめ記事の「なぜ重要」（照合済み）を優先し、なければ配信候補の文を使う
+  const brief = buildBrief(ai?.lead, ai?.why?.text ?? why, timeline, topic);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">

@@ -139,3 +139,19 @@ describe("extractNames（人名の照合）", async () => {
     expect(extractNames("同社社長が謝罪。日本代表監督も出席")).toEqual([]);
   });
 });
+
+describe("なぜ重要（why）の照合", async () => {
+  const { checkArticleFacts, sanitizeArticle } = await import("@/lib/ai/prompt");
+  const src = [{ publisher: "A新聞", publishedAt: new Date("2026-10-02T00:00:00Z"), title: "電気代が来月から上がる", summary: "家計の負担が月300円増える見込み" }];
+  const base = { title: "電気代が来月から上がる", lead: "電気代が上がる。", points: [{ text: "電気代が上がる", sources: [1] }], body: ["家計の負担が増える。"], sufficient: true } as never;
+  it("資料にある語だけなら残す", () => {
+    const a = sanitizeArticle({ ...(base as object), why: { text: "家計の負担が月300円増えるため", sources: [1] } } as never, 1)!;
+    expect(checkArticleFacts(a, src).article?.why?.text).toBe("家計の負担が月300円増えるため");
+  });
+  it("資料にない数字があれば落とす（記事は採用）", () => {
+    const a = sanitizeArticle({ ...(base as object), why: { text: "家計の負担が月500円増えるため", sources: [1] } } as never, 1)!;
+    const r = checkArticleFacts(a, src);
+    expect(r.article).not.toBeNull();
+    expect(r.article?.why).toBeNull();
+  });
+});

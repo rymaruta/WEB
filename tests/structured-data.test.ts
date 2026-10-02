@@ -6,6 +6,7 @@ const article = {
   lead: "リード",
   body: ["本文"],
   points: [],
+  why: null,
   angles: [],
   companies: [],
       background: [],

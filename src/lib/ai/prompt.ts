@@ -21,6 +21,15 @@ export const ArticleSchema = z.object({
       }),
     )
     .describe("要点を3〜5個"),
+  why: z
+    .object({
+      text: z.string().describe("なぜ重要か（読者の暮らし・社会・業界・ファンへの影響など）を1文、60文字程度で"),
+      sources: z.array(z.number().int()).describe("根拠となる資料番号（1始まり）"),
+    })
+    .nullable()
+    // 以前の形式（why なし）で送られた記事も受け付ける
+    .optional()
+    .describe("なぜ重要か。資料に影響・意味が書かれているときだけ。資料にない見立てや意見は書かず、書けなければ null"),
   angles: z
     .array(
       z.object({
@@ -126,8 +135,10 @@ export function sanitizeArticle(a: GeneratedArticle, sourceCount: number): Gener
     .slice(0, 3);
   const companies = [...new Set((a.companies ?? []).map(normalizeCompany).filter((c) => c.length >= 2 && c.length <= 30))].slice(0, 5);
   const body = a.body.map((b) => b.trim()).filter(Boolean);
+  const whySources = a.why ? [...new Set(a.why.sources)].filter((n) => n >= 1 && n <= sourceCount).sort((x, y) => x - y) : [];
+  const why = a.why?.text.trim() && whySources.length > 0 ? { text: a.why.text.trim(), sources: whySources } : null;
   if (!a.title.trim() || points.length === 0 || body.length === 0) return null;
-  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), angles, companies, body };
+  return { ...a, title: a.title.trim().slice(0, 80), lead: a.lead.trim(), points: points.slice(0, 6), angles, companies, body, why };
 }
 
 export type FactSource = { publisher: string; publishedAt: Date; title: string; summary: string | null };
@@ -178,10 +189,15 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
     bodyMissing.push(...m);
     return m.length === 0 && !BANNED_WORDS.some((w) => p.text.includes(w));
   });
+  // なぜ重要かは、出典の資料にない語や煽り表現があれば落とす（記事は採用する）
+  const why =
+    a.why && missingIn(a.why.text, a.why.sources.map((n) => sources[n - 1]).filter(Boolean).map(text).join("\n")).length === 0 && !BANNED_WORDS.some((w) => a.why!.text.includes(w))
+      ? a.why
+      : null;
   // 企業名は資料のどこかにそのまま書かれているものだけを残す（AI が補った社名を企業ページに載せない）
   const corpus = all.normalize("NFKC");
   const companies = (a.companies ?? []).filter((c) => corpus.includes(c));
   const marketEvent = verifyMarketEvent(a.marketEvent, all);
   const game = verifyGame(a.game, all);
-  return { article: { ...a, body, angles, companies, marketEvent, game }, missing: bodyMissing, banned, missingNames };
+  return { article: { ...a, body, angles, companies, marketEvent, game, why }, missing: bodyMissing, banned, missingNames };
 }
