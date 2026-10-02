@@ -43,3 +43,24 @@ describe("groupTagCounts", () => {
     expect(new Set(COUNTRIES.map((t) => t.group))).toEqual(new Set(["北米", "アジア", "ヨーロッパ", "中東"]));
   });
 });
+
+describe("海外サッカー", () => {
+  const find = (slug: string) => TEAMS.find((t) => t.slug === slug)!;
+  it("リーグ名と主なクラブの名前で見分ける", () => {
+    expect(matchesTag(find("premier-league"), "リバプール、アーセナルに競り勝つ")).toBe(true);
+    expect(matchesTag(find("la-liga"), "レアル・ソシエダの久保が先制点")).toBe(true);
+    expect(matchesTag(find("bundesliga"), "バイエルンが首位を守る")).toBe(true);
+    expect(matchesTag(find("serie-a"), "インテルがナポリに勝利")).toBe(true);
+    expect(matchesTag(find("ligue-1"), "パリSGが3連勝")).toBe(true);
+    expect(matchesTag(find("ucl"), "欧州CL、アーセナルが快勝")).toBe(true);
+  });
+  it("別のものは拾わない", () => {
+    expect(matchesTag(find("serie-a"), "インテル・マイアミのメッシが2得点")).toBe(false);
+    expect(matchesTag(find("ligue-1"), "F1モナコGPで角田が入賞")).toBe(false);
+    expect(matchesTag(find("ucl"), "ACL、川崎Fがアジア王者に")).toBe(false);
+    expect(matchesTag(find("premier-league"), "プレミアムモルツ新発売")).toBe(false);
+  });
+  it("海外サッカーのまとまりに入る", () => {
+    expect(find("premier-league").group).toBe("海外サッカー");
+  });
+});
