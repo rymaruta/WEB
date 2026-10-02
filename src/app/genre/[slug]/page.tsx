@@ -8,6 +8,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
 import { MonthlyChanges } from "@/components/monthly-changes";
+import { WeeklyProducts } from "@/components/weekly-products";
+import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
 import {
@@ -66,6 +68,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const game = genre.slug === "game" ? await loadGameHighlights() : null;
   // 国内・ライフのページは、「◯月から変わること」（今月・来月）を出す
   const changes = genre.slug === "domestic" || genre.slug === "life" ? await loadMonthlyChanges() : null;
+  // 新商品・グルメのページは、今週・来週の新発売を出す
+  const products = genre.slug === "products" ? await loadWeeklyProducts() : null;
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -114,6 +118,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
 
       {game && <GameHighlights {...game} />}
       {changes && <MonthlyChanges {...changes} />}
+      {products && <WeeklyProducts {...products} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">
@@ -193,4 +198,10 @@ async function loadMonthlyChanges() {
     thisYear: year,
     months: [thisKey, nextKey].map((key) => ({ month: month(key), items: items.filter((c) => c.date.startsWith(key)) })),
   };
+}
+
+async function loadWeeklyProducts() {
+  const { thisWeek, nextWeek } = jstWeeks();
+  const [a, b] = await Promise.all([getProducts(thisWeek.from, thisWeek.to), getProducts(nextWeek.from, nextWeek.to)]);
+  return { weeks: [{ label: "今週の新発売", items: a }, { label: "来週の新発売", items: b }] };
 }
