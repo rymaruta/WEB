@@ -6,6 +6,7 @@ import { getMovieSchedule } from "@/lib/movie-listings";
 import { PRODUCT_KIND_LABELS } from "@/lib/product-kinds";
 import { getProducts } from "@/lib/products";
 import { getGameReleases } from "@/lib/queries";
+import { workKey, workPath } from "@/lib/work-keys";
 
 /**
  * ぜんぶカレンダー。ゲームの発売・アニメの放送開始・映画の公開・新商品の発売・暮らしの変更を、
@@ -71,7 +72,7 @@ export async function getCalendar(now = new Date(), days = CALENDAR_DAYS): Promi
       category: "game" as const,
       title: g.title,
       note: g.platforms.length ? g.platforms.join("・") : null,
-      href: topic(g.topicId) ?? g.storeUrl,
+      href: g.workKey ? workPath("game", g.workKey) : (topic(g.topicId) ?? g.storeUrl),
       external: !g.topicId && !!g.storeUrl,
     })),
     ...anime.map((a) => ({
@@ -79,7 +80,7 @@ export async function getCalendar(now = new Date(), days = CALENDAR_DAYS): Promi
       category: (a.kind === "movie" ? "movie" : "anime") as CalendarCategory,
       title: a.title,
       note: [ANIME_KIND_LABELS[a.kind], a.channel].filter(Boolean).join("・") || null,
-      href: topic(a.topicId),
+      href: a.topicId ? workPath("anime", workKey(a.title)) : null,
       external: false,
     })),
     ...movies.map((m) => ({ date: m.release, category: "movie" as const, title: m.title, note: m.country, href: null, external: false })),
