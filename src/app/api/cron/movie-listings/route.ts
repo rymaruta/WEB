@@ -1,4 +1,5 @@
 import { hasCronSecret } from "@/lib/auth";
+import { logListings } from "@/lib/listings-log";
 import { syncMovieListings } from "@/lib/movie-listings";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,11 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    return Response.json(await syncMovieListings());
+    const result = await syncMovieListings();
+    await logListings("listings.movie", result);
+    return Response.json(result);
   } catch (e) {
+    await logListings("listings.movie", null, e);
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }
 }

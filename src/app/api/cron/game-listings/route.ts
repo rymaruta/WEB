@@ -1,5 +1,6 @@
 import { hasCronSecret } from "@/lib/auth";
 import { syncGameListings } from "@/lib/game-listings";
+import { logListings } from "@/lib/listings-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -9,5 +10,7 @@ export async function GET(request: Request) {
   if (!hasCronSecret(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  return Response.json(await syncGameListings());
+  const result = await syncGameListings();
+  await logListings("listings.game", result);
+  return Response.json(result);
 }
