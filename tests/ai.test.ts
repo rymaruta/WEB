@@ -127,3 +127,15 @@ describe("readingMinutes", () => {
     expect(readingMinutes({ lead: "", points: [{ text: "あ".repeat(500), sources: [1] }], angles: [], body: ["い".repeat(1000)] })).toBe(3);
   });
 });
+
+describe("extractNames（人名の照合）", async () => {
+  const { extractNames } = await import("@/lib/stories/verify");
+  it("肩書き・敬称の直前の名前を拾い、前に付いた肩書きは外す", () => {
+    expect(extractNames("女優の福原遥さんとサッカー日本代表の久保建英選手が結婚")).toEqual(["福原遥", "久保建英"]);
+    expect(extractNames("岸田前首相と高市首相が会談")).toEqual(["岸田", "高市"]);
+    expect(extractNames("トランプ大統領が表明")).toEqual(["トランプ"]);
+  });
+  it("「同社社長」「日本代表」などは人名にしない", () => {
+    expect(extractNames("同社社長が謝罪。日本代表監督も出席")).toEqual([]);
+  });
+});

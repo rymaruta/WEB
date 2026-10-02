@@ -31,6 +31,31 @@ export function extractFacts(text: string): string[] {
   return [...facts];
 }
 
+/** 人名・肩書きの前に付く語（「女優の福原遥さん」「元首相」など）。名前の一部として扱わない */
+// 1文字の語（「中」「米」など）は名前の先頭にも使われる（中園・米倉）ため外さない
+const NAME_PREFIX = /^(?:女優|俳優|歌手|タレント|モデル|アイドル|声優|芸人|監督|選手|投手|社長|会長|首相|大統領|知事|市長|議員|故|・)+/u;
+/** 名前の後ろに付く国・議会・時期の語（「マクロン仏大統領」「麻生太郎衆院議員」「岸田前首相」） */
+// 1文字の国の語は、カタカナの名前の後ろだけ外す（「久保建英」の「英」は名前の一部）
+const NAME_TAIL = /(?:(?<=[\p{Script=Katakana}ー])(?:米|英|仏|独|中|韓|露|朝)|衆院|参院|元|前|現|新)$/u;
+/** 肩書きの前に来ても人名ではない語 */
+const NOT_NAME = /^(?:日本|中国|韓国|米国|英国|北朝鮮|政府|同社|両社|当社|各社|首脳|国会|世界|スポーツ|アメリカ|店員|長編|政調|代表取締役|代表執行役)$|(?:代表|政府|当局|球団|チーム|協会|連盟|委員会|本部|首脳|監督|選手)$/u;
+const NAME_SUFFIX = "氏|さん|選手|監督|容疑者|被告|社長|会長|首相|大統領|知事|市長|議員|投手|外相|官房長官|理事長|代表取締役";
+
+/**
+ * 人名の候補。「◯◯氏」「◯◯選手」「◯◯容疑者」など、肩書き・敬称の直前の漢字・カタカナの語（2〜8字）。
+ * 数字・カギかっこ・英数字（extractFacts）では拾えない、日本語の固有名詞の照合に使う
+ */
+export function extractNames(text: string): string[] {
+  const t = text.normalize("NFKC");
+  const names = new Set<string>();
+  for (const m of t.matchAll(new RegExp(`([\\p{Script=Han}\\p{Script=Katakana}ー・々]{2,12})(?:${NAME_SUFFIX})`, "gu"))) {
+    const name = m[1].replace(NAME_PREFIX, "").replace(NAME_TAIL, "");
+    // 組織・役職の語（「日本代表監督」「同社社長」など）は人名ではない
+    if (name.length >= 2 && !NOT_NAME.test(name)) names.add(name);
+  }
+  return [...names];
+}
+
 /** 資料の中に語があるか（正規化して比較）。数字は「1」が「10」に含まれる誤判定を避けるため前後を確かめる */
 export function factInSources(fact: string, sourceText: string): boolean {
   const f = normalize(fact);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ArticleSchema, checkArticleFacts, sanitizeArticle } from "@/lib/ai/prompt";
 import { loadTopicSources, markAttempted, saveArticle } from "@/lib/ai/store";
 import { hasCronSecret } from "@/lib/auth";
+import { logEvent } from "@/lib/events";
 import { findRelatedEarlier, verifyBackground } from "@/lib/ai/related";
 
 const BodySchema = z.object({
@@ -43,6 +44,10 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
   const byId = new Map(topicSources.map((s) => [s.id, s]));
   const checked = sanitized ? checkArticleFacts(sanitized, sourceIds.map((id) => byId.get(id)!)) : null;
   const clean = checked?.article ?? null;
+  // 人名の照合（試行中）：資料にない人名の候補を記録する。誤検出が少ないと確かめてから、採否に使う
+  if (checked?.missingNames?.length) {
+    await logEvent("info", "factcheck.names", `topic ${topicId}: 資料に見つからない人名の候補 ${checked.missingNames.join("・")}（${clean ? "掲載" : "不採用"}）`);
+  }
   if (!clean) {
     await markAttempted(topicId);
     return Response.json({ status: "skipped", missing: checked?.missing ?? [], banned: checked?.banned ?? [] });
