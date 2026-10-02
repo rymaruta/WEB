@@ -11,6 +11,7 @@ import { MonthlyChanges } from "@/components/monthly-changes";
 import { WeeklyProducts } from "@/components/weekly-products";
 import { AnimeSchedule } from "@/components/anime-schedule";
 import { OutageList } from "@/components/outage-list";
+import { RecentEarnings } from "@/components/recent-earnings";
 import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
@@ -23,6 +24,7 @@ import {
   getGameReleases,
   getTagCounts,
   getOutages,
+  getRecentEarnings,
   getGenre,
   getNewGames,
   getLatestArticles,
@@ -83,6 +85,8 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
   const anime = genre.slug === "anime" ? await loadAnimeSchedule() : null;
   // IT・科学のページは、この3日間の障害・不具合の情報を出す
   const outages = genre.slug === "tech" ? await getOutages() : [];
+  // 経済のページは、この1週間の決算・業績予想を企業ごとに出す
+  const earnings = genre.slug === "business" ? await getRecentEarnings() : [];
   const pages = (total: number) => Math.min(50, Math.ceil(total / PER_PAGE));
   // 2ページ目以降は別のページ（/genre/[slug]/more）で読み込む
   const href = (sort: "trending" | "latest") => (p: number) =>
@@ -151,6 +155,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
       {products && <WeeklyProducts {...products} />}
       {anime && <AnimeSchedule {...anime} />}
       {outages.length > 0 && <OutageList items={outages} />}
+      {earnings.length > 0 && <RecentEarnings items={earnings} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="card min-w-0 px-4 sm:px-5">

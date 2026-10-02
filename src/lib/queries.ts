@@ -465,3 +465,27 @@ export const getOutages = cache(async (hours = 72, take = 15): Promise<OutageIte
     .slice(0, take)
     .map(({ t, title }) => ({ topicId: t.id, title, status: outageStatus(`${t.title} ${t.aiTitle ?? ""}`), at: t.firstSeenAt.toISOString() }));
 });
+
+export type EarningsItem = { topicId: number; company: string; event: string; title: string };
+
+/** 経済のページの「今週の決算・業績予想」：直近 days 日に決算・業績予想が報じられた企業（企業ごとに最新の1件、新しい順） */
+export const getRecentEarnings = cache(async (days = 7, take = 30): Promise<EarningsItem[]> => {
+  const topics = await prisma.topic.findMany({
+    where: { aiMarketEvent: { in: ["earnings", "forecast"] }, lastSeenAt: { gte: since(days * 24) }, NOT: { aiCompanies: { isEmpty: true } } },
+    orderBy: { lastSeenAt: "desc" },
+    take: 300,
+    select: { id: true, title: true, aiTitle: true, aiCompanies: true, aiMarketEvent: true },
+  });
+  const seen = new Set<string>();
+  const out: EarningsItem[] = [];
+  for (const t of topics) {
+    // 1社の決算の話題だけ（複数社をまとめた記事は、どの会社の数字か分かりにくいため）
+    if (t.aiCompanies.length !== 1) continue;
+    const company = t.aiCompanies[0];
+    if (seen.has(company)) continue;
+    seen.add(company);
+    out.push({ topicId: t.id, company, event: t.aiMarketEvent!, title: t.aiTitle ?? t.title });
+    if (out.length >= take) break;
+  }
+  return out;
+});
