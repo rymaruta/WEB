@@ -17,7 +17,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
   // Google の検索結果や「おすすめ（Discover）」で、大きい画像と長めの説明を表示してよいと伝える
   robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
-  alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: `${siteConfig.name}（まとめ記事）` }] } },
+  // 正規の URL（canonical）は各ページで決める。ここで "/" を決めると、決めていないページがすべてトップページの複製扱いになる
+  alternates: { types: { "application/rss+xml": [{ url: "/feed.xml", title: `${siteConfig.name}（まとめ記事）` }] } },
 };
 
 export const viewport: Viewport = {
