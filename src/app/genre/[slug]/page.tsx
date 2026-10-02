@@ -18,6 +18,8 @@ import { getAnimeSchedule } from "@/lib/anime";
 import { getProducts, jstWeeks } from "@/lib/products";
 import { getChanges } from "@/lib/changes";
 import { companyPath } from "@/lib/company";
+import { siteConfig } from "@/config/site";
+import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { MarketBar } from "@/components/market-bar";
 import { Fold } from "@/components/fold";
 import { getMarketSnapshot } from "@/lib/market";
@@ -54,12 +56,27 @@ export async function generateMetadata({ params }: PageProps<"/genre/[slug]">): 
   const { slug } = await params;
   const genre = await getGenre(slug);
   if (!genre) return {};
+  const seo = GENRE_SEO[genre.slug];
   return {
-    title: `${genre.name}ニュース`,
-    description: `${genre.name}の最新ニュースと話題を、主要メディアからまとめてお届けします。`,
+    title: seo?.title ?? `${genre.name}ニュース`,
+    description: `${genre.name}の最新ニュースと話題を、主要メディアからまとめてお届けします。${seo?.extra ?? ""}`,
     alternates: { canonical: `/genre/${genre.slug}` },
   };
 }
+
+/** ジャンルのページの検索向けの題名と説明（そのページにある特集の欄を書き、探している人に見つけてもらいやすくする） */
+const GENRE_SEO: Record<string, { title: string; extra: string }> = {
+  domestic: { title: "国内ニュース・今月から変わること", extra: "値上げや制度の開始など、今月・来月から変わることも一覧で確認できます。" },
+  world: { title: "国際ニュース（国・地域別）", extra: "アメリカ・中国・ウクライナなど、国・地域ごとのニュースも読めます。" },
+  business: { title: "経済ニュース・決算・為替", extra: "ドル円・長期金利、今週の決算・業績予想、企業別のニュースも確認できます。" },
+  tech: { title: "IT・科学ニュース・障害情報", extra: "通信・アプリ・ネットのサービスの障害・不具合情報もまとめています。" },
+  entertainment: { title: "エンタメニュース・映画公開スケジュール", extra: "今月・来月の映画の公開日も一覧で確認できます。" },
+  sports: { title: "スポーツニュース（チーム別）", extra: "プロ野球・大リーグ・サッカーのチームごとのニュースも読めます。" },
+  game: { title: "ゲームニュース・発売日スケジュール", extra: "Switch 2・PS5・PC の今月・来月の発売日と新作情報を一覧で確認できます。" },
+  anime: { title: "アニメ・漫画ニュース・放送スケジュール", extra: "今月・来月に始まるアニメの放送・配信・劇場公開も一覧で確認できます。" },
+  products: { title: "新商品・グルメニュース・今週の新発売", extra: "今週・来週に発売される新商品も一覧で確認できます。" },
+  life: { title: "ライフ・トレンドニュース", extra: "暮らしに関わる変更や話題のトレンドをまとめています。" },
+};
 
 export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) {
   const { slug } = await params;
@@ -106,6 +123,25 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
 
   return (
     <div className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd([
+            breadcrumbJsonLd([
+              { name: "トップ", path: "/" },
+              { name: `${genre.name}ニュース`, path: `/genre/${genre.slug}` },
+            ]),
+            {
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              name: GENRE_SEO[genre.slug]?.title ?? `${genre.name}ニュース`,
+              url: `${siteConfig.url}/genre/${genre.slug}`,
+              isPartOf: { "@id": `${siteConfig.url}/#website` },
+              inLanguage: "ja",
+            },
+          ]),
+        }}
+      />
       <header
         className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 text-white sm:gap-4 sm:p-6"
         style={{ background: `linear-gradient(120deg, ${color}, color-mix(in oklab, ${color} 50%, #000))` }}

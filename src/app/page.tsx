@@ -46,13 +46,15 @@ export default async function HomePage() {
   return (
     <div className="space-y-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
+      {/* ページの見出しはサイト名（画面では上のロゴがサイト名を示しているため、読み上げと検索エンジン向けに置く） */}
+      <h1 className="sr-only">ぜんぶナビ｜主要メディアのニュースをまとめて読めるニュースサイト</h1>
       {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
       <SinceLastVisit />
       {digest && digestOnTop && <DigestSummaryCard digest={digest} />}
       <section aria-labelledby="trending">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h1 id="trending" className="text-2xl font-black tracking-tight">いま話題のニュース</h1>
+            <h2 id="trending" className="text-2xl font-black tracking-tight">いま話題のニュース</h2>
             <p className="mt-0.5 text-xs text-fg-subtle">複数の媒体が報じている出来事を、話題の大きさ順にまとめています。</p>
           </div>
           <p className="flex gap-4 text-xs text-fg-muted">
