@@ -13,7 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.genre.findMany({ orderBy: { sortOrder: "asc" } }),
     // AI まとめ記事があるトピックのみ（それ以外のトピックは noindex）
     prisma.topic.findMany({
-      where: { aiGeneratedAt: { not: null } },
+      // 別の話題にまとめたページ（まとめた先へ移す）は載せない
+      where: { aiGeneratedAt: { not: null }, mergedIntoId: null },
       orderBy: { aiGeneratedAt: "desc" },
       take: 5000,
       select: { id: true, aiGeneratedAt: true },

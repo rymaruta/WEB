@@ -9,7 +9,7 @@ export const revalidate = 600;
  */
 export async function GET() {
   const topics = await prisma.topic.findMany({
-    where: { aiGeneratedAt: { gte: new Date(Date.now() - 48 * 3_600_000) }, aiTitle: { not: null } },
+    where: { aiGeneratedAt: { gte: new Date(Date.now() - 48 * 3_600_000) }, aiTitle: { not: null }, mergedIntoId: null },
     orderBy: { aiGeneratedAt: "desc" },
     take: 1000,
     select: { id: true, aiTitle: true, aiGeneratedAt: true },

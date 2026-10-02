@@ -88,6 +88,8 @@ model Topic {
   aiGenreChecked Boolean   @default(false)
   /// 読み物でない告知（占い・求人・IR 説明会・自治体のお知らせなど）。一覧には出さない
   aiNotNews      Boolean   @default(false)
+  /// 同じ出来事の別の話題にまとめた場合、まとめた先の話題（このページはそちらへ移す）
+  mergedIntoId   Int?
   articleCount   Int       @default(0)
   publisherCount Int       @default(0)
   score          Float     @default(0)

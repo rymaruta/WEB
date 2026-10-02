@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { GENRE_SLUGS } from "@/lib/ai/prompt";
+import { refreshTopics } from "./cluster";
 
 /**
  * 話題のジャンルを、内容から判定し直す。
@@ -24,6 +25,12 @@ export const GenreCheckSchema = z.object({
         id: z.number().int(),
         genre: z.enum(GENRE_SLUGS).nullable().describe("出来事の内容で決めるジャンル。迷う場合は null（今のジャンルのまま）"),
         notNews: z.boolean().describe("読み物でない告知なら true"),
+        sameAs: z
+          .number()
+          .int()
+          .nullable()
+          .optional()
+          .describe("topics または context の別の話題と同じ出来事・同じ騒動なら、その話題の id。違えば null"),
       }),
     )
     .describe("受け取ったすべての話題について1件ずつ"),
@@ -54,9 +61,33 @@ export const GENRE_CHECK_SYSTEM = `あなたはニュースサイトの編集者
 notNews（読み物でない告知）を true にするのは、次のようなものだけ:
 - 占い・運勢、求人や採用イベント、株主・投資家向けの説明会やセミナーの案内、展示会・講演会の出展や登壇の告知
 - 自治体・団体の行事の案内、企業の小さな社内人事・組織変更・提携・受賞・認証取得のお知らせ
-事件・事故・新商品・業績・サービスの開始や終了など、読者が知りたい出来事は false にする。迷う場合は false。`;
+事件・事故・新商品・業績・サービスの開始や終了など、読者が知りたい出来事は false にする。迷う場合は false。
+
+sameAs（同じ出来事の話題をまとめる）:
+- topics と context（すでに一覧に出ている話題）の中に、同じ出来事・同じ騒動を扱う話題があれば、その id を入れる
+  （例: 同じ人の逮捕・契約解除・謝罪会見・それへの反応、同じ試合の結果と監督のコメント、同じ発表の別の媒体の記事）
+- 同じ人や会社の話題でも、別の出来事（別の日の別の発表、別の試合など）なら null
+- 迷う場合は null`;
 
 export type GenreCheckCandidate = { id: number; genre: string; title: string; articles: { publisher: string; title: string; summary: string | null }[] };
+
+/** 同じ出来事かを見比べるための、すでに判定した一覧の上位の話題（ジャンルごと） */
+const CONTEXT_PER_GENRE = 10;
+
+export async function findMergeContext(excludeIds: number[], now = new Date()): Promise<{ id: number; genre: string; title: string }[]> {
+  const since = new Date(now.getTime() - WINDOW_HOURS * 3_600_000);
+  return prisma.$queryRaw<{ id: number; genre: string; title: string }[]>`
+    SELECT id, genre, title FROM (
+      SELECT t.id, g.slug AS genre, COALESCE(t."aiTitle", t.title) AS title,
+             row_number() OVER (PARTITION BY t."genreId" ORDER BY t.score DESC) AS rn
+      FROM "Topic" t JOIN "Genre" g ON g.id = t."genreId"
+      WHERE t."lastSeenAt" >= ${since} AND t."mergedIntoId" IS NULL AND NOT t."aiNotNews"
+        AND (t."aiGenreChecked" OR t."aiGenreId" IS NOT NULL)
+        AND NOT (t.id = ANY(${excludeIds}))
+    ) x
+    WHERE rn <= ${CONTEXT_PER_GENRE}
+    ORDER BY genre, rn`;
+}
 
 /** 判定する話題。一覧の上位（話題度順）から、まだ判定していないものをジャンルごとに少しずつ */
 export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = new Date()): Promise<GenreCheckCandidate[]> {
@@ -65,7 +96,7 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
     SELECT id FROM (
       SELECT t.id, t.score, row_number() OVER (PARTITION BY t."genreId" ORDER BY t.score DESC, t."lastSeenAt" DESC) AS rn
       FROM "Topic" t
-      WHERE t."lastSeenAt" >= ${since} AND NOT t."aiGenreChecked" AND t."aiGenreId" IS NULL
+      WHERE t."lastSeenAt" >= ${since} AND NOT t."aiGenreChecked" AND t."aiGenreId" IS NULL AND t."mergedIntoId" IS NULL
     ) x
     WHERE rn <= ${PER_GENRE}
     ORDER BY rn, score DESC
@@ -90,10 +121,11 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
 /**
  * 判定の結果を保存する。ジャンルは aiGenreId にも入れ、記事が増えて集計し直しても戻らないようにする。
  * 「読み物でない告知」の印は、報道機関の記事が1本もない話題（企業の発表・SNS だけ）にしか付けない
- * （報じられた出来事を一覧から消してしまわないように）
+ * （報じられた出来事を一覧から消してしまわないように）。
+ * 同じ出来事の話題（sameAs）は1つにまとめる（mergeTopics）
  */
-export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{ saved: number; moved: number; hidden: number }> {
-  if (results.length === 0) return { saved: 0, moved: 0, hidden: 0 };
+export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{ saved: number; moved: number; hidden: number; merged: number }> {
+  if (results.length === 0) return { saved: 0, moved: 0, hidden: 0, merged: 0 };
   const genres = await prisma.genre.findMany({ select: { id: true, slug: true } });
   const genreId = new Map(genres.map((g) => [g.slug, g.id]));
   const ids = [...new Set(results.map((r) => r.id))];
@@ -114,14 +146,59 @@ export async function saveGenreChecks(results: GenreCheck["results"]): Promise<{
     if (notNews) hidden++;
     rows.push(Prisma.sql`(${t.id}::int, ${gid}::int, ${notNews}::boolean)`);
   }
-  if (rows.length === 0) return { saved: 0, moved: 0, hidden: 0 };
-  await prisma.$executeRaw`
-    UPDATE "Topic" t
-    SET "aiGenreChecked" = true,
-        "aiNotNews" = v.not_news,
-        "aiGenreId" = COALESCE(v.gid, t."aiGenreId"),
-        "genreId" = COALESCE(v.gid, t."genreId")
-    FROM (VALUES ${Prisma.join(rows)}) AS v(id, gid, not_news)
-    WHERE t.id = v.id`;
-  return { saved: rows.length, moved, hidden };
+  if (rows.length > 0) {
+    await prisma.$executeRaw`
+      UPDATE "Topic" t
+      SET "aiGenreChecked" = true,
+          "aiNotNews" = v.not_news,
+          "aiGenreId" = COALESCE(v.gid, t."aiGenreId"),
+          "genreId" = COALESCE(v.gid, t."genreId")
+      FROM (VALUES ${Prisma.join(rows)}) AS v(id, gid, not_news)
+      WHERE t.id = v.id`;
+  }
+  const pairs = results.filter((r) => known.has(r.id) && r.sameAs && r.sameAs !== r.id).map((r) => [r.id, r.sameAs!] as const);
+  const merged = await mergeTopics(pairs);
+  return { saved: rows.length, moved, hidden, merged };
+}
+
+/** まとめる先を選ぶ。AI まとめ記事があるほう、報じた媒体の多いほう、先にできたほうの順 */
+export function pickKeeper<T extends { id: number; publisherCount: number; aiGeneratedAt: Date | null }>(a: T, b: T): [keep: T, drop: T] {
+  const rank = (t: T) => [t.aiGeneratedAt ? 1 : 0, t.publisherCount, -t.id];
+  const ra = rank(a);
+  const rb = rank(b);
+  for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] > rb[i] ? [a, b] : [b, a];
+  return [a, b];
+}
+
+/**
+ * 同じ出来事の話題を1つにまとめる。まとめた側の記事はすべて残す側へ移し、まとめた側には移した先を記録する
+ * （一覧には出さず、ページはまとめた先へ移す）。一覧に出る期間の、まだまとめていない話題どうしだけ
+ */
+export async function mergeTopics(pairs: readonly (readonly [number, number])[], now = new Date()): Promise<number> {
+  if (pairs.length === 0) return 0;
+  const since = new Date(now.getTime() - WINDOW_HOURS * 3_600_000);
+  const ids = [...new Set(pairs.flat())];
+  const rows = await prisma.topic.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, publisherCount: true, aiGeneratedAt: true, mergedIntoId: true, lastSeenAt: true },
+  });
+  const byId = new Map(rows.map((t) => [t.id, t]));
+  const done = new Set<number>();
+  let merged = 0;
+  for (const [x, y] of pairs) {
+    const a = byId.get(x);
+    const b = byId.get(y);
+    if (!a || !b || done.has(a.id) || done.has(b.id) || a.mergedIntoId || b.mergedIntoId) continue;
+    if (a.lastSeenAt < since || b.lastSeenAt < since) continue;
+    const [keep, drop] = pickKeeper(a, b);
+    await prisma.$transaction([
+      prisma.article.updateMany({ where: { topicId: drop.id }, data: { topicId: keep.id } }),
+      prisma.topic.update({ where: { id: drop.id }, data: { mergedIntoId: keep.id, aiNotNews: true } }),
+    ]);
+    // まとめた側の記事を、残す側の件数・媒体数・見出しに反映する
+    await refreshTopics([keep.id]);
+    done.add(drop.id);
+    merged++;
+  }
+  return merged;
 }
