@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bigWord, hotReason, isHot } from "@/lib/stories/hot";
+import { bigWord, hotReason, isHot, worthApi } from "@/lib/stories/hot";
 
 const now = new Date("2026-10-02T13:00:00Z").getTime();
 const ago = (min: number) => new Date(now - min * 60_000);
@@ -26,5 +26,17 @@ describe("isHot", () => {
   it("3時間を過ぎた出来事・3媒体以下は候補にしない", () => {
     expect(isHot({ publisherCount: 9, firstSeenAt: ago(200) }, now)).toBe(false);
     expect(isHot({ publisherCount: 3, firstSeenAt: ago(10) }, now)).toBe(false);
+  });
+});
+
+describe("worthApi", () => {
+  it("事件・訃報・政治は API で解析しない（自動では出さないため）", () => {
+    expect(worthApi("俳優の◯◯さん死去", { quiet: false })).toBe(false);
+    expect(worthApi("◯◯容疑者を逮捕", { quiet: false })).toBe(false);
+    expect(worthApi("久保建英と福原遥が結婚", { quiet: false })).toBe(true);
+  });
+  it("深夜は災害だけ", () => {
+    expect(worthApi("久保建英と福原遥が結婚", { quiet: true })).toBe(false);
+    expect(worthApi("震度6強の地震 津波注意報", { quiet: true })).toBe(true);
   });
 });
