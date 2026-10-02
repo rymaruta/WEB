@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { AiArticleView } from "@/components/ai-article";
 import { EventTimeline } from "@/components/event-timeline";
 import { FeedbackButtons } from "@/components/feedback-buttons";
@@ -37,7 +37,7 @@ function parseId(raw: string): number | null {
 export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Promise<Metadata> {
   const id = parseId((await params).id);
   const topic = id ? await getTopic(id) : null;
-  if (!topic) return {};
+  if (!topic || topic.mergedIntoId) return {};
   const ai = readAiArticle(topic);
   const summary = ai?.lead || (topic.articles.find((a) => a.summary)?.summary ?? undefined);
   const title = ai?.title ?? topic.title;
@@ -57,6 +57,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const id = parseId((await params).id);
   const topic = id ? await getTopic(id) : null;
   if (!topic) notFound();
+  // 同じ出来事の別の話題にまとめたページは、まとめた先へ移す（ブックマークや検索結果から来た人のため）
+  if (topic.mergedIntoId) permanentRedirect(`/topic/${topic.mergedIntoId}`);
 
   const [related, timeline] = await Promise.all([
     getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] }),

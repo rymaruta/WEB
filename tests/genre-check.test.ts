@@ -16,7 +16,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { GenreCheckSchema, saveGenreChecks } = await import("@/lib/topics/genre-check");
+const { GenreCheckSchema, pickKeeper, saveGenreChecks } = await import("@/lib/topics/genre-check");
 
 describe("saveGenreChecks", () => {
   it("ジャンルを付け直し、報道のない告知だけを一覧から外す", async () => {
@@ -26,13 +26,13 @@ describe("saveGenreChecks", () => {
       { id: 99, genre: "business", notNews: false },
     ]);
     // 報道された話題（10）は「告知」と判定されても外さない。知らない話題（99）は無視する
-    expect(r).toEqual({ saved: 2, moved: 1, hidden: 1 });
+    expect(r).toEqual({ saved: 2, moved: 1, hidden: 1, merged: 0 });
     expect(executeRaw).toHaveBeenCalledTimes(1);
   });
 
   it("結果がなければ何もしない", async () => {
     executeRaw.mockClear();
-    expect(await saveGenreChecks([])).toEqual({ saved: 0, moved: 0, hidden: 0 });
+    expect(await saveGenreChecks([])).toEqual({ saved: 0, moved: 0, hidden: 0, merged: 0 });
     expect(executeRaw).not.toHaveBeenCalled();
   });
 });
@@ -41,5 +41,16 @@ describe("GenreCheckSchema", () => {
   it("サイトにないジャンルは受け付けない", () => {
     expect(GenreCheckSchema.safeParse({ results: [{ id: 1, genre: "politics", notNews: false }] }).success).toBe(false);
     expect(GenreCheckSchema.safeParse({ results: [{ id: 1, genre: null, notNews: false }] }).success).toBe(true);
+  });
+});
+
+describe("pickKeeper", () => {
+  const t = (id: number, publisherCount: number, ai: boolean) => ({ id, publisherCount, aiGeneratedAt: ai ? new Date() : null });
+  it("AI まとめ記事があるほうを残す", () => {
+    expect(pickKeeper(t(1, 5, false), t(2, 2, true))[0].id).toBe(2);
+  });
+  it("どちらも同じなら、報じた媒体の多いほう、次に先にできたほうを残す", () => {
+    expect(pickKeeper(t(1, 2, false), t(2, 4, false))[0].id).toBe(2);
+    expect(pickKeeper(t(5, 3, true), t(3, 3, true))[0].id).toBe(3);
   });
 });
