@@ -22,7 +22,7 @@ export const JOBS: Job[] = [
   // YouTube の新着動画と再生回数の取り込み（src/lib/youtube.ts）
   { name: "youtube", path: "/api/cron/youtube", intervalMinutes: 30, envKey: "YOUTUBE_INTERVAL_MINUTES" },
   // 話題の人物写真（Wikidata で人物と確かめた、Wikimedia Commons の自由利用ライセンスの写真。src/lib/photos.ts）
-  { name: "photos", path: "/api/cron/photos", intervalMinutes: 10, envKey: "PHOTOS_INTERVAL_MINUTES" },
+  { name: "photos", path: "/api/cron/photos", intervalMinutes: 5, envKey: "PHOTOS_INTERVAL_MINUTES" },
 ];
 
 /** 環境変数の値（分）を読む。0 以下・数値でない場合は既定値。"off" ならジョブを止める */

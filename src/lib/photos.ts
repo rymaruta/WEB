@@ -18,7 +18,7 @@ const FREE_LICENSE = /^(CC0|Public domain|PD|CC BY(-SA)? [1-4]\.0|CC BY(-SA)? 2\
 /** 人の写真を出さない話題（事件・事故・訃報・私生活のトラブル。写真が当事者の印象を左右するため） */
 const SENSITIVE = /逮捕|容疑|被告|被害|事件|事故|死亡|死去|訃報|急死|遺体|殺|自殺|性的|暴行|不倫|離婚|不祥事|書類送検|起訴|判決|謝罪|炎上|ハラスメント/;
 /** 1回の処理で外部に問い合わせる名前の上限（Wikimedia に負荷をかけない） */
-const LOOKUP_BUDGET = 20;
+const LOOKUP_BUDGET = 60;
 const CHECK_WINDOW_HOURS = 72;
 
 /** JSON を取る。ページがない（404）は null。それ以外の失敗は例外にし、「写真なし」と記録せずに次の回で探し直す */
@@ -75,7 +75,7 @@ export function photoNames(title: string): string[] {
 }
 
 /** 最近の話題に人物写真を付ける（スケジューラーが定期的に呼ぶ）。名前ごとの結果は EntityPhoto に残す */
-export async function resolveTopicPhotos(limit = 60, now = new Date()) {
+export async function resolveTopicPhotos(limit = 150, now = new Date()) {
   const topics = await prisma.topic.findMany({
     where: { photoCheckedAt: null, mergedIntoId: null, lastSeenAt: { gte: new Date(now.getTime() - CHECK_WINDOW_HOURS * 3_600_000) } },
     orderBy: { score: "desc" },

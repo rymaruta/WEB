@@ -47,6 +47,13 @@ describe("イメージ写真の選び方", () => {
     expect(stockPhoto("衆院で法案が可決", "domestic", 3)?.page).toMatch(/Diet/);
   });
 
+  it("同じ題材でも話題ごとに別の写真を出す（同じ写真が並ばないように）", () => {
+    const pages = new Set([1, 2, 3, 4, 5, 6].map((id) => stockPhoto("プロ野球の試合結果", "sports", id)?.page));
+    expect(pages.size).toBeGreaterThan(1);
+    const sports = new Set(Array.from({ length: 20 }, (_, id) => stockPhoto("きょうの試合", "sports", id)?.page));
+    expect(sports.size).toBeGreaterThan(2);
+  });
+
   it("食べ物・乗り物・天気などの語に合う写真を選ぶ", () => {
     expect(stockPhoto("新作ラーメンを発売", "products", 1)?.page).toMatch(/File:/);
     expect(stockPhoto("東海道新幹線が運転見合わせ", "life", 1)?.page).toMatch(/Shinkansen|N700|File:/i);
