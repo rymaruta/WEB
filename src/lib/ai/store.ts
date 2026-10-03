@@ -1,3 +1,4 @@
+import { INDEX_MIN_PUBLISHERS } from "@/lib/indexing";
 import { submitIndexNow } from "@/lib/indexnow";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -50,13 +51,47 @@ export async function findDueTopics(limit: number, now = Date.now()) {
     .slice(0, limit);
   if (due.length >= limit) return due;
 
-  // 枠が余ったら、今の形式になる前に書いた記事（更新の記録がないもの）を、今も動きのある話題から順に書き直す
-  return [...due, ...(await findUpgradeTopics(limit - due.length, now, due.map((t) => t.id)))];
+  // 枠が余ったら、さかのぼって書きそびれた話題（独立した報道3社以上で、まとめ記事がない）を書く
+  const backfill = await findBackfillTopics(limit - due.length, now, due.map((t) => t.id));
+  const filled = [...due, ...backfill];
+  if (filled.length >= limit) return filled;
+
+  // それでも余ったら、今の形式になる前に書いた記事（更新の記録がないもの）を、今も動きのある話題から順に書き直す
+  return [...filled, ...(await findUpgradeTopics(limit - filled.length, now, filled.map((t) => t.id)))];
 }
 
-/** まだまとめ記事のない、書くべきトピックの数（定期処理が書く本数を決める目安） */
-export function countNewDueTopics(now = Date.now()) {
-  return prisma.topic.count({
+/** さかのぼって書く期間（日） */
+export const BACKFILL_DAYS = 14;
+
+/**
+ * さかのぼって書く話題の条件。直近24時間に動きがなくても、独立した報道3社以上（検索エンジンに登録できる記事になる）で、
+ * まだまとめ記事がない話題（定期実行が止まっていた間などに書きそびれたもの）。報道機関の記事がない話題は除く
+ */
+const backfillWhere = (now: number) => ({
+  firstSeenAt: { gte: new Date(now - BACKFILL_DAYS * 86_400_000) },
+  publisherCount: { gte: INDEX_MIN_PUBLISHERS },
+  aiGeneratedAt: null,
+  mergedIntoId: null,
+  aiNotNews: false,
+  articles: { some: { source: { kind: "NEWS" as const } } },
+  OR: [{ aiAttemptedAt: null }, { aiAttemptedAt: { lt: new Date(now - RETRY_AFTER_MS) } }],
+});
+
+/** さかのぼって書く話題（報じた媒体の多い順） */
+export function findBackfillTopics(limit: number, now = Date.now(), excludeIds: number[] = []) {
+  if (limit <= 0) return Promise.resolve([]);
+  return prisma.topic.findMany({
+    where: { ...backfillWhere(now), id: { notIn: excludeIds }, lastSeenAt: { lt: new Date(now - 24 * 3_600_000) } },
+    orderBy: [{ publisherCount: "desc" }, { score: "desc" }],
+    take: limit,
+    select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true },
+  });
+}
+
+/** まだまとめ記事のない、書くべきトピックの数（定期処理が書く本数を決める目安）。さかのぼって書く話題も含める */
+export async function countNewDueTopics(now = Date.now()) {
+  const backfill = await prisma.topic.count({ where: { ...backfillWhere(now), lastSeenAt: { lt: new Date(now - 24 * 3_600_000) } } });
+  return backfill + await prisma.topic.count({
     where: {
       lastSeenAt: { gte: new Date(now - 24 * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
