@@ -34,10 +34,13 @@ describe("イメージ写真（lib/stock-photos）", () => {
     }
   });
 
-  it("すべてのジャンルに既定の写真がある", () => {
+  it("見出しの語が当たらない話題には、イメージ写真を出さない（関係の薄い写真を無理に付けない）", () => {
     for (const g of ["domestic", "world", "business", "tech", "entertainment", "sports", "game", "anime", "products", "life"]) {
-      expect(stockPhoto("きょうのできごと", g, 1)).not.toBeNull();
+      expect(stockPhoto("きょうのできごと", g, 1)).toBeNull();
     }
+    expect(stockPhoto("timelesz猪俣周杜さん、契約解除でグループ脱退", "entertainment", 1)).toBeNull();
+    expect(stockPhoto("マンC、財務規則違反の認定を不服として控訴", "sports", 1)).toBeNull();
+    expect(stockPhoto("やばい後輩 第152回 【漫画】", "anime", 1)).toBeNull();
   });
 });
 
@@ -50,14 +53,12 @@ describe("イメージ写真の選び方", () => {
   it("同じ題材でも話題ごとに別の写真を出す（同じ写真が並ばないように）", () => {
     const pages = new Set([1, 2, 3, 4, 5, 6].map((id) => stockPhoto("プロ野球の試合結果", "sports", id)?.page));
     expect(pages.size).toBeGreaterThan(1);
-    const sports = new Set(Array.from({ length: 20 }, (_, id) => stockPhoto("きょうの試合", "sports", id)?.page));
-    expect(sports.size).toBeGreaterThan(2);
   });
 
   it("食べ物・乗り物・天気などの語に合う写真を選ぶ", () => {
     expect(stockPhoto("新作ラーメンを発売", "products", 1)?.page).toMatch(/File:/);
     expect(stockPhoto("東海道新幹線が運転見合わせ", "life", 1)?.page).toMatch(/Shinkansen|N700|File:/i);
-    expect(stockPhoto("便利な収納術", "life", 1)?.page).not.toMatch(/airplane|Boeing|Airbus/i);
+    expect(stockPhoto("便利な収納術", "life", 1)).toBeNull();
   });
 
   it("球団名など企業・地名と同じ語は、スポーツの話題でだけ使う", () => {

@@ -1,0 +1,42 @@
+{
+  "topics": [
+    { "id": 1, "title": "ＡＩ半導体の需要で過去最高益、エヌビディア決算", "aiTitle": null, "day": 0, "pubs": 6 },
+    { "id": 2, "title": "生成AIの規制案、政府が公表", "aiTitle": null, "day": 0, "pubs": 9 },
+    { "id": 3, "title": "AIで議事録を自動作成、自治体が導入", "aiTitle": null, "day": 3, "pubs": 2 },
+    { "id": 4, "title": "ｉＰｈｏｎｅ 18の発売日が決定", "aiTitle": "iPhone 18、9月に発売", "day": 1, "pubs": 7 },
+    { "id": 5, "title": "iPhoneのバッテリー交換費用を値上げ", "aiTitle": null, "day": 5, "pubs": 3 },
+    { "id": 6, "title": "スマホ新法が施行、アプリ配信が変わる", "aiTitle": null, "day": 0, "pubs": 8 },
+    { "id": 7, "title": "格安スマホの契約数が過去最多", "aiTitle": null, "day": 2, "pubs": 2 },
+    { "id": 8, "title": "スターバックス、秋の新作フラペチーノ", "aiTitle": null, "day": 0, "pubs": 4 },
+    { "id": 9, "title": "スタバ福袋の予約が開始", "aiTitle": null, "day": 6, "pubs": 2 },
+    { "id": 10, "title": "日本銀行が政策金利を据え置き", "aiTitle": "日銀、金利を据え置き", "day": 0, "pubs": 10 },
+    { "id": 11, "title": "日銀総裁が会見、追加利上げに慎重", "aiTitle": null, "day": 1, "pubs": 6 },
+    { "id": 12, "title": "大谷翔平が50号本塁打、ドジャース勝利", "aiTitle": null, "day": 0, "pubs": 9 },
+    { "id": 13, "title": "大谷翔平、MVP候補に", "aiTitle": null, "day": 4, "pubs": 3 },
+    { "id": 14, "title": "ドジャースの山本由伸が先発", "aiTitle": null, "day": 0, "pubs": 4 },
+    { "id": 15, "title": "マクドナルド、一部商品を販売休止", "aiTitle": null, "day": 0, "pubs": 5 },
+    { "id": 16, "title": "マック新バーガーが登場", "aiTitle": null, "day": 1, "pubs": 2 },
+    { "id": 17, "title": "ねこの日イベント、全国で開催", "aiTitle": null, "day": 2, "pubs": 2 },
+    { "id": 18, "title": "ネコ型ロボットが駅で案内", "aiTitle": null, "day": 0, "pubs": 3 },
+    { "id": 19, "title": "高市首相が所信表明演説", "aiTitle": null, "day": 0, "pubs": 11 },
+    { "id": 20, "title": "首相官邸で閣議、補正予算を決定", "aiTitle": null, "day": 1, "pubs": 5 },
+    { "id": 21, "title": "Ｓｗｉｔｃｈ ２の販売台数が1000万台突破", "aiTitle": null, "day": 0, "pubs": 6 },
+    { "id": 22, "title": "Nintendo Switch 2向け新作を発表", "aiTitle": null, "day": 2, "pubs": 4 },
+    { "id": 23, "title": "ワールドカップ予選、日本代表が勝利", "aiTitle": null, "day": 0, "pubs": 8 },
+    { "id": 24, "title": "W杯出場を決めた日本代表、監督が会見", "aiTitle": null, "day": 1, "pubs": 5 }
+  ],
+  "queries": [
+    { "q": "AI", "relevant": [1, 2, 3] },
+    { "q": "ＡＩ", "relevant": [1, 2, 3] },
+    { "q": "iphone", "relevant": [4, 5] },
+    { "q": "すまほ", "relevant": [6, 7] },
+    { "q": "スタバ", "relevant": [8, 9] },
+    { "q": "日銀", "relevant": [10, 11] },
+    { "q": "大谷翔平 ドジャース", "relevant": [12] },
+    { "q": "マック", "relevant": [15, 16] },
+    { "q": "ねこ", "relevant": [17, 18] },
+    { "q": "首相", "relevant": [19, 20] },
+    { "q": "Switch 2", "relevant": [21, 22] },
+    { "q": "W杯 日本代表", "relevant": [23, 24] }
+  ]
+}

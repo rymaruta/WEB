@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/format";
 import Link from "next/link";
 import { companyPath } from "@/lib/company";
 import { findCompaniesByName, getTrendingKeywords, searchTopics } from "@/lib/queries";
+import { parseSearchTerms } from "@/lib/search-terms";
 
 const PER_PAGE = 20;
 
@@ -23,6 +24,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const sp = await searchParams;
   const q = readQuery(sp.q);
   const page = parsePage(sp.page);
+  const terms = parseSearchTerms(q);
   const [{ items, total }, keywords] = await Promise.all([
     q ? searchTopics(q, (page - 1) * PER_PAGE, PER_PAGE) : { items: [], total: 0 },
     getTrendingKeywords(12),
@@ -61,9 +63,24 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
             <FollowButton follow={{ kind: "word", key: q.slice(0, 40), label: q.slice(0, 40) }} />
           </div>
           <p className="mt-5 mb-1 text-sm text-fg-muted">
-            「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（見出しに含むものを先に、新しい順）
+            「<span className="font-bold text-fg">{q}</span>」に一致するトピック {formatNumber(total)}件（見出しに含むものを先に、新しい日・報じた媒体の多い順。全角・半角、ひらがな・カタカナの違いも含めて探します）
           </p>
           <TopicList topics={items} emptyText="一致するニュースは見つかりませんでした。別のキーワードをお試しください。" />
+          {/* 複数の語で見つからなかったときは、1語ずつ探し直せるようにする */}
+          {total === 0 && terms.length > 1 && (
+            <div className="mt-3">
+              <p className="mb-2 text-sm text-fg-muted">語を減らして探す</p>
+              <ul className="flex flex-wrap gap-2">
+                {terms.map((t) => (
+                  <li key={t}>
+                    <Link href={`/search?${new URLSearchParams({ q: t })}`} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-accent hover:text-accent">
+                      {t}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Pagination
             page={page}
             totalPages={Math.ceil(total / PER_PAGE)}

@@ -5,9 +5,8 @@ import { ArticleRanking } from "@/components/article-ranking";
 import { GenreIcon } from "@/components/genre-icon";
 import { Pagination } from "@/components/pagination";
 import { SectionHeading } from "@/components/section-heading";
-import { HeroCarousel } from "@/components/hero-carousel";
 import { Rail } from "@/components/rail";
-import { HeroTopic, TopicList } from "@/components/topic-card";
+import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
 import { GameHighlights } from "@/components/game-highlights";
 import { MonthlyChanges } from "@/components/monthly-changes";
 import { WeeklyProducts } from "@/components/weekly-products";
@@ -172,13 +171,20 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
         <SortButtons />
       </header>
 
-      {/* このジャンルでいま大きな話題を、写真の大きな枠で横にスライドして見せる（一覧はその次から） */}
+      {/* このジャンルでいま一番大きな話題を大きく、続く2本を詰めた並びで見せる（横にスライドしないと見えない話題を作らない） */}
       {heroes.length > 0 && (
-        <HeroCarousel label={`${genre.name}の大きな話題`}>
-          {heroes.map((t, i) => (
-            <HeroTopic key={t.id} topic={t} priority={i === 0} label={i === 0 ? `${genre.name}のトップ` : `${genre.name}の話題`} />
-          ))}
-        </HeroCarousel>
+        <div className="space-y-4">
+          <div>
+            <HeroTopic topic={heroes[0]} label={`${genre.name}のトップ`} />
+          </div>
+          {heroes.length > 1 && (
+            <div className="card divide-y divide-border px-4">
+              {heroes.slice(1).map((t) => (
+                <TopicCard key={t.id} topic={t} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {market && <MarketBar data={market} />}

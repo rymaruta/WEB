@@ -9,7 +9,6 @@ import { SideFold } from "@/components/side-fold";
 import { SinceLastVisit } from "@/components/since-last-visit";
 import { SectionHeading } from "@/components/section-heading";
 import { GroupTabs } from "@/components/group-tabs";
-import { HeroCarousel } from "@/components/hero-carousel";
 import { HeroTopic, TopicCard, TopicList } from "@/components/topic-card";
 import { getCalendar, jstDate } from "@/lib/calendar";
 import { getLatestDigest, isFreshDigest } from "@/lib/digest/latest";
@@ -56,10 +55,7 @@ export default async function HomePage() {
   // 一番上は、まとめ記事があり、多くの読者に関わるジャンルの話題を優先する（なければ話題度の1位）
   // 運営者が固定した出来事があれば、それを一番上にする
   const lead = pinned ?? headline.find((t) => t.aiTitle && HERO_GENRES.has(t.genre.slug)) ?? headline[0];
-  // 一番上の大きな枠は、横にスライドして4本まで見られる（2本目からは写真の小さい詰めた並び）
   const rest = headline.filter((t) => t.id !== lead?.id);
-  const slides = rest.slice(0, 3);
-  const others = rest.slice(3);
   // 配信したばかりの回は一番上に。時間がたった回は「いま話題」の下に回し、開いてすぐ今のニュースが見えるようにする
   const digestOnTop = digest ? isFreshDigest(digest) : false;
 
@@ -90,16 +86,15 @@ export default async function HomePage() {
         {lead ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 space-y-4">
-              <HeroCarousel label="いま話題のニュース">
+              {/* 一番大きな出来事を1本だけ大きく出す（横にスライドしないと見えない話題を作らない） */}
+              {/* HeroTopic は枠いっぱいの高さに広がるため、包んで高さを中身に合わせる */}
+              <div>
                 <HeroTopic topic={lead} />
-                {slides.map((t) => (
-                  <HeroTopic key={t.id} topic={t} priority={false} />
-                ))}
-              </HeroCarousel>
-              {/* 2本目からは写真の小さい詰めた並びにして、スマホでも一目で数本見えるようにする */}
-              {others.length > 0 && (
+              </div>
+              {/* 2本目からは写真の小さい詰めた並びにして、スマホでも開いてすぐ数本見えるようにする */}
+              {rest.length > 0 && (
                 <div className="card divide-y divide-border px-4">
-                  {others.map((t) => (
+                  {rest.map((t) => (
                     <TopicCard key={t.id} topic={t} />
                   ))}
                 </div>

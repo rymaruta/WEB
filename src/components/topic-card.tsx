@@ -54,13 +54,18 @@ function ImageCredit({ credit }: { credit?: string }) {
 }
 
 /** 複数記事のトピックはトピックページへ、単独記事は元記事へ直接リンクする */
-function TopicLink({ topic, leadId, className, children }: { topic: TopicCardData; leadId: number; className?: string; children: ReactNode }) {
+/**
+ * 話題へのリンク。decorative は画像のリンク（見出しのリンクと同じ行き先）で、
+ * 読み上げとキーボード操作では飛ばす（同じリンクを2回読ませない・名前のないリンクを作らない）
+ */
+function TopicLink({ topic, leadId, className, children, decorative = false }: { topic: TopicCardData; leadId: number; className?: string; children: ReactNode; decorative?: boolean }) {
+  const hidden = decorative ? { "aria-hidden": true as const, tabIndex: -1 } : {};
   return topic.articleCount > 1 ? (
-    <Link href={`/topic/${topic.id}`} className={className} data-topic-id={topic.id}>
+    <Link href={`/topic/${topic.id}`} className={className} data-topic-id={topic.id} {...hidden}>
       {children}
     </Link>
   ) : (
-    <OutboundLink articleId={leadId} className={className} topicId={topic.id}>
+    <OutboundLink articleId={leadId} className={className} topicId={topic.id} {...hidden}>
       {children}
     </OutboundLink>
   );
@@ -98,7 +103,7 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <TopicLink topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden md:aspect-auto md:min-h-72">
+      <TopicLink decorative topic={topic} leadId={lead.id} className={`relative block overflow-hidden md:aspect-auto md:min-h-72 ${image ? "aspect-[16/9]" : "h-28"}`}>
         <Thumbnail
           src={image}
           genreSlug={topic.genre.slug}
@@ -167,7 +172,7 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
   if (!lead) return null;
   return (
     <article className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      <TopicLink topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden">
+      <TopicLink decorative topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden">
         <Thumbnail
           src={image}
           genreSlug={topic.genre.slug}
@@ -239,7 +244,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
         </div>
       </div>
       {!compact && (
-        <TopicLink topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
+        <TopicLink decorative topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
           <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} label={imageLabel} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
         </TopicLink>
       )}
