@@ -125,6 +125,16 @@ a.headline:visited {
   }
 }
 
+/*
+ * 画面の外にあるまとまりは、近づくまで配置の計算を省く（トップの読み込み直後の処理を軽くする）。
+ * 省いている間は --cv-h の高さで場所を取り、一度表示した後は実際の高さを覚える（auto）。
+ * md:cv-auto のように画面幅で切り替えられるよう、Tailwind の utility として定義する
+ */
+@utility cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto var(--cv-h, 600px);
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
