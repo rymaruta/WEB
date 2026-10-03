@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { independentOutletsOf } from "@/lib/digest/outlets";
 import { chunk } from "@/lib/sql";
 import { assignTopics, type TopicKey } from "./assign";
 import { TOPIC_MIN_CONFIDENCE } from "./genre-apply";
@@ -78,6 +79,36 @@ export async function clusterArticles(now = new Date()): Promise<{ assigned: num
   return { assigned: assignment.size, created: newKeys.length };
 }
 
+/**
+ * 話題ごとの「独立した報道の数」。転載（ポータルの配信と、先に出た記事と同じ見出しの記事）と、同じ媒体の別名を除く。
+ * 「◯媒体が報道」の表示・話題の順位・まとめ記事を作る条件は、この数を使う（転載で話題が大きく見えないように）
+ */
+async function independentCounts(topicIds: number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  for (const ids of chunk(topicIds, 5_000)) {
+    const rows = await prisma.article.findMany({
+      // 企業のプレスリリースは報道ではないため数えない
+      where: { topicId: { in: ids }, source: { kind: { not: "PRESS" } } },
+      select: { topicId: true, publisher: true, title: true },
+    });
+    const byTopic = new Map<number, { publisher: string; title: string }[]>();
+    for (const r of rows) if (r.topicId) byTopic.set(r.topicId, [...(byTopic.get(r.topicId) ?? []), r]);
+    for (const [id, list] of byTopic) out.set(id, independentOutletsOf(list));
+  }
+  return out;
+}
+
+/** 媒体数を、独立した報道の数に直す（媒体の数より少ないときだけ書き換える） */
+async function applyIndependentCounts(counts: Map<number, number>) {
+  const rows = [...counts].map(([id, n]) => Prisma.sql`(${id}::int, ${n}::int)`);
+  for (const part of chunk(rows, 5_000)) {
+    await prisma.$executeRaw`
+      UPDATE "Topic" t SET "publisherCount" = v.n
+      FROM (VALUES ${Prisma.join(part)}) AS v(id, n)
+      WHERE t.id = v.id AND t."publisherCount" <> v.n`;
+  }
+}
+
 /** トピックの件数・媒体数・期間・代表見出し・ジャンルを記事から再計算する */
 export async function refreshTopics(topicIds: number[]) {
   if (topicIds.length === 0) return;
@@ -100,6 +131,7 @@ export async function refreshTopics(topicIds: number[]) {
       GROUP BY ar."topicId"
     ) a
     WHERE t.id = a."topicId"`;
+  await applyIndependentCounts(await independentCounts(topicIds));
 
   // 代表見出しは報道・企業発表を優先し、最も早い記事のものを使う。
   // ジャンルは報道記事の多数決（なければ全記事の多数決）。
@@ -155,6 +187,14 @@ export async function rescoreTopics(now = new Date()) {
     LEFT JOIN "Source" s ON s.id = a."sourceId"
     WHERE t."lastSeenAt" >= ${since}
     GROUP BY t.id, g.slug`;
+
+  // 媒体が2つ以上の話題は、転載を除いた独立した報道の数で数え直す（1つなら変わらない）
+  const independent = await independentCounts(rows.filter((r) => r.newsPublishers >= 2).map((r) => r.id));
+  for (const r of rows) {
+    const n = independent.get(r.id);
+    if (n !== undefined) r.newsPublishers = Math.min(r.newsPublishers, n);
+  }
+  await applyIndependentCounts(new Map(rows.filter((r) => independent.has(r.id)).map((r) => [r.id, Math.max(1, r.newsPublishers)])));
 
   for (const part of chunk(rows, 10_000)) {
     const values = part.map(
