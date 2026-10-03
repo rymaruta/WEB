@@ -22,7 +22,7 @@ export default async function AnalyticsPage() {
     prisma.trafficDaily.findMany({ where: { date: { in: days } } }),
     prisma.pageDaily.findMany({ where: { date: today }, orderBy: { views: "desc" }, take: 10 }),
     prisma.pageDaily.groupBy({ by: ["path"], where: { date: { in: days.slice(0, 7) } }, _sum: { views: true }, orderBy: { _sum: { views: "desc" } }, take: 10 }),
-    prisma.edition.findMany({ where: { date: { in: days.slice(0, 7) }, slot: { not: "BREAKING" } }, select: { date: true, slot: true, status: true }, orderBy: { scheduledAt: "desc" } }),
+    prisma.edition.findMany({ where: { date: { in: days.slice(0, 7) }, slot: { notIn: ["BREAKING", "PICKUP"] } }, select: { date: true, slot: true, status: true }, orderBy: { scheduledAt: "desc" } }),
     // 直近7日に評価があった記事（「分かりにくい」の多い順）
     prisma.topicFeedback.findMany({ where: { updatedAt: { gte: daysAgo(7) } }, orderBy: [{ unclear: "desc" }, { helpful: "desc" }], take: 50 }),
   ]);

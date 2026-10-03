@@ -119,9 +119,14 @@ export function jstShortDate(date: string): string {
   return `${m}/${d}`;
 }
 
+/** 1本だけを投稿する回（速報・注目のニュース）。定時の配信（3本）とは扱いが違う */
+export const SINGLE_SLOTS = ["BREAKING", "PICKUP"] as const;
+export type SingleSlot = (typeof SINGLE_SLOTS)[number];
+export const isSingleSlot = (slot: string): slot is SingleSlot => (SINGLE_SLOTS as readonly string[]).includes(slot);
+
 /** 配信回の一意の鍵 */
-export function editionKey(date: string, slot: Slot | "BREAKING", storyId?: string): string {
-  return slot === "BREAKING" ? `${date}:BREAKING:${storyId}` : `${date}:${slot}`;
+export function editionKey(date: string, slot: Slot | SingleSlot, storyId?: string): string {
+  return isSingleSlot(slot) ? `${date}:${slot}:${storyId}` : `${date}:${slot}`;
 }
 
 /** 次にその時刻（日本時間 HH:MM）になるまでのミリ秒 */

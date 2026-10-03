@@ -5,6 +5,7 @@ import { getEditionView, loadEntries } from "./build";
 import { renderCard } from "./cards";
 import { altText, buildBreakingCard, buildCards, replyText, splitParts, type Card } from "./compose";
 import { REQUIRED_ITEMS } from "./select";
+import { isSingleSlot } from "./slots";
 
 /**
  * 承認済みの配信回を X に投稿する。本投稿 → 自分へのリプライ の順に送る。
@@ -39,7 +40,7 @@ export async function stampPostTime(editionId: string, now = new Date()) {
     where: { id: editionId },
     select: { slot: true, scheduledAt: true, publications: { select: { parts: { where: { externalId: { not: null } }, select: { position: true } } } } },
   });
-  if (!e || e.slot === "BREAKING") return false;
+  if (!e || isSingleSlot(e.slot)) return false;
   if (Math.abs(now.getTime() - e.scheduledAt.getTime()) < OFF_SCHEDULE_MINUTES * 60_000) return false;
   if (e.publications.some((p) => p.parts.length > 0)) return false;
   await prisma.edition.update({ where: { id: editionId }, data: { scheduledAt: now } });
@@ -56,10 +57,10 @@ export async function loadForPublish(editionId: string): Promise<{ edition: { ke
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
   });
   if (!row) return null;
-  if (row.slot === "BREAKING") {
+  if (isSingleSlot(row.slot)) {
     const [entry] = await loadEntries(row.items);
     if (!entry) return { edition: row, cards: [], plan: [] };
-    return { edition: row, cards: [buildBreakingCard(entry, row.scheduledAt, null)], plan: [{ position: 0, cards: [0], text: row.postText.join("\n") }] };
+    return { edition: row, cards: [buildBreakingCard(entry, row.scheduledAt, null, row.slot)], plan: [{ position: 0, cards: [0], text: row.postText.join("\n") }] };
   }
   const found = await getEditionView(editionId);
   if (!found) return null;
@@ -86,8 +87,8 @@ async function publish(editionId: string) {
   // FAILED は途中で失敗した回の再実行（送ったパートは飛ばす）
   if (edition.status !== "APPROVED" && edition.status !== "FAILED") throw new PublishError("承認済みの配信回だけを投稿できます");
   if (plan.length === 0) throw new PublishError("載せるニュースがありません");
-  // 定時の回は必ず3本（速報は1本）
-  if (edition.slot !== "BREAKING" && cards.length - 1 !== REQUIRED_ITEMS) {
+  // 定時の回は必ず3本（速報・注目のニュースは1本）
+  if (!isSingleSlot(edition.slot) && cards.length - 1 !== REQUIRED_ITEMS) {
     throw new PublishError(`定時の配信は${REQUIRED_ITEMS}本にしてください（いまは${Math.max(0, cards.length - 1)}本）`);
   }
 

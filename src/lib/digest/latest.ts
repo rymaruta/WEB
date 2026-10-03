@@ -24,7 +24,7 @@ export type DigestSummary = {
  */
 export async function getLatestDigest(now = new Date()): Promise<DigestSummary | null> {
   const edition = await prisma.edition.findFirst({
-    where: { status: "PUBLISHED", slot: { not: "BREAKING" }, scheduledAt: { gte: new Date(now.getTime() - FRESH_HOURS * 3_600_000) } },
+    where: { status: "PUBLISHED", slot: { notIn: ["BREAKING", "PICKUP"] }, scheduledAt: { gte: new Date(now.getTime() - FRESH_HOURS * 3_600_000) } },
     orderBy: { scheduledAt: "desc" },
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
   });

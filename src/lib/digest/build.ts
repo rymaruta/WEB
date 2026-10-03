@@ -5,7 +5,7 @@ import type { Assessment, Category, Sourced } from "@/lib/stories/schema";
 import { independentOutletsOf } from "./outlets";
 import { composePostText, type EditionEntry, type EditionView } from "./compose";
 import { isAutoReviewable, selectForEdition, type Candidate } from "./select";
-import { autoApproveEnabled, editionKey, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
+import { autoApproveEnabled, editionKey, isSingleSlot, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
 
 /** 前の配信回に載った出来事を、どこまでさかのぼって除外するか */
 const EXCLUDE_LOOKBACK_HOURS = 30;
@@ -103,7 +103,7 @@ async function previousThreads(slot: Slot, date: string, now: Date): Promise<Set
     where: {
       scheduledAt: { gte: new Date(now.getTime() - EXCLUDE_LOOKBACK_HOURS * 3_600_000), lt: jstAt(date, cfg.publishAt) },
       status: { in: ["APPROVED", "PUBLISHED"] },
-      slot: { not: "BREAKING" },
+      slot: { notIn: ["BREAKING", "PICKUP"] },
     },
     select: { date: true, items: { select: { story: { select: { eventThreadId: true } } } } },
   });
@@ -218,7 +218,7 @@ export async function getEditionView(id: string) {
     where: { id },
     include: { items: { orderBy: { position: "asc" }, select: { position: true, role: true, storyId: true, override: true } } },
   });
-  if (!edition || edition.slot === "BREAKING") return null;
+  if (!edition || isSingleSlot(edition.slot)) return null;
   return { edition, view: await loadEditionView({ ...edition, slot: edition.slot as Slot }) };
 }
 

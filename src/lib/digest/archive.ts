@@ -79,7 +79,7 @@ export type DigestListItem = { date: string; slot: Slot; title: string; dateLabe
 /** 投稿済みの回の一覧（新しい順）。見出しは投稿文の「・」の行から取る */
 export async function listPublishedDigests(take: number, skip = 0): Promise<DigestListItem[]> {
   const editions = await prisma.edition.findMany({
-    where: { status: "PUBLISHED", slot: { not: "BREAKING" } },
+    where: { status: "PUBLISHED", slot: { notIn: ["BREAKING", "PICKUP"] } },
     orderBy: { scheduledAt: "desc" },
     take,
     skip,

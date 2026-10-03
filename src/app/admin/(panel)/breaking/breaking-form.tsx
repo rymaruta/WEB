@@ -6,7 +6,7 @@ import type { ActionState } from "../../actions";
 type Action = (state: ActionState, form: FormData) => Promise<ActionState>;
 
 /** 速報の見出しを直してから投稿する。見出しは投稿文とカードの両方に使う（1〜2行、各12字まで） */
-export function BreakingForm({ action, headline }: { action: Action; headline: string[] }) {
+export function BreakingForm({ action, headline, kind = "速報" }: { action: Action; headline: string[]; kind?: "速報" | "注目のニュース" }) {
   const [state, run, pending] = useActionState(action, undefined);
   return (
     <form
@@ -14,7 +14,7 @@ export function BreakingForm({ action, headline }: { action: Action; headline: s
       className="space-y-2"
       onSubmit={(e) => {
         const text = String(new FormData(e.currentTarget).get("headline") ?? "").replace(/\n/g, "");
-        if (!window.confirm(`「${text}」を速報として X に投稿します。よろしいですか？（取り消しはできません）`)) e.preventDefault();
+        if (!window.confirm(`「${text}」を${kind}として X に投稿します。よろしいですか？（取り消しはできません）`)) e.preventDefault();
       }}
     >
       <label className="block text-sm font-bold">
@@ -22,7 +22,7 @@ export function BreakingForm({ action, headline }: { action: Action; headline: s
         <textarea name="headline" rows={2} defaultValue={headline.join("\n")} className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-base" />
       </label>
       <button type="submit" disabled={pending} className="min-h-11 rounded-lg border border-accent bg-accent px-3 py-2 text-sm font-bold text-accent-fg disabled:opacity-50">
-        {pending ? "…" : "速報として X に投稿する"}
+        {pending ? "…" : `${kind}として X に投稿する`}
       </button>
       {state?.error && (
         <p role="alert" className="text-sm font-bold whitespace-pre-line text-accent">
