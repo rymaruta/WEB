@@ -105,3 +105,25 @@ describe("転載する媒体", () => {
     expect(coverageTimes(arts).has(1)).toBe(false);
   });
 });
+
+describe("報道の広がり", async () => {
+  const { spreadCurve, reportsWithin, minutesToReach } = await import("@/lib/coverage");
+  const at = (min: number) => new Date(Date.UTC(2026, 9, 3, 0, min));
+  const a = (id: number, publisher: string, min: number, title = `見出し${id}`) => ({ id, publisher, publishedAt: at(min), title, kind: "NEWS" });
+
+  it("独立した媒体ごとに最初の報道を数え、経過と累積を返す（転載・同じ媒体の2本目は数えない）", () => {
+    const pts = spreadCurve([a(1, "共同通信", 0), a(2, "NHK", 20), a(3, "NHK", 30), a(4, "ライブドアニュース", 25), a(5, "朝日新聞", 90), a(6, "毎日新聞", 95, "見出し5")]);
+    expect(pts.map((p) => [p.publisher, p.minutes, p.count])).toEqual([
+      ["共同通信", 0, 1],
+      ["NHK", 20, 2],
+      ["朝日新聞", 90, 3],
+    ]);
+    expect(reportsWithin(pts, 60)).toBe(2);
+    expect(minutesToReach(pts, 3)).toBe(90);
+    expect(minutesToReach(pts, 5)).toBeNull();
+  });
+
+  it("3媒体未満は広がりとして出さない", () => {
+    expect(spreadCurve([a(1, "共同通信", 0), a(2, "NHK", 5)])).toEqual([]);
+  });
+});
