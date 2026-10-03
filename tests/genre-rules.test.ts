@@ -74,6 +74,7 @@ describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャン
     expect(judgeGenre("【フィギュア】島田麻央がサンリオ社とスポンサー契約締結", null, "sports").genre).toBe("sports");
     expect(judgeGenre("期間限定「よくばりプレート」登場、試食レビュー", null, "tech").genre).toBe("products");
     expect(judgeGenre("平日9時に衝撃…フィギュア中井亜美、アクセル決めて81.29点！", null, "sports").genre).toBe("sports");
+    expect(judgeGenre("timelesz猪俣周杜さん、契約解除でグループ脱退", "傷害容疑で逮捕された猪俣周杜さんについて、所属事務所は契約を解除したと発表した。", "entertainment").genre).toBe("entertainment");
     expect(judgeGenre("日本各地の“ケンミン熱愛グルメ”が大阪に集結！", null, "products").genre).toBe("products");
     expect(judgeGenre("App Store／Google Play向けアプリゲーム 祝！「キングダム 覇道」", null, "products").genre).toBe("game");
   });
