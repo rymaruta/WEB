@@ -2,6 +2,8 @@ import Link from "next/link";
 import { cleanTitle } from "@/lib/feed/text";
 import { hasPublisherName, publisherLabel } from "@/lib/publisher";
 import { displayExcerpt, displayImage } from "@/lib/rights";
+import { readPhoto } from "@/lib/photo-data";
+import { stockPhoto } from "@/lib/stock-photos";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -29,9 +31,13 @@ function describe(topic: TopicCardData) {
   // 媒体の画像は、規約で表示を認める媒体のものだけ（lib/rights）
   const imageOf = (a: (typeof topic.articles)[number]) => displayImage(a.imageUrl, a.publisher);
   const imageArticle = primary.find(imageOf) ?? topic.articles.find((a) => imageOf(a) && hasPublisherName(a.publisher));
-  const image = imageArticle ? imageOf(imageArticle) : null;
+  const mediaImage = imageArticle ? imageOf(imageArticle) : null;
+  // 媒体の画像がなければ、人物写真（Wikimedia Commons）か、内容に合わせたイメージ写真を出す（lib/photos・lib/stock-photos）
+  const person = mediaImage ? null : readPhoto(topic.photo);
+  const stock = mediaImage || person ? null : stockPhoto(topic.aiTitle || topic.title, topic.genre.slug, topic.id);
+  const image = mediaImage ?? person?.url ?? stock?.url ?? null;
   // 画像の出典（画像を配信した媒体）
-  const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : undefined;
+  const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : person ? person.credit : stock ? `イメージ・${stock.credit}` : undefined;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || cleanTitle(topic.title);
   return { lead, title, summary, publishers, image, imageCredit, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
