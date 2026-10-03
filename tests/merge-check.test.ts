@@ -17,6 +17,19 @@ describe("checkMerge", () => {
     });
   });
 
+  it("一般の語（不正アクセス・サービスなど）だけが共通なら、別の会社の出来事をまとめない", () => {
+    expect(
+      checkMerge(
+        { title: "佐川急便の荷物追跡サービスに不正アクセス 利用を一部制限", firstSeenAt: at(1) },
+        { title: "ヤマト運輸、「クロネコ代金後払いサービス」への不正アクセスで続報 利用者に", firstSeenAt: at(2) },
+      ).ok,
+    ).toBe(false);
+  });
+
+  it("「立花氏」と「立花孝志被告」は同じ人として比べる", () => {
+    expect(sharedTerms("Ｎ党立花氏襲撃、男認める", "立花孝志被告が約１１か月ぶりに表舞台で肉声")).toContain("立花");
+  });
+
   it("時期が離れすぎていればまとめない", () => {
     const r = checkMerge({ title: "台風10号が上陸", firstSeenAt: at(0) }, { title: "台風10号の被害", firstSeenAt: new Date(at(0).getTime() + 100 * 3_600_000) });
     expect(r.ok).toBe(false);
