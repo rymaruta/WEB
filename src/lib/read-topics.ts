@@ -28,8 +28,47 @@ function read(): ReadonlySet<number> {
   return set;
 }
 
+/**
+ * 話題を最後に読んだ日時（「前回読んでから何が変わったか」を示すため）。端末にだけ保存し、新しいものから AT_MAX 件。
+ * 読んだ記録（zn:read）とは別に持つ（前からある記録の形を変えない）
+ */
+const KEY_AT = "zn:readAt";
+const AT_MAX = 300;
+/** この画面を開いてから上書きした話題の、上書き前の日時（開いた瞬間に記録が今に変わるため） */
+const previous = new Map<number, number | null>();
+
+function readTimes(): Record<string, number> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KEY_AT) ?? "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function touchReadAt(id: number, now = Date.now()) {
+  const times = readTimes();
+  if (!previous.has(id)) previous.set(id, typeof times[id] === "number" ? times[id] : null);
+  times[id] = now;
+  const kept = Object.entries(times)
+    .filter(([, t]) => typeof t === "number")
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, AT_MAX);
+  try {
+    localStorage.setItem(KEY_AT, JSON.stringify(Object.fromEntries(kept)));
+  } catch {}
+}
+
+/** 前回この話題を読んだ日時（今回開く前の記録）。記録がなければ null */
+export function previousReadAt(id: number): number | null {
+  if (previous.has(id)) return previous.get(id)!;
+  const t = readTimes()[id];
+  return typeof t === "number" ? t : null;
+}
+
 export function markRead(id: number) {
   if (!Number.isInteger(id) || id <= 0) return;
+  touchReadAt(id);
   const current = read();
   if (current.has(id)) return;
   try {
