@@ -28,7 +28,9 @@ export async function SiteHeader() {
           <p className="hidden text-xs font-medium text-fg-muted md:block">{today.format(new Date())}</p>
           {/* スマホでは検索は下のメニューから（上に置くと最初に見えるニュースが減る） */}
           <FontSizeToggle className="ml-auto sm:ml-auto" />
-          <SearchForm className="hidden sm:block sm:w-80" />
+          <div className="hidden sm:block sm:w-80">
+            <SearchForm id="header-search" />
+          </div>
         </div>
         <div className="mx-auto max-w-6xl px-2">
           <GenreNav genres={genres.map((g) => ({ slug: g.slug, name: g.name }))} />
