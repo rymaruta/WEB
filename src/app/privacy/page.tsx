@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 /** 制定日・改定日。内容を変えたら更新する */
-const UPDATED_AT = "2026年10月1日";
+const UPDATED_AT = "2026年10月3日";
 
 export default function PrivacyPage() {
   return (
@@ -77,6 +77,17 @@ export default function PrivacyPage() {
         <h2 className="mb-2 text-lg font-bold">4. アクセス解析について</h2>
         <p>
           サイトの改善のため、Amazon CloudWatch RUM で閲覧数や表示速度、閲覧環境を集計しています。この解析では Cookie を使用せず、個人を特定できる情報は収集しません。
+        </p>
+        <p className="mt-2">
+          また、Google LLC の Google アナリティクスを利用して、閲覧されたページ、参照元、おおよその地域、閲覧環境などを集計しています。Google アナリティクスは Cookie などを使ってデータを収集しますが、個人を特定する情報は含まれません。収集されたデータは Google のプライバシーポリシーに基づいて管理されます。収集を望まない場合は、ブラウザーの設定で Cookie を無効にするか、
+          <a href="https://tools.google.com/dlpage/gaoptout?hl=ja" target="_blank" rel="noopener noreferrer" className="text-accent underline">
+            Google アナリティクス オプトアウト アドオン
+          </a>
+          をご利用ください。詳しくは
+          <a href="https://policies.google.com/technologies/partner-sites?hl=ja" target="_blank" rel="noopener noreferrer" className="text-accent underline">
+            Google のサービスを使用するサイトやアプリから収集した情報の Google による使用
+          </a>
+          をご覧ください。
         </p>
         <p className="mt-2">
           また、どのページがどこ（検索エンジン・SNS など）から見られているかを把握するため、ページを開いたときに「開いたページ」と「参照元のサイト」を当サイトに送り、日ごとの合計件数だけを記録しています。IP アドレスや端末の情報など、個人を特定できる情報は保存しません。

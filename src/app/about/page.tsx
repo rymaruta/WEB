@@ -79,7 +79,8 @@ export default function AboutPage() {
       <section>
         <h2 className="mb-2 text-lg font-bold">アクセス解析について</h2>
         <p>
-          サイト改善のため、Amazon CloudWatch RUM でページの閲覧数や閲覧環境（ブラウザー・端末の種類など）を集計しています。Cookie は使用せず、個人を特定できる情報は収集しません。
+          サイト改善のため、Amazon CloudWatch RUM でページの閲覧数や閲覧環境（ブラウザー・端末の種類など）を集計しています。この解析では Cookie を使用せず、個人を特定できる情報は収集しません。
+          あわせて Google アナリティクスで閲覧数や参照元を集計しています（Cookie を使用します。詳しくはプライバシーポリシーをご覧ください）。
           また、記事の閲覧数ランキングのため、元記事へのリンクが開かれた回数を記録しています。
         </p>
       </section>

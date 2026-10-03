@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { BackToTop } from "@/components/scroll-helpers";
 import { FONT_SIZE_SCRIPT } from "@/components/font-size-toggle";
@@ -61,6 +62,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <PageviewBeacon />
         <ReadTracker />
       </body>
+      {/* Google アナリティクス 4。表示の後で読み込み、ページ移動ごとの閲覧も記録する */}
+      {siteConfig.gaMeasurementId && <GoogleAnalytics gaId={siteConfig.gaMeasurementId} />}
     </html>
   );
 }
