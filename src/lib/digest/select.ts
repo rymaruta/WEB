@@ -71,8 +71,8 @@ export const REQUIRED_ITEMS = 3;
 export const FILL_MIN_SCORE = 10;
 const HARD_NEWS = new Set<Category>(["POLITICS", "ECONOMY", "WORLD"]);
 const SOFT_NEWS = new Set<Category>(["ENTERTAINMENT", "SPORTS"]);
-/** 同じカテゴリーは1回に2本まで */
-const PER_CATEGORY = 2;
+/** 同じカテゴリーは1回に1本まで（各分野から1本ずつ。運営者の方針） */
+const PER_CATEGORY = 1;
 /** 芸能とスポーツは合わせて1本まで */
 const SOFT_MAX = 1;
 /** 閲覧数はこの値で頭打ちにする（関心だけで上位にならないように） */
@@ -101,13 +101,13 @@ export function scoreCandidate(c: Candidate): Scored {
 
 type Picked = Scored & { candidate: Candidate };
 
-/** 3本に足りないときに埋める段階で、ゆるめた後の上限（同じカテゴリー・スポーツとエンタメの合計とも2本まで。3本とも同じにはしない） */
+/** 3本に足りないときに埋める段階で、ゆるめた後の上限（芸能とスポーツの合計を2本まで。同じカテゴリーは1本のまま） */
 const RELAXED_MAX = 2;
 
 /** 載せられない理由（載せられるなら null） */
 function misfit(picked: Picked[], c: Candidate, relaxed = false): string | null {
   if (c.threadId && picked.some((p) => p.candidate.threadId === c.threadId)) return "同じ出来事がすでに載る";
-  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= (relaxed ? RELAXED_MAX : PER_CATEGORY)) return `同じ分野（${c.category}）の上限`;
+  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= PER_CATEGORY) return `同じ分野（${c.category}）の上限`;
   if (c.category && SOFT_NEWS.has(c.category) && picked.filter((p) => p.candidate.category && SOFT_NEWS.has(p.candidate.category)).length >= (relaxed ? RELAXED_MAX : SOFT_MAX))
     return "芸能・スポーツの合計の上限";
   return null;
@@ -159,7 +159,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     (s) => s.candidate.kind === "NEW" && !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
   );
   const main: Picked[] = [];
-  // 分野の上限は、続報の枠も合わせて数える（本編2本＋続報1本で、3本とも同じ分野になるのを防ぐ）
+  // 分野の上限は、続報の枠も合わせて数える（各分野から1本ずつ）
   const all = () => [...followups, ...main];
   for (const s of pool) {
     if (main.length >= mainLimit) break;
@@ -177,7 +177,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     }
   }
 
-  // 3本に足りなければ埋める。まず点数の基準をゆるめ、それでも足りなければカテゴリーの上限もゆるめる（ゆるめても同じカテゴリーは2本まで）。
+  // 3本に足りなければ埋める。まず点数の基準をゆるめ、次に芸能・スポーツの合計の上限をゆるめ、それでも足りなければ最後に分野の上限を外す。
   // ゴシップ・宣伝と、人の確認が要るもの（verifiedOnly のとき）は使わない
   const need = () => REQUIRED_ITEMS - main.length - followups.length;
   if (need() > 0) {
@@ -193,12 +193,13 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
           !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
       )
       .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-    for (const relaxCategories of [false, true]) {
+    // 最後の段階（"any"）は分野の上限を外す。必ず3本出すことを、分野のばらつきより優先する（運営者の方針）
+    for (const relaxCategories of [false, true, "any"] as const) {
       for (const s of filler) {
         if (need() <= 0) break;
         if (main.includes(s)) continue;
         if (s.candidate.threadId && usedThreads.has(s.candidate.threadId)) continue;
-        if (!fits(all(), s.candidate, relaxCategories)) continue;
+        if (relaxCategories !== "any" && !fits(all(), s.candidate, relaxCategories)) continue;
         main.push(s);
         if (s.candidate.threadId) usedThreads.add(s.candidate.threadId);
       }
@@ -216,7 +217,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     if (c.kind === "FOLLOWUP") return s.score < MIN_SCORE ? `続報の点数不足（${s.score}）` : "続報の枠の上限";
     if (s.score < FILL_MIN_SCORE) return `点数不足（${s.score}）`;
     if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return "ゴシップ・宣伝（埋め合わせに使わない）";
-    // 基準点以上の候補はふだんの上限（同じ分野2本・芸能とスポーツ合わせて1本）で、埋め合わせの候補はゆるめた上限で調べる
+    // 基準点以上の候補はふだんの上限（同じ分野1本・芸能とスポーツ合わせて1本）で、埋め合わせの候補はゆるめた上限で調べる
     return misfit(all(), c, s.score < MIN_SCORE) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
   };
   const rejected = scored

@@ -173,6 +173,13 @@ describe("selectForEdition", () => {
     expect(r.main.filter((m) => sports.some((s) => s.id === m.id)).length).toBeLessThanOrEqual(1);
   });
 
+  it("ほかに候補がなければ、同じ分野でも3本にする（必ず3本）", () => {
+    const follow = cand({ kind: "FOLLOWUP", threadId: "tg", newFacts: 2, category: "SPORTS" });
+    const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
+    const r = selectForEdition([follow, ...sports], SLOTS.EVENING, new Set());
+    expect(r.followups.length + r.main.length).toBe(3);
+  });
+
   it("おまかせ投稿では、要確認のストーリーを選ばない", () => {
     const review = cand({ status: "REVIEW_REQUIRED", category: "ECONOMY" });
     const ok = cand({ category: "WORLD" });

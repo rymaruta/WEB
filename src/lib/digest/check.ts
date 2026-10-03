@@ -38,14 +38,14 @@ export type QualityItem = { category: string | null; threadId: string | null; he
 
 /**
  * おまかせ投稿の前の品質チェック。止める理由（blocking）と、記録だけ残す注意（warnings）を返す
- * - 止める: 全部が同じ分野、同じ出来事が2本、見出しがない、出典がない
- * - 注意: 芸能・スポーツが過半で、政治・経済・国際・社会がない
+ * - 止める: 同じ出来事が2本、見出しがない、出典がない
+ * - 注意: 全部が同じ分野（必ず3本出すことを優先し、止めはしない）、芸能・スポーツが過半で、政治・経済・国際・社会がない
  */
 export function editionQualityProblems(items: QualityItem[]): { blocking: string[]; warnings: string[] } {
   const blocking: string[] = [];
   const warnings: string[] = [];
   const cats = items.map((i) => i.category);
-  if (items.length > 1 && cats.every((c) => c && c === cats[0])) blocking.push(`${items.length}本とも同じ分野（${cats[0]}）`);
+  if (items.length > 1 && cats.every((c) => c && c === cats[0])) warnings.push(`${items.length}本とも同じ分野（${cats[0]}）`);
   const threads = items.map((i) => i.threadId).filter((t): t is string => !!t);
   if (new Set(threads).size < threads.length) blocking.push("同じ出来事が2本以上");
   items.forEach((i, n) => {

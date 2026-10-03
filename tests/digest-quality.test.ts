@@ -71,8 +71,10 @@ describe("載らなかった理由の記録", () => {
 describe("投稿前の品質チェック", () => {
   const item = (category: string, threadId: string | null = null) => ({ category, threadId, headline: ["見出し"], sources: 2 });
 
-  it("全部が同じ分野なら止める", () => {
-    expect(editionQualityProblems([item("SPORTS"), item("SPORTS"), item("SPORTS")]).blocking).toEqual(["3本とも同じ分野（SPORTS）"]);
+  it("全部が同じ分野でも止めない（必ず3本を優先し、注意として記録する）", () => {
+    const r0 = editionQualityProblems([item("SPORTS"), item("SPORTS"), item("SPORTS")]);
+    expect(r0.blocking).toEqual([]);
+    expect(r0.warnings).toContain("3本とも同じ分野（SPORTS）");
   });
 
   it("同じ出来事の重複・見出しや出典の欠けを止める", () => {
