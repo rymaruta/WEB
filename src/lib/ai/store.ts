@@ -60,8 +60,8 @@ export async function findDueTopics(limit: number, now = Date.now()) {
   return [...filled, ...(await findUpgradeTopics(limit - filled.length, now, filled.map((t) => t.id)))];
 }
 
-/** さかのぼって書く期間（日） */
-export const BACKFILL_DAYS = 14;
+/** さかのぼって書く期間（日）。記事の保存期間（90日、src/lib/crawl/run.ts）より短くし、消える直前の話題は書かない */
+export const BACKFILL_DAYS = 60;
 
 /**
  * さかのぼって書く話題の条件。直近24時間に動きがなくても、独立した報道3社以上（検索エンジンに登録できる記事になる）で、
