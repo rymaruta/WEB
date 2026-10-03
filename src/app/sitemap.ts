@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { getTagTopics, getTopCompanies } from "@/lib/queries";
 import { COUNTRIES, TEAMS, tagPath } from "@/lib/tags";
 import { listIndexableWorks, workPath } from "@/lib/works";
+import { listIndexableOutlets, outletPath } from "@/lib/outlet";
 import { archiveMonths, recentDays } from "@/lib/archive";
 import { YOUTUBE_CHANNELS } from "@/lib/youtube-channels";
 
@@ -42,6 +43,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ).flat();
   // 作品ページ（ゲームの発売日・アニメの放送日）。話題が2件以上か、まとめ記事のある作品だけ
   const works = await listIndexableWorks();
+  // 媒体ごとの報道データ（直近の記録が十分にある媒体だけ）
+  const outlets = await listIndexableOutlets();
   return [
     { url: base, changeFrequency: "always", priority: 1 },
     { url: `${base}/articles`, changeFrequency: "hourly", priority: 0.9 },
@@ -75,7 +78,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((t) => isIndexableArticle({ publisherCount: t.publisherCount, hasAi: true, angles: jsonLength(t.aiAngles), background: jsonLength(t.aiBackground) }))
       .slice(0, 5000)
       .map((t) => ({ url: `${base}/topic/${t.id}`, lastModified: t.aiGeneratedAt ?? undefined, priority: 0.6 })),
-    { url: `${base}/sources`, changeFrequency: "weekly", priority: 0.3 },
+    { url: `${base}/sources`, changeFrequency: "daily", priority: 0.5 },
+    ...outlets.map((id) => ({ url: `${base}${outletPath(id)}`, changeFrequency: "daily" as const, priority: 0.5 })),
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/contact`, changeFrequency: "yearly", priority: 0.2 },
