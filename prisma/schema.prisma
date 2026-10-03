@@ -107,6 +107,10 @@ model Topic {
   aiPoints       Json?
   /// なぜ重要か（1文と出典番号）。資料との照合を通ったものだけ
   aiWhy          Json?
+  /// 一覧・記事に出す写真（自由利用ライセンスの人物写真。src/lib/photos.ts）: { url, page, credit }。媒体の画像は使わない
+  photo          Json?
+  /// 人物写真を探したか（探して見つからなかった話題も、毎回探し直さない）
+  photoCheckedAt DateTime?
   /// 各媒体の報じ方の違い: [{ text: string, sources: number[] }]。違いがなければ空配列か null
   aiAngles       Json?
   /// これまでの経緯: [{ topicId, text }]。このサイトの過去のまとめ記事（topicId）に書かれたことだけで書く（src/lib/ai/related.ts）
@@ -643,4 +647,13 @@ model TopicArticleVersion {
   createdAt DateTime @default(now())
 
   @@index([topicId, createdAt])
+}
+
+/// 人名ごとの自由利用ライセンスの写真（Wikidata で人物と確かめ、Wikimedia Commons の作者・ライセンスを記録する）。見つからなかった名前も残し、問い合わせを繰り返さない
+model EntityPhoto {
+  name      String   @id
+  url       String?
+  page      String?
+  credit    String?
+  checkedAt DateTime @default(now())
 }

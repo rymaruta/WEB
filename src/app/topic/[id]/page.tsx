@@ -33,6 +33,8 @@ import { workKey, workPath } from "@/lib/work-keys";
 import { getRelatedNews } from "@/lib/topics/related-news";
 import { jstDay } from "@/lib/archive";
 import { displayExcerpt, displayImage } from "@/lib/rights";
+import { readPhoto } from "@/lib/photo-data";
+import { stockPhoto } from "@/lib/stock-photos";
 
 export const revalidate = 60;
 
@@ -94,6 +96,10 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const featureLinks = relatedFeatures(topic);
   // なぜ重要かは、まとめ記事の「なぜ重要」（照合済み）を優先し、なければ配信候補の文を使う
   const brief = buildBrief(ai?.lead, ai?.why?.text ?? why, timeline, topic);
+  // 写真は、人物写真（Wikidata で人物と確かめたもの）か、内容に合わせたイメージ写真（どちらも自由利用ライセンス）
+  const person = readPhoto(topic.photo);
+  const stock = person ? null : stockPhoto(ai?.title ?? topic.title, topic.genre.slug, topic.id);
+  const figure = person ? { ...person, stock: false } : stock ? { ...stock, stock: true } : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -159,6 +165,18 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         </header>
 
         <div className="px-5 pb-5 sm:px-6">
+          {figure && (
+            <figure className="mb-5">
+              <Thumbnail src={figure.url} genreSlug={topic.genre.slug} priority className="aspect-[16/9] w-full rounded-xl object-cover" sizes="(max-width: 768px) 100vw, 720px" />
+              {/* 自由利用ライセンスの写真の作者・ライセンス（CC BY・CC BY-SA の表示）。イメージ写真は出来事の写真でないと明記する */}
+              <figcaption className="mt-1 text-[11px] text-fg-subtle">
+                {figure.stock ? "イメージ写真・" : "写真："}
+                <a href={figure.page} target="_blank" rel="noopener noreferrer license" className="underline decoration-dotted underline-offset-2 hover:text-fg">
+                  {figure.credit}（Wikimedia Commons）
+                </a>
+              </figcaption>
+            </figure>
+          )}
           {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} />}
           {ai && (
             <div className="mb-6">
