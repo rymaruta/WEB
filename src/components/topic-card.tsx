@@ -49,7 +49,7 @@ function describe(topic: TopicCardData) {
   const label = image ? undefined : (extractNames(title)[0] ?? topic.aiCompanies[0] ?? [...keyTerms(title)][0]);
   // 大きな枠に描く事実（見出しのスコア・主役の数字）。読み取れなければ話題の中心の語を出す
   const fact = image ? null : readFact;
-  return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), label, fact, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
+  return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), whole: Boolean(mediaImage), label, fact, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
 }
 
 /** 画像の出典。媒体の画像を表示するときは、画像の右上に媒体名を出す */
@@ -104,7 +104,7 @@ function CoverageBadge({ count }: { count: number }) {
 
 /** トップの一番大きな枠。ジャンル色のパネルに報道媒体数を大きく示す */
 export function HeroTopic({ topic, priority = true, label = "トップニュース" }: { topic: TopicCardData; priority?: boolean; label?: string }) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, fact, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, whole, label: imageLabel, fact, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -117,6 +117,7 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
           iconClassName="h-16 w-16"
           credit={imageCredit}
           portrait={portrait}
+          whole={whole}
           label={imageLabel}
           labelAt="top"
           fact={fact}
@@ -175,7 +176,7 @@ export function RumorBadge() {
 
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, whole, hasAi } = describe(topic);
   if (!lead) return null;
   const badges = (
     <>
@@ -195,6 +196,7 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
             genreSlug={topic.genre.slug}
             credit={imageCredit}
             portrait={portrait}
+            whole={whole}
             className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"
           />
           <ImageCredit credit={imageCredit} />
@@ -238,7 +240,7 @@ type CardProps = { topic: TopicCardData; variant?: Variant; showGenre?: boolean;
 
 /** 一覧の1行 */
 export function TopicCard({ topic, variant = "standard", showGenre = true, rank }: CardProps) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, whole, hasAi } = describe(topic);
   if (!lead) return null;
   const compact = variant === "compact";
   return (
@@ -266,7 +268,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
       {/* 小さな枠は写真があるときだけ出す（当サイトが描くサムネイルは大きな枠だけ。写真がなければ文字だけの行にする） */}
       {!compact && image && (
         <TopicLink decorative topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
-          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
+          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} whole={whole} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
         </TopicLink>
       )}
     </article>
