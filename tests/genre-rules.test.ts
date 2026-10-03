@@ -84,6 +84,9 @@ describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャン
     const hr = judgeGenre("TDK、「ポルシェ・エクスペリエンスセンター東京」で2027年入社内定式 齋藤昇社長があいさつ", null, "domestic");
     expect(confidentMove(hr, 0.4) ? hr.genre : "domestic").toBe("business");
   });
+  it("米国の最高裁・政権の話題は world（「最高裁」「政権」で国内にしない）", () => {
+    expect(judgeGenre("米最高裁、トランプ政権による移民追放策の再開容認", null, "business").genre).toBe("world");
+  });
 });
 
 describe("judgeGenre（指摘された例）", () => {
