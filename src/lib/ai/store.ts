@@ -31,8 +31,9 @@ export async function findDueTopics(limit: number, now = Date.now()) {
     where: {
       lastSeenAt: { gte: new Date(now - 24 * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
-      // 別の話題にまとめたトピック（記事が残っていない）は書かない
+      // 別の話題にまとめたトピック（記事が残っていない）と、ニュースではない告知は書かない
       mergedIntoId: null,
+      aiNotNews: false,
       OR: [{ aiAttemptedAt: null }, { aiAttemptedAt: { lt: new Date(now - REGENERATE_AFTER_MS) } }],
     },
     orderBy: { score: "desc" },
@@ -125,7 +126,8 @@ export function findUpgradeTopics(limit: number, now = Date.now(), excludeIds: n
 /** 材料にする記事。同じ媒体の記事は最初の1本だけを使う */
 export async function loadTopicSources(topicId: number): Promise<TopicSource[]> {
   const articles = await prisma.article.findMany({
-    where: { topicId },
+    // 収集を止めた媒体（規約で利用が認められていない媒体など）の、止める前の記事は材料にしない
+    where: { topicId, source: { active: true } },
     orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
     select: { id: true, publisher: true, publishedAt: true, title: true, summary: true, source: { select: { kind: true } } },
   });
