@@ -41,8 +41,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ).flat();
   // 作品ページ（ゲームの発売日・アニメの放送日）。話題が2件以上か、まとめ記事のある作品だけ
   const works = await listIndexableWorks();
-  // 紹介文のある動画のページ（ショートを除く）
-  const videos = await prisma.youTubeVideo.findMany({ where: { aiSummary: { not: null }, isShort: false }, orderBy: { publishedAt: "desc" }, take: 2000, select: { videoId: true, updatedAt: true } });
   return [
     { url: base, changeFrequency: "always", priority: 1 },
     { url: `${base}/articles`, changeFrequency: "hourly", priority: 0.9 },
@@ -69,7 +67,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]),
     { url: `${base}/youtube`, changeFrequency: "hourly", priority: 0.7 },
     ...YOUTUBE_CHANNELS.map((c) => ({ url: `${base}/youtube/${c.slug}`, changeFrequency: "hourly" as const, priority: 0.6 })),
-    ...videos.map((v) => ({ url: `${base}/youtube/v/${v.videoId}`, lastModified: v.updatedAt, priority: 0.5 })),
     ...works.map((w) => ({ url: `${base}${workPath(w.kind, w.key)}`, changeFrequency: "daily" as const, priority: 0.6 })),
     ...genres.map((g) => ({ url: `${base}/genre/${g.slug}`, changeFrequency: "hourly" as const, priority: 0.8 })),
     ...topics

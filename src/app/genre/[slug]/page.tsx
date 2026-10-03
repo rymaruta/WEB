@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -130,6 +131,7 @@ export default async function GenrePage({ params }: PageProps<"/genre/[slug]">) 
 
   return (
     <div className="space-y-6">
+      <AdsenseScript />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

@@ -29,8 +29,8 @@ export async function generateMetadata({ params }: PageProps<"/youtube/v/[id]">)
     title: `${v.title}｜${c?.name ?? "YouTube"}の動画`,
     description: (v.aiSummary ?? `${c?.name ?? ""}の YouTube 動画「${v.title}」。再生回数と、関連するニュースをまとめています。`).slice(0, 160),
     alternates: { canonical: videoPath(v.videoId) },
-    // 紹介文のある動画（ショートを除く）だけを検索エンジンに出す
-    robots: v.aiSummary && !v.isShort ? undefined : { index: false, follow: true },
+    // 動画そのものは他サイトのものなので、検索エンジンには出さない（独自の内容が少ないページを登録しない。AdSense の審査のため）
+    robots: { index: false, follow: true },
   };
 }
 
