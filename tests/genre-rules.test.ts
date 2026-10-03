@@ -90,6 +90,10 @@ describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャン
     const goods = judgeGenre("しまむら×『ドラクエ』コラボグッズの全ラインナップ公開！アパレルやカー用品など100種超え、受注生産販売も決定", null, "game");
     expect(confidentMove(goods, 0.4) ? goods.genre : "game").toBe("products");
   });
+  it("【漫画】と付く連載は anime（技術系の媒体が載せていても）", () => {
+    const j = judgeGenre("やばい後輩 第152回 【漫画】「初日から嫌なイジリ方…」何でも聞いてと後輩に伝えたら", null, "tech");
+    expect(confidentMove(j, 0.4) ? j.genre : "tech").toBe("anime");
+  });
   it("米国の最高裁・政権の話題は world（「最高裁」「政権」で国内にしない）", () => {
     expect(judgeGenre("米最高裁、トランプ政権による移民追放策の再開容認", null, "business").genre).toBe("world");
   });

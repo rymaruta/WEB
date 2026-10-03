@@ -19,7 +19,7 @@ export function PublisherAvatars({ names, max = 5, size = "sm" }: Props) {
   const rest = names.length - shown.length;
   const dim = size === "md" ? "h-8 w-8 text-sm" : "h-6 w-6 text-[11px]";
   return (
-    <span className="flex items-center" aria-label={`報じた媒体: ${names.join("、")}`}>
+    <span className="flex items-center" role="img" aria-label={`報じた媒体: ${names.join("、")}`}>
       {shown.map((n, i) => (
         <span
           key={n}

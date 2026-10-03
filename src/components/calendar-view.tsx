@@ -104,7 +104,7 @@ export function CalendarView({ items, counts }: { items: CalendarItem[]; counts:
                 style={on ? { backgroundColor: CALENDAR_COLORS[c], borderColor: CALENDAR_COLORS[c] } : undefined}
               >
                 {CALENDAR_LABELS[c]}
-                <span className="ml-1 font-normal opacity-80">{counts[c]}</span>
+                <span className="ml-1 font-normal">{counts[c]}</span>
               </button>
             );
           })}

@@ -23,6 +23,9 @@
   --g-anime: #c026d3;
   --g-products: #b45309;
   --g-life: #0d9488;
+  /* ジャンルのラベル：白い文字が読めるよう、ジャンルの色を少し暗くした地にする（文字と地のコントラスト 4.5:1 以上） */
+  --badge-mix: black;
+  --badge-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -49,6 +52,9 @@
     --g-anime: #f0a3ff;
     --g-products: #f0b35a;
     --g-life: #4fd6c6;
+    /* 暗い表示ではジャンルの色が明るいため、地をさらに明るくして黒い文字にする */
+    --badge-mix: white;
+    --badge-fg: #121211;
   }
 }
 

@@ -71,6 +71,9 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
   };
 }
 
+/** 記事ページで最初から見せる元記事の数（残りは「ほか○件」で開く） */
+const VISIBLE_SOURCES = 6;
+
 export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const id = parseId((await params).id);
   const topic = id ? await getTopic(id) : null;
@@ -100,6 +103,38 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const person = readPhoto(topic.photo);
   const stock = person ? null : stockPhoto(ai?.title ?? topic.title, topic.genre.slug, topic.id);
   const figure = person ? { ...person, stock: false } : stock ? { ...stock, stock: true } : null;
+  // 元記事の1件（最初の報道からの経過時間、プレスリリースの印、元記事へのリンク）
+  const sourceItem = (a: (typeof topic.articles)[number]) => (
+    <li key={a.id} className="relative my-3 flex gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
+      <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
+          <span className="font-bold text-fg">{publisherLabel(a.publisher)}</span>
+          <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
+          {/* 最初に報じた媒体と、そこから何分後に報じたか（報道機関の記事だけ） */}
+          {times.get(a.id)?.first && <span className="rounded bg-accent px-1 font-bold text-accent-fg">最初に報道</span>}
+          {times.get(a.id) && !times.get(a.id)!.first && <span className="tabular-nums">{elapsedLabel(times.get(a.id)!.minutes)}</span>}
+          {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
+            <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
+          )}
+          {a.source.kind === "PRESS" && <span className={`rounded border px-1 ${kindTone("プレスリリース")}`}>プレスリリース</span>}
+        </div>
+        <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
+          {cleanTitle(a.title)}
+        </OutboundLink>
+        {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
+        {displayExcerpt(a.summary, a.publisher) && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
+        <OutboundLink articleId={a.id} className="mt-1 inline-block py-1.5 text-xs font-semibold text-accent hover:underline">
+          {publisherLabel(a.publisher)}で続きを読む ↗
+        </OutboundLink>
+      </div>
+      {displayImage(a.imageUrl, a.publisher) && (
+        <OutboundLink articleId={a.id} className="relative hidden w-36 shrink-0 self-start overflow-hidden rounded-lg sm:block">
+          <Thumbnail src={displayImage(a.imageUrl, a.publisher)} genreSlug={topic.genre.slug} credit={a.publisher} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
+        </OutboundLink>
+      )}
+    </li>
+  );
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -223,39 +258,17 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             <p className="mt-1 text-xs text-fg-subtle">報じた時点や数え方の違いによることがあります。最新の情報は各社の記事でご確認ください。</p>
           </div>
         )}
-        <ol className="relative border-l-2 border-border pl-5">
-          {topic.articles.map((a) => (
-            <li key={a.id} className="relative my-3 flex gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
-              <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
-                  <span className="font-bold text-fg">{publisherLabel(a.publisher)}</span>
-                  <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
-                  {/* 最初に報じた媒体と、そこから何分後に報じたか（報道機関の記事だけ） */}
-                  {times.get(a.id)?.first && <span className="rounded bg-accent px-1 font-bold text-accent-fg">最初に報道</span>}
-                  {times.get(a.id) && !times.get(a.id)!.first && <span className="tabular-nums">{elapsedLabel(times.get(a.id)!.minutes)}</span>}
-                  {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
-                    <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
-                  )}
-                  {a.source.kind === "PRESS" && <span className={`rounded border px-1 ${kindTone("プレスリリース")}`}>プレスリリース</span>}
-                </div>
-                <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
-                  {cleanTitle(a.title)}
-                </OutboundLink>
-                {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
-                {displayExcerpt(a.summary, a.publisher) && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
-                <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
-                  {publisherLabel(a.publisher)}で続きを読む ↗
-                </OutboundLink>
-              </div>
-              {displayImage(a.imageUrl, a.publisher) && (
-                <OutboundLink articleId={a.id} className="relative hidden w-36 shrink-0 self-start overflow-hidden rounded-lg sm:block">
-                  <Thumbnail src={displayImage(a.imageUrl, a.publisher)} genreSlug={topic.genre.slug} credit={a.publisher} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
-                </OutboundLink>
-              )}
-            </li>
-          ))}
-        </ol>
+        <ol className="relative border-l-2 border-border pl-5">{topic.articles.slice(0, VISIBLE_SOURCES).map(sourceItem)}</ol>
+        {/* 元記事が多い話題は、残りを畳む（スマホで縦に長くなりすぎないように。開けばすべて見られる） */}
+        {topic.articles.length > VISIBLE_SOURCES && (
+          <details className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center rounded-xl border border-border text-sm font-bold text-accent hover:bg-surface-muted">
+              <span className="group-open:hidden">ほか{topic.articles.length - VISIBLE_SOURCES}件の記事を見る</span>
+              <span className="hidden group-open:inline">閉じる</span>
+            </summary>
+            <ol className="relative border-l-2 border-border pl-5">{topic.articles.slice(VISIBLE_SOURCES).map(sourceItem)}</ol>
+          </details>
+        )}
         {!ai && (
           <div className="mt-4">
             <ShareButtons title={topic.title} url={`${siteConfig.url}/topic/${topic.id}`} />

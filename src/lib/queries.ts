@@ -5,7 +5,7 @@ import { releaseSortKey } from "@/lib/game";
 import { titleKey } from "@/lib/game-listings";
 import { isOutage, outageStatus, type OutageItem } from "@/lib/outages";
 import { COUNTRIES, countTags, TAG_GENRES, TEAMS, type Tag, type TagKind } from "@/lib/tags";
-import { parseSearchTerms, rankSearchResults } from "@/lib/search-terms";
+import { parseSearchTerms, rankSearchResults, termVariants } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
 import { workKey } from "@/lib/work-keys";
 
@@ -108,9 +108,12 @@ const withTopic = { genre: true, topic: { select: { id: true, aiGeneratedAt: tru
 
 /** サイト内で読まれている記事（外部リンクのクリック数順） */
 /** よく読まれている記事。報道機関の記事に限る（SNS のまとめやプレスリリースは「SNSで話題」などで扱う） */
+/** 「よく読まれている」の対象期間（古い記事が上に残らないよう、話題の一覧より短くする） */
+const MOST_READ_HOURS = 24;
+
 export function getMostRead(take: number) {
   return prisma.article.findMany({
-    where: { publishedAt: { gte: since(TRENDING_HOURS) }, clicks: { gt: 0 }, source: { kind: "NEWS" } },
+    where: { publishedAt: { gte: since(MOST_READ_HOURS) }, clicks: { gt: 0 }, source: { kind: "NEWS" } },
     orderBy: [{ clicks: "desc" }, { publishedAt: "desc" }],
     take,
     include: withTopic,
@@ -158,12 +161,13 @@ export async function searchTopics(q: string, skip: number, take: number) {
   const terms = parseSearchTerms(q);
   if (terms.length === 0) return { items: [], total: 0 };
   const where: Prisma.TopicWhereInput = {
+    // 語ごとに、表記ゆれ（全角・半角、ひらがな・カタカナ、略称）のどれかが見出しに含まれるもの
     AND: terms.map((t) => ({
-      OR: [
-        { title: { contains: t, mode: "insensitive" } },
-        { aiTitle: { contains: t, mode: "insensitive" } },
-        { articles: { some: { title: { contains: t, mode: "insensitive" } } } },
-      ],
+      OR: termVariants(t).flatMap((v) => [
+        { title: { contains: v, mode: "insensitive" as const } },
+        { aiTitle: { contains: v, mode: "insensitive" as const } },
+        { articles: { some: { title: { contains: v, mode: "insensitive" as const } } } },
+      ]),
     })),
   };
   const [candidates, total] = await Promise.all([
@@ -171,7 +175,7 @@ export async function searchTopics(q: string, skip: number, take: number) {
       where,
       orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
       take: SEARCH_RANK_LIMIT,
-      select: { id: true, title: true, aiTitle: true },
+      select: { id: true, title: true, aiTitle: true, lastSeenAt: true, publisherCount: true },
     }),
     prisma.topic.count({ where }),
   ]);
