@@ -1,3 +1,4 @@
+import { isGovernment } from "@/lib/government";
 import type { Metadata } from "next";
 import { GenreBadge } from "@/components/genre-badge";
 import { formatDateTime } from "@/lib/format";
@@ -44,7 +45,7 @@ export default async function SourcesPage() {
                   </a>
                 </td>
                 <td className="py-2 pr-3"><GenreBadge genre={s.genre} /></td>
-                <td className="py-2 pr-3 text-fg-muted">{KIND_LABEL[s.kind]}</td>
+                <td className="py-2 pr-3 text-fg-muted">{s.kind === "PRESS" && isGovernment(s.publisher) ? "官公庁の発表" : KIND_LABEL[s.kind]}</td>
                 <td className="py-2 pr-3 text-right tabular-nums">{s.articles24h}</td>
                 <td className="py-2 text-xs text-fg-muted">
                   {s.lastSuccessAt ? formatDateTime(s.lastSuccessAt) : "未取得"}

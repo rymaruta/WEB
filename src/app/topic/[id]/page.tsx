@@ -1,3 +1,4 @@
+import { pressLabel } from "@/lib/government";
 import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import { cleanTitle } from "@/lib/feed/text";
@@ -125,7 +126,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           {a.source.kind === "SOCIAL" && a.socialCount > 0 && (
             <span className="text-accent">はてなブックマーク {formatNumber(a.socialCount)} users</span>
           )}
-          {a.source.kind === "PRESS" && <span className={`rounded border px-1 ${kindTone("プレスリリース")}`}>プレスリリース</span>}
+          {a.source.kind === "PRESS" && <span className={`rounded border px-1 ${kindTone("プレスリリース")}`}>{pressLabel(a.publisher)}</span>}
         </div>
         <OutboundLink articleId={a.id} className="headline mt-0.5 block font-bold leading-snug hover:text-accent hover:underline">
           {cleanTitle(a.title)}
