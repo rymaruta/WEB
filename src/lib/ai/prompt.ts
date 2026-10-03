@@ -152,7 +152,7 @@ export type FactCheck = {
 };
 
 /**
- * 資料との照合。AI の文章を信用せず、数字・カギかっこの語・英数字の語が資料にあるかを機械的に確かめる。
+ * 資料との照合。AI の文章を信用せず、数字・カギかっこの語・英数字の語・人名が資料にあるかを機械的に確かめる。
  * - 見出し・リード・要点：資料にない語が1つでもあれば記事を採用しない（要点は、その要点の出典に限って照合する）
  * - 本文：資料にない語を含む段落だけを落とす（すべて落ちたら採用しない）
  * - 報じ方の違い：取り上げた媒体の資料にない語、または煽り表現を含む項目だけを落とす
@@ -162,9 +162,14 @@ export type FactCheck = {
 export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): FactCheck {
   const text = (s: FactSource) => `${s.publisher} ${publisherLabel(s.publisher)} ${formatDateTime(s.publishedAt)} ${s.title} ${s.summary ?? ""}`;
   const all = sources.map(text).join("\n");
-  const missingIn = (t: string, corpus: string) => extractFacts(t).filter((f) => !factInSources(f, corpus));
+  // 数字・カギかっこの語・英数字は、その文の出典（corpus）で照合する。
+  // 人名（「◯◯氏」「◯◯選手」など）は資料全体で照合する（2026-10-03 から採否に使う。記録だけの期間に誤検出 0/24）
+  const missingIn = (t: string, corpus: string) => [
+    ...extractFacts(t).filter((f) => !factInSources(f, corpus)),
+    ...extractNames(t).filter((n) => !factInSources(n, all)),
+  ];
 
-  // 人名（「◯◯氏」「◯◯選手」など）が資料にあるか。誤検出の割合を確かめるまで、記録だけする
+  // 資料に見つからない人名（記録用。上の照合で、見出し・リード・要点にあれば不採用、本文はその段落を落とす）
   const missingNames = extractNames([a.title, a.lead, ...a.points.map((p) => p.text), ...a.body].join("\n")).filter((n) => !factInSources(n, all));
   const missing = new Set<string>();
   for (const m of [...missingIn(a.title, all), ...missingIn(a.lead, all)]) missing.add(m);
