@@ -42,8 +42,8 @@ function describe(topic: TopicCardData) {
   const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : person ? person.credit : stock ? `イメージ・${stock.credit}` : undefined;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || cleanTitle(topic.title);
-  // 写真がないときに代替表示に出す語（見出しの人名、なければ固有の語）
-  const label = image ? undefined : (extractNames(title)[0] ?? [...keyTerms(title)][0]);
+  // 写真がないときに代替表示に出す語（見出しの人名、なければ記事で取り上げた企業、なければ固有の語）
+  const label = image ? undefined : (extractNames(title)[0] ?? topic.aiCompanies[0] ?? [...keyTerms(title)][0]);
   return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), label, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
 }
 
@@ -103,7 +103,7 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <TopicLink decorative topic={topic} leadId={lead.id} className={`relative block overflow-hidden md:aspect-auto md:min-h-72 ${image ? "aspect-[16/9]" : "h-28"}`}>
+      <TopicLink decorative topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden md:aspect-auto md:min-h-72">
         <Thumbnail
           src={image}
           genreSlug={topic.genre.slug}
@@ -113,6 +113,7 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
           credit={imageCredit}
           portrait={portrait}
           label={imageLabel}
+          labelAt="top"
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <ImageCredit credit={image ? imageCredit : undefined} />
