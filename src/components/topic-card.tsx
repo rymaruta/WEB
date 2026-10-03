@@ -169,33 +169,46 @@ export function RumorBadge() {
 
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, hasAi } = describe(topic);
   if (!lead) return null;
+  const badges = (
+    <>
+      <GenreBadge genre={topic.genre} />
+      {hasAi && <AiBadge />}
+      <MarketEventBadge event={topic.aiMarketEvent} />
+      {topic.aiGameKind === "rumor" && <RumorBadge />}
+    </>
+  );
   return (
     <article className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      <TopicLink decorative topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden">
-        <Thumbnail
-          src={image}
-          genreSlug={topic.genre.slug}
-          credit={imageCredit}
-          portrait={portrait}
-          label={imageLabel}
-          className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"
-        />
-        <ImageCredit credit={image ? imageCredit : undefined} />
-        <span className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-          <GenreBadge genre={topic.genre} />
-          {hasAi && <AiBadge />}
-          <MarketEventBadge event={topic.aiMarketEvent} />
-          {topic.aiGameKind === "rumor" && <RumorBadge />}
-          {topic.publisherCount > 1 && (
-            <span className="rounded-full bg-black/60 px-2 py-px text-[11px] font-bold text-white backdrop-blur">
-              {topic.publisherCount}媒体が報道
-            </span>
-          )}
-        </span>
-      </TopicLink>
+      {/* 写真があるときだけ画像の枠を出す（当サイトが描くサムネイルは大きな枠だけ。写真がなければ文字だけのカードにする） */}
+      {image && (
+        <TopicLink decorative topic={topic} leadId={lead.id} className="relative block aspect-[16/9] overflow-hidden">
+          <Thumbnail
+            src={image}
+            genreSlug={topic.genre.slug}
+            credit={imageCredit}
+            portrait={portrait}
+            className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+          <ImageCredit credit={imageCredit} />
+          <span className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+            {badges}
+            {topic.publisherCount > 1 && (
+              <span className="rounded-full bg-black/60 px-2 py-px text-[11px] font-bold text-white backdrop-blur">
+                {topic.publisherCount}媒体が報道
+              </span>
+            )}
+          </span>
+        </TopicLink>
+      )}
       <div className="flex flex-1 flex-col p-4">
+        {!image && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {badges}
+            <CoverageBadge count={topic.publisherCount} />
+          </div>
+        )}
         <TopicLink topic={topic} leadId={lead.id} className="headline">
           <h3 className="leading-snug font-bold group-hover:text-accent">
             <ReadTitle id={topic.id}>{title}</ReadTitle>
@@ -219,7 +232,7 @@ type CardProps = { topic: TopicCardData; variant?: Variant; showGenre?: boolean;
 
 /** 一覧の1行 */
 export function TopicCard({ topic, variant = "standard", showGenre = true, rank }: CardProps) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, hasAi } = describe(topic);
   if (!lead) return null;
   const compact = variant === "compact";
   return (
@@ -244,9 +257,10 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
           <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>
         </div>
       </div>
-      {!compact && (
+      {/* 小さな枠は写真があるときだけ出す（当サイトが描くサムネイルは大きな枠だけ。写真がなければ文字だけの行にする） */}
+      {!compact && image && (
         <TopicLink decorative topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
-          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} label={imageLabel} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
+          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
         </TopicLink>
       )}
     </article>
