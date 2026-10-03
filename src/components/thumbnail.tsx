@@ -25,13 +25,18 @@ type Props = {
   labelAt?: "center" | "top";
   /** 見出しから読み取った事実（試合のスコア・主役の数字）。あれば語の代わりに描く（src/lib/thumb-facts.ts） */
   fact?: ThumbFact | null;
+  /**
+   * 画像を切り抜かずに全体を見せる（媒体の写真。写真に入っている撮影者・提供元の表記を切り落とさないため）。
+   * 枠の余白は、同じ画像をぼかして埋める
+   */
+  whole?: boolean;
 };
 
 /**
  * 記事のサムネイル。媒体が RSS で配信する画像を、当サイトで保存・加工せず、そのまま媒体から表示する（出典を明記する）。
  * 画像がない・読み込めない場合はジャンル色とアイコンの代替表示にする。
  */
-export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, portrait = false, label, labelAt = "center", fact = null, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
+export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, portrait = false, label, labelAt = "center", fact = null, whole = false, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // サーバー描画された画像が、React の準備前に読み込みに失敗していた場合も代替表示にする
@@ -69,22 +74,31 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
       </div>
     );
   }
+  // 媒体が大きさ違いの画像を用意していれば、表示の大きさに合ったものを選ぶ（数 MB の画像を小さな枠に読み込まない）
+  const v = imageVariants(src);
+  const source = v ? { src: v[0].url, srcSet: v.map((x) => `${x.url} ${x.width}w`).join(", "), sizes } : { src };
+  const common = { loading: priority ? ("eager" as const) : ("lazy" as const), decoding: "async" as const, referrerPolicy: "no-referrer" as const };
+  if (whole) {
+    return (
+      <span className={`block overflow-hidden bg-surface-muted ${className.includes("absolute") ? "" : "relative"} ${className}`} title={credit ? `画像：${credit}` : undefined}>
+        {/* 余白を埋める背景（同じ画像なので、追加の読み込みはない） */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img {...source} {...common} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img ref={ref} {...source} {...common} alt="" fetchPriority={priority ? "high" : undefined} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
+      </span>
+    );
+  }
   return (
     // onError で代替表示に切り替えるため、next/image の部品ではなく生成した属性を img に渡す
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
-      // 媒体が大きさ違いの画像を用意していれば、表示の大きさに合ったものを選ぶ（数 MB の画像を小さな枠に読み込まない）
-      {...(() => {
-        const v = imageVariants(src);
-        return v ? { src: v[0].url, srcSet: v.map((x) => `${x.url} ${x.width}w`).join(", "), sizes } : { src };
-      })()}
+      {...source}
+      {...common}
       alt=""
       title={credit ? `画像：${credit}` : undefined}
       fetchPriority={priority ? "high" : undefined}
-      loading={priority ? "eager" : "lazy"}
-      decoding="async"
-      referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       className={`bg-surface-muted object-cover ${portrait ? "object-[50%_20%]" : ""} ${className}`}
     />
