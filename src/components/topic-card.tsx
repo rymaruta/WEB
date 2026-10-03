@@ -6,6 +6,7 @@ import { readPhoto } from "@/lib/photo-data";
 import { stockPhoto } from "@/lib/stock-photos";
 import { extractNames } from "@/lib/stories/verify";
 import { keyTerms } from "@/lib/topics/merge-check";
+import { readThumbFact } from "@/lib/thumb-facts";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -36,7 +37,9 @@ function describe(topic: TopicCardData) {
   const mediaImage = imageArticle ? imageOf(imageArticle) : null;
   // 媒体の画像がなければ、人物写真（Wikimedia Commons）か、内容に合わせたイメージ写真を出す（lib/photos・lib/stock-photos）
   const person = mediaImage ? null : readPhoto(topic.photo);
-  const stock = mediaImage || person ? null : stockPhoto(topic.aiTitle || topic.title, topic.genre.slug, topic.id);
+  // 見出しのスコア・主役の数字が読めるときは、一般的なイメージ写真よりそれを描く（大きな枠だけで使う）
+  const readFact = mediaImage || person ? null : (readThumbFact(topic.title, topic.genre.slug) ?? (topic.aiTitle ? readThumbFact(topic.aiTitle, topic.genre.slug) : null));
+  const stock = mediaImage || person || readFact ? null : stockPhoto(topic.aiTitle || topic.title, topic.genre.slug, topic.id);
   const image = mediaImage ?? person?.url ?? stock?.url ?? null;
   // 画像の出典（画像を配信した媒体）
   const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : person ? person.credit : stock ? `イメージ・${stock.credit}` : undefined;
@@ -44,7 +47,9 @@ function describe(topic: TopicCardData) {
   const title = topic.aiTitle || cleanTitle(topic.title);
   // 写真がないときに代替表示に出す語（見出しの人名、なければ記事で取り上げた企業、なければ固有の語）
   const label = image ? undefined : (extractNames(title)[0] ?? topic.aiCompanies[0] ?? [...keyTerms(title)][0]);
-  return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), label, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
+  // 大きな枠に描く事実（見出しのスコア・主役の数字）。読み取れなければ話題の中心の語を出す
+  const fact = image ? null : readFact;
+  return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), label, fact, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
 }
 
 /** 画像の出典。媒体の画像を表示するときは、画像の右上に媒体名を出す */
@@ -99,7 +104,7 @@ function CoverageBadge({ count }: { count: number }) {
 
 /** トップの一番大きな枠。ジャンル色のパネルに報道媒体数を大きく示す */
 export function HeroTopic({ topic, priority = true, label = "トップニュース" }: { topic: TopicCardData; priority?: boolean; label?: string }) {
-  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, fact, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -114,11 +119,12 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
           portrait={portrait}
           label={imageLabel}
           labelAt="top"
+          fact={fact}
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <ImageCredit credit={image ? imageCredit : undefined} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-        <div className="absolute bottom-0 left-0 flex items-end gap-3 p-4 text-white">
+        <div className={`absolute bottom-0 flex items-end gap-3 p-4 text-white ${fact ? "right-0" : "left-0"}`}>
           {/* 写真に文字の多い画面（サイトの画面写真など）でも読めるよう、数字は暗い下地の上に置く */}
           {topic.publisherCount > 1 && (
             <p className="rounded-xl bg-black/65 px-3 py-2 leading-none backdrop-blur-sm">
