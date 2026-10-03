@@ -34,6 +34,9 @@ export function worthApi(title: string, { quiet }: { quiet: boolean }): boolean 
   return true;
 }
 
+/** 災害の言葉があるか（誰にとっても関心のある出来事として、知名度を問わない） */
+export const isDisasterTitle = (title: string) => DISASTER.test(title);
+
 export function bigWord(title: string): string | null {
   if (NOT_BIG.test(title)) return null;
   return title.match(BIG_WORDS)?.[0] ?? null;
