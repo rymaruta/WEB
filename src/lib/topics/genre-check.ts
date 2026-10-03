@@ -20,6 +20,11 @@ export const GENRE_CHECK_LIMIT = 160;
 const PER_GENRE = 20;
 /** 一覧に出る期間の話題だけを判定する */
 const WINDOW_HOURS = 48;
+/**
+ * ジャンルを確かめる話題の範囲。一覧に出る期間（話題度を計算する 72 時間。cluster.ts の SCORE_WINDOW_HOURS）と合わせる。
+ * 48 時間だと、48〜72 時間前の話題が誤ったジャンルのまま一覧に残っていた（2026-10-03 の測定）
+ */
+const CHECK_WINDOW_HOURS = 72;
 
 export const GenreCheckSchema = z.object({
   results: z
@@ -114,7 +119,7 @@ export async function findMergeContext(excludeIds: number[], now = new Date()): 
 
 /** 判定する話題。一覧の上位（話題度順）から、まだ判定していないものをジャンルごとに少しずつ */
 export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = new Date()): Promise<GenreCheckCandidate[]> {
-  const since = new Date(now.getTime() - WINDOW_HOURS * 3_600_000);
+  const since = new Date(now.getTime() - CHECK_WINDOW_HOURS * 3_600_000);
   const rows = await prisma.$queryRaw<{ id: number }[]>`
     SELECT id FROM (
       SELECT t.id, t.score, row_number() OVER (PARTITION BY t."genreId" ORDER BY t.score DESC, t."lastSeenAt" DESC) AS rn
