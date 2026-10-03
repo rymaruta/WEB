@@ -2,6 +2,7 @@ import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { hasCronSecret } from "@/lib/auth";
 import { ANIME_EXTRACT_SYSTEM, AnimeExtractSchema, buildAnimePrompt, findAnimeCandidates } from "@/lib/anime";
+import { compactPending } from "@/lib/admin/compact";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,11 @@ export async function GET(request: Request) {
   }
   const limit = Math.min(30, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 20));
   const topics = await findAnimeCandidates(limit);
-  return Response.json({
+  const body = {
     instructions: ANIME_EXTRACT_SYSTEM,
     outputSchema: z.toJSONSchema(AnimeExtractSchema),
     submit: `POST ${siteConfig.url}/api/admin/anime/{id} に { "result": <outputSchema に従う JSON> } を送る`,
     topics: topics.map((t) => ({ id: t.id, prompt: buildAnimePrompt(t.articles) })),
-  });
+  };
+  return Response.json(compactPending(request, body));
 }

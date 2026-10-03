@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { buildFollowupPrompt, buildStoryPrompt, FOLLOWUP_SYSTEM, STORY_SYSTEM } from "@/lib/stories/prompt";
 import { FollowupAnalysisSchema, StoryAnalysisSchema } from "@/lib/stories/schema";
 import { findDeltaQueued, findHotQueued, findQueued, loadMaterials, loadPreviousCoverage } from "@/lib/stories/store";
+import { compactPending } from "@/lib/admin/compact";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       return previous ? { id: s.id, prompt: buildFollowupPrompt(previous, await loadMaterials(s.id)) } : null;
     }),
   );
-  return Response.json({
+  const body = {
     stories: {
       instructions: STORY_SYSTEM,
       outputSchema: z.toJSONSchema(StoryAnalysisSchema),
@@ -51,5 +52,6 @@ export async function GET(request: Request) {
       submit: `POST ${siteConfig.url}/api/admin/stories/{id} に { "followup": <outputSchema に従う JSON>, "model": "claude-code" } を送る`,
       items: followups.filter((f) => f !== null),
     },
-  });
+  };
+  return Response.json(compactPending(request, body));
 }

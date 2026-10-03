@@ -2,6 +2,7 @@ import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { hasCronSecret } from "@/lib/auth";
 import { findGenreCheckCandidates, findMergeContext, GENRE_CHECK_LIMIT, GENRE_CHECK_SYSTEM, GenreCheckSchema } from "@/lib/topics/genre-check";
+import { compactPending } from "@/lib/admin/compact";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,12 @@ export async function GET(request: Request) {
   const topics = await findGenreCheckCandidates(limit);
   // 同じ出来事かを見比べるための、すでに一覧に出ている話題（sameAs に使える）
   const context = topics.length ? await findMergeContext(topics.map((t) => t.id)) : [];
-  return Response.json({
+  const body = {
     instructions: GENRE_CHECK_SYSTEM,
     outputSchema: z.toJSONSchema(GenreCheckSchema),
     submit: `POST ${siteConfig.url}/api/admin/genre-check に { "result": <outputSchema に従う JSON> } を送る（全件を1回で）`,
     topics,
     context,
-  });
+  };
+  return Response.json(compactPending(request, body));
 }
