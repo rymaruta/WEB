@@ -102,7 +102,7 @@ export default async function HomePage() {
               {digest && !digestOnTop && <DigestSummaryCard digest={digest} />}
               {/* スマホではサイドバーが一番下になるため、ランキングを話題の一覧の後に出す */}
               {/* スマホでは「よく読まれている・SNSで話題・新着」をタブで切り替え、縦に長く並べない */}
-              <section className="card p-4 lg:hidden">
+              <section className="card cv-auto p-4 [--cv-h:520px] lg:hidden">
                 <SectionHeading title="ランキング" href="/ranking" moreLabel="もっと見る" />
                 <GroupTabs
                   id="home-ranking"
@@ -123,7 +123,7 @@ export default async function HomePage() {
                 </section>
               )}
               {/* スマホでは上のランキングのタブに入っているため、PC でだけ出す */}
-              <div className="hidden space-y-6 lg:block">
+              <div className="cv-auto hidden space-y-6 [--cv-h:2000px] lg:block">
                 {buzz.length > 0 && (
                   <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
                     <ArticleRanking items={buzz} metric="social" showGenre />
@@ -186,11 +186,12 @@ export default async function HomePage() {
         <h2 id="by-genre" className="mb-1 text-xl font-black tracking-tight">ジャンル別ニュース</h2>
         <p className="mb-3 text-xs text-fg-subtle md:hidden">横にスワイプすると、ほかのジャンルが見られます</p>
         {/* スマホでは横に並べてスワイプで見る（縦に10ジャンル並べるとトップが長くなりすぎるため）。広い画面では格子に並べる */}
+        {/* 配置の計算を省くのは格子のときだけ（横の並びで省くと、表示したカードの高さで並び全体の高さが変わり、下がずれるため） */}
         <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 scrollbar-none md:mx-0 md:grid md:snap-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-3">
           {sections.map(({ genre, topics }) => {
             const [top, ...more] = topics;
             return (
-              <section key={genre.id} aria-label={genre.name} className="card flex w-[85%] min-w-0 shrink-0 snap-start flex-col p-4 md:w-auto">
+              <section key={genre.id} aria-label={genre.name} className="card flex w-[85%] min-w-0 shrink-0 snap-start flex-col p-4 [--cv-h:600px] md:w-auto md:cv-auto">
                 <SectionHeading title={genre.name} href={`/genre/${genre.slug}`} genreSlug={genre.slug} />
                 {top ? (
                   <>
