@@ -29,6 +29,11 @@ import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
+import { buildUpdates, getTopicDeltas, officialLag } from "@/lib/topics/updates";
+import { TopicUpdates } from "@/components/topic-updates";
+import { originalReports } from "@/lib/coverage";
+import { splitPoints, POINT_STATUS_LABEL } from "@/lib/ai/point-status";
+import { outletIds, outletPath } from "@/lib/outlet";
 import { buildBrief, getTopicWhy } from "@/lib/topics/brief";
 import { breadcrumbJsonLd, newsArticleJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { kindTone } from "@/components/kind-badge";
@@ -89,13 +94,15 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   // 同じ出来事の別の話題にまとめたページは、まとめた先へ移す（ブックマークや検索結果から来た人のため）
   if (topic.mergedIntoId) permanentRedirect(`/topic/${topic.mergedIntoId}`);
 
-  const [related, timeline, similar, why] = await Promise.all([
+  const [related, timeline, similar, why, outlets] = await Promise.all([
     getTrendingTopics({ genreId: topic.genreId, take: 8, excludeIds: [topic.id] }),
     getEventTimeline(topic.id),
     // 関連するニュース（見出しが似た話題）。失敗してもページは出す
     getRelatedNews(topic.id).catch(() => []),
     // なぜ重要か（照合を通った配信候補の文）。失敗してもページは出す
     getTopicWhy(topic.id).catch(() => null),
+    // 媒体の報道データのページ（媒体名からのリンク）。失敗してもページは出す
+    outletIds().catch(() => new Map<string, number>()),
   ]);
   // 同じ出来事の流れに出ている話題は、関連するニュースから外す
   const inTimeline = new Set(timeline.map((e) => e.id));
@@ -105,6 +112,23 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
   const spread = spreadCurve(coverage);
+  // ニュースのその後（報道機関の記事がある話題だけ。企業の発表だけの話題では出さない）
+  const firstReport = originalReports(coverage)[0] ?? null;
+  const deltas = firstReport ? await getTopicDeltas([...new Set([topic.id, ...timeline.map((e) => e.id)])]).catch(() => []) : [];
+  const updates = firstReport ? buildUpdates(coverage, deltas) : [];
+  const lag = firstReport ? officialLag(coverage) : null;
+  // 報道くらべ: 要点を「共通して報じられていること」と「一部の媒体だけが報じていること」に分ける（出典の番号から機械的に）
+  const split = ai ? splitPoints(ai.points, ai.sourceIds, coverage) : null;
+  const outletLink = (publisher: string) => {
+    const oid = outlets.get(publisher);
+    return oid ? (
+      <Link href={outletPath(oid)} prefetch={false} className="underline decoration-dotted underline-offset-2 hover:text-accent">
+        {publisherLabel(publisher)}
+      </Link>
+    ) : (
+      publisherLabel(publisher)
+    );
+  };
   const featureLinks = relatedFeatures(topic);
   // なぜ重要かは、まとめ記事の「なぜ重要」（照合済み）を優先し、なければ配信候補の文を使う
   const brief = buildBrief(ai?.lead, ai?.why?.text ?? why, timeline, topic);
@@ -118,7 +142,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
       <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-surface bg-accent" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
-          <span className="font-bold text-fg">{publisherLabel(a.publisher)}</span>
+          <span className="font-bold text-fg">{outletLink(a.publisher)}</span>
           <time dateTime={a.publishedAt.toISOString()}>{formatDateTime(a.publishedAt)}</time>
           {/* 最初に報じた媒体と、そこから何分後に報じたか（報道機関の記事だけ） */}
           {times.get(a.id)?.first && <span className="rounded bg-accent px-1 font-bold text-accent-fg">最初に報道</span>}
@@ -229,7 +253,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               <AiArticleView
                 hideLead={!!brief}
                 article={ai}
-                sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher }))}
+                sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, kind: a.source.kind }))}
                 showTitle={false}
                 reportHref={`mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent(`【誤りの報告】${ai.title}`)}&body=${encodeURIComponent(`${siteConfig.url}/topic/${topic.id}\n\n誤っている箇所：\n正しい内容（分かれば出典も）：\n`)}`}
               />
@@ -242,21 +266,48 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </div>
             </div>
           )}
-          {/* この話題に関わる特集・データのページ（発売日・放送日・値上げなど、日付のある話題だけ） */}
-          {featureLinks.length > 0 && (
-            <nav aria-label="関連する特集" className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-bold text-fg-muted">関連する特集</span>
-              {featureLinks.map((l) => (
-                <Link key={l.href} href={l.href} prefetch={false} className="rounded-full border border-accent/40 bg-accent-soft/40 px-3 py-1 font-bold text-accent hover:bg-accent-soft">
-                  {l.label} →
-                </Link>
-              ))}
-            </nav>
-          )}
-          <EventTimeline entries={timeline} currentId={topic.id} />
+          <TopicUpdates topicId={topic.id} first={firstReport && { publisher: firstReport.publisher, at: firstReport.publishedAt }} lag={lag} updates={updates} />
+          <section aria-labelledby="compare-heading">
+          <h2 id="compare-heading" className="mb-1 text-lg font-black">
+            報道くらべ
+          </h2>
+          <p className="mb-2 text-xs text-fg-subtle">各社がいつ・何を報じたか。媒体の正しさや立場の評価はしていません。媒体名から、その媒体の報道データを見られます。</p>
         {/* 報道の広がり（独立した媒体の数の累積。3媒体以上のとき） */}
         <CoverageSpread points={spread} />
-        <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
+        {split && split.common.length + split.only.length > 0 && topic.publisherCount >= 2 && (
+          <div className="my-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border p-3">
+              <h3 className="text-sm font-bold">共通して報じられていること</h3>
+              {split.common.length > 0 ? (
+                <ul className="mt-1 space-y-1 text-[13px]">
+                  {split.common.map((c, i) => (
+                    <li key={i}>
+                      {c.text}
+                      <span className="ml-1 text-[11px] text-fg-subtle">（{POINT_STATUS_LABEL[c.status]}：{c.publishers.map(publisherLabel).join("・")}）</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-[13px] text-fg-muted">複数の媒体が共通して報じた要点はまだありません。</p>
+              )}
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <h3 className="text-sm font-bold">一部の媒体だけが報じていること</h3>
+              {split.only.length > 0 ? (
+                <ul className="mt-1 space-y-1 text-[13px]">
+                  {split.only.map((o) => (
+                    <li key={o.publisher}>
+                      <span className="font-bold">{outletLink(o.publisher)}</span>：{o.texts.join(" ／ ")}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-[13px] text-fg-muted">1媒体だけの要点はありません。</p>
+              )}
+            </div>
+          </div>
+        )}
+        <h3 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h3>
         {/* 見出しの数字が媒体で分かれているとき（報じた時点の違いなど）。どの媒体がどの数字かを並べる */}
         {diffs.length > 0 && (
           <div className="my-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
@@ -282,6 +333,21 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             <ol className="relative border-l-2 border-border pl-5">{topic.articles.slice(VISIBLE_SOURCES).map(sourceItem)}</ol>
           </details>
         )}
+          </section>
+          <div className="mt-6">
+            <EventTimeline entries={timeline} currentId={topic.id} />
+          </div>
+          {/* この話題に関わる特集・データのページ（発売日・放送日・値上げなど、日付のある話題だけ） */}
+          {featureLinks.length > 0 && (
+            <nav aria-label="関連する特集" className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-bold text-fg-muted">今後の予定・関連する特集</span>
+              {featureLinks.map((l) => (
+                <Link key={l.href} href={l.href} prefetch={false} className="rounded-full border border-accent/40 bg-accent-soft/40 px-3 py-1 font-bold text-accent hover:bg-accent-soft">
+                  {l.label} →
+                </Link>
+              ))}
+            </nav>
+          )}
         {!ai && (
           <div className="mt-4">
             <ShareButtons title={topic.title} url={`${siteConfig.url}/topic/${topic.id}`} />
