@@ -4,8 +4,9 @@ import { logEvent } from "@/lib/events";
 import type { Assessment, Category, Sourced } from "@/lib/stories/schema";
 import { independentOutletsOf } from "./outlets";
 import { composePostText, type EditionEntry, type EditionView } from "./compose";
+import { isTrustedPublisher } from "./trusted";
 import { isAutoReviewable, selectForEdition, type Candidate } from "./select";
-import { autoApproveEnabled, editionKey, isSingleSlot, jstAt, jstDate, SLOT_ORDER, SLOTS, type Slot } from "./slots";
+import { autoApproveEnabled, editionKey, isSingleSlot, jstAt, jstDate, ACTIVE_SLOTS, SLOTS, type Slot } from "./slots";
 
 /** 前の配信回に載った出来事を、どこまでさかのぼって除外するか */
 const EXCLUDE_LOOKBACK_HOURS = 30;
@@ -51,7 +52,8 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
       topicId: true,
       riskFlags: true,
       statusNote: true,
-      sources: { select: { isPrimary: true } },
+      entities: true,
+      sources: { select: { isPrimary: true, publisher: true } },
     },
   });
   const topicIds = [...new Set(stories.map((s) => s.topicId))];
@@ -92,6 +94,8 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
       confidence: s.confidence,
       publisherCount: publishers.get(s.topicId) ?? 0,
       assessment: s.assessment as Assessment | null,
+      trusted: s.sources.some((x) => isTrustedPublisher(x.publisher)),
+      hasPeople: ((s.entities as { people?: unknown[] } | null)?.people ?? []).length > 0,
     }),
     newFacts: ((s.delta as { newFacts?: unknown[] } | null)?.newFacts ?? []).length,
   }));
@@ -237,5 +241,5 @@ export async function getEditionView(id: string) {
 /** いま作るべき定時配信の回（下書きを作る時刻を過ぎ、投稿の時刻より前） */
 export function currentSlot(now: Date): Slot | null {
   const date = jstDate(now);
-  return SLOT_ORDER.find((slot) => now >= jstAt(date, SLOTS[slot].buildAt) && now < jstAt(date, SLOTS[slot].publishAt)) ?? null;
+  return ACTIVE_SLOTS.find((slot) => now >= jstAt(date, SLOTS[slot].buildAt) && now < jstAt(date, SLOTS[slot].publishAt)) ?? null;
 }

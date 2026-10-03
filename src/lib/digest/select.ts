@@ -30,17 +30,21 @@ export type Candidate = {
   newFacts?: number;
 };
 
-/** 要確認でも、おまかせ投稿で載せてよい分野（事実の報道として扱えるもの）。訃報・戦争・医療は人が確かめる */
+/** 要確認でも、おまかせ投稿で載せてよい分野（事実の報道として扱えるもの） */
 export const AUTO_OK_RISKS = new Set(["POLITICS", "ELECTION", "MARKET", "CRIME", "ACCIDENT", "DISASTER"]);
 export const AUTO_OK_MIN_PUBLISHERS = 3;
 export const AUTO_OK_MIN_CONFIDENCE = 0.8;
+/** 訃報・戦争・医療は、独立した媒体4社以上（通信社・NHK などの信頼できる媒体を含む）が報じ、確からしさが特に高いときだけ */
+export const AUTO_OK_STRICT_RISKS = new Set(["DEATH", "WAR", "MEDICAL"]);
+export const AUTO_OK_STRICT = { minPublishers: 4, minConfidence: 0.85 } as const;
 
 /**
- * 要確認のストーリーを、おまかせ投稿で載せてよいか。
+ * 要確認のストーリーを、おまかせ投稿で載せてよいか（人の確認はしない。運営者の方針。2026-10-03）。
  * - 要確認の理由が「慎重に扱う分野」だけ（文字数・出典・資料にない語・写しすぎ・確からしさ・媒体間の食い違いは含まない）
- * - その分野が AUTO_OK_RISKS だけ
- * - 3媒体以上が報じ、照合の確からしさが 0.8 以上、ゴシップでない
- * 例: 所属事務所が契約解除を発表し、4媒体が報じた（事件の分野） → 載せてよい
+ * - 事件で人名が出てくるもの（実名の容疑者など）は使わない。ゴシップは使わない
+ * - AUTO_OK_RISKS の分野は、3媒体以上が報じ、確からしさ 0.8 以上
+ * - 訃報・戦争・医療（AUTO_OK_STRICT_RISKS）は、独立した媒体4社以上・信頼できる媒体を含み、確からしさ 0.85 以上
+ * 例: 所属事務所が契約解除を発表し、4媒体が報じた（事件の分野、人名なし） → 載せてよい
  */
 export function isAutoReviewable(s: {
   status: string;
@@ -49,12 +53,20 @@ export function isAutoReviewable(s: {
   confidence: number | null;
   publisherCount: number;
   assessment: Assessment | null;
+  /** 信頼できる媒体（通信社・全国紙・NHK など）が報じているか */
+  trusted?: boolean;
+  /** 解析で読み取った人名があるか */
+  hasPeople?: boolean;
 }): boolean {
   if (s.status !== "REVIEW_REQUIRED") return false;
   const reasons = (s.statusNote ?? "").split("\n").filter(Boolean);
   if (reasons.length === 0 || !reasons.every((r) => r.startsWith("慎重に扱う分野"))) return false;
-  if (s.riskFlags.length === 0 || !s.riskFlags.every((f) => AUTO_OK_RISKS.has(f))) return false;
-  return s.publisherCount >= AUTO_OK_MIN_PUBLISHERS && (s.confidence ?? 0) >= AUTO_OK_MIN_CONFIDENCE && !s.assessment?.gossip;
+  if (s.riskFlags.length === 0 || s.assessment?.gossip) return false;
+  if (s.riskFlags.includes("CRIME") && s.hasPeople) return false;
+  const strict = s.riskFlags.some((f) => AUTO_OK_STRICT_RISKS.has(f));
+  if (!s.riskFlags.every((f) => AUTO_OK_RISKS.has(f) || AUTO_OK_STRICT_RISKS.has(f))) return false;
+  if (strict) return s.publisherCount >= AUTO_OK_STRICT.minPublishers && (s.confidence ?? 0) >= AUTO_OK_STRICT.minConfidence && s.trusted === true;
+  return s.publisherCount >= AUTO_OK_MIN_PUBLISHERS && (s.confidence ?? 0) >= AUTO_OK_MIN_CONFIDENCE;
 }
 
 export type ScoreParts = { impact: number; reliability: number; longevity: number; novelty: number; interest: number; buzz: number; penalty: number };
@@ -71,12 +83,6 @@ export const MIN_SCORE = 25;
 export const REQUIRED_ITEMS = 3;
 /** 本数が足りないときに埋めに使える点数の下限 */
 export const FILL_MIN_SCORE = 10;
-const HARD_NEWS = new Set<Category>(["POLITICS", "ECONOMY", "WORLD"]);
-const SOFT_NEWS = new Set<Category>(["ENTERTAINMENT", "SPORTS"]);
-/** 同じカテゴリーは1回に1本まで（各分野から1本ずつ。運営者の方針） */
-const PER_CATEGORY = 1;
-/** 芸能とスポーツは合わせて1本まで */
-const SOFT_MAX = 1;
 /** 閲覧数はこの値で頭打ちにする（関心だけで上位にならないように） */
 const CLICKS_CAP = 300;
 /** 話題性：報じた媒体の数と SNS の反応。それぞれこの値で頭打ち */
@@ -103,19 +109,17 @@ export function scoreCandidate(c: Candidate): Scored {
 
 type Picked = Scored & { candidate: Candidate };
 
-/** 3本に足りないときに埋める段階で、ゆるめた後の上限（芸能とスポーツの合計を2本まで。同じカテゴリーは1本のまま） */
-const RELAXED_MAX = 2;
+/**
+ * 3つの枠（運営者の方針。2026-10-03）。1回の配信は、各枠から点数のいちばん高い1本ずつを選ぶ。
+ * 分野が自然にばらけ、「なぜこの3本か」を説明しやすくする
+ */
+export const FRAMES: { key: string; label: string; categories: Category[] }[] = [
+  { key: "hard", label: "社会・政治・経済・国際", categories: ["SOCIETY", "POLITICS", "ECONOMY", "WORLD"] },
+  { key: "life", label: "暮らし・テック・科学", categories: ["LIFE", "TECH", "SCIENCE"] },
+  { key: "soft", label: "スポーツ・芸能", categories: ["SPORTS", "ENTERTAINMENT"] },
+];
 
-/** 載せられない理由（載せられるなら null） */
-function misfit(picked: Picked[], c: Candidate, relaxed = false): string | null {
-  if (c.threadId && picked.some((p) => p.candidate.threadId === c.threadId)) return "同じ出来事がすでに載る";
-  if (c.category && picked.filter((p) => p.candidate.category === c.category).length >= PER_CATEGORY) return `同じ分野（${c.category}）の上限`;
-  if (c.category && SOFT_NEWS.has(c.category) && picked.filter((p) => p.candidate.category && SOFT_NEWS.has(p.candidate.category)).length >= (relaxed ? RELAXED_MAX : SOFT_MAX))
-    return "芸能・スポーツの合計の上限";
-  return null;
-}
-
-const fits = (picked: Picked[], c: Candidate, relaxed = false) => misfit(picked, c, relaxed) === null;
+export const frameOf = (c: Category | null): string | null => (c ? (FRAMES.find((f) => f.categories.includes(c))?.key ?? null) : null);
 
 /** 選定の記録に残す、載らなかった候補の数（点数の高い順） */
 const REJECTED_LOG = 20;
@@ -130,97 +134,80 @@ export type Selection = {
     belowMinScore: number;
     excludedThreads: number;
     filled: number;
+    /** 各枠に入った候補（枠の key → ストーリーの id。埋め合わせなら null） */
+    frames?: Record<string, string | null>;
     /** 載らなかった候補と理由（点数の高い順に REJECTED_LOG 件） */
     rejected: { id: string; score: number; reason: string }[];
   };
 };
 
 /**
+ * 1回の配信の3本を選ぶ。
+ * 1. 各枠（FRAMES）から、点数のいちばん高い1本（基準点 MIN_SCORE 以上を優先、なければ FILL_MIN_SCORE 以上）
+ * 2. 候補のない枠は、ほかの枠の2番手以降で埋める（まだ使っていない分野を優先）。必ず REQUIRED_ITEMS 本にする
+ * - 前の回・速報で出した出来事（excludeThreads）、ゴシップ・宣伝（基準点未満のとき）、同じ出来事の2本目は使わない
+ * - 人の確認が要るもの（REVIEW_REQUIRED）は、おまかせ投稿（verifiedOnly）では autoOk のものだけ使う
+ * - 続報（FOLLOWUP）も同じ枠で競う（cfg.followupMax 本まで。新しい事実があり、基準点以上のときだけ）
  * @param excludeThreads 前の配信回に載った出来事。新しい事実がない限り、もう一度は載せない
- * @param opts.verifiedOnly 人の確認が要る（REVIEW_REQUIRED）ストーリーを選ばない。おまかせ投稿の回で使う
  */
 export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, excludeThreads: Set<string>, opts: { verifiedOnly?: boolean } = {}): Selection {
   const scored = candidates.map((c) => ({ ...scoreCandidate(c), candidate: c }));
-  const eligible = scored.filter(
-    (s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !(opts.verifiedOnly && s.candidate.status === "REVIEW_REQUIRED" && !s.candidate.autoOk),
-  );
-  const strong = eligible.filter((s) => s.score >= MIN_SCORE).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-  const excluded = strong.filter((s) => s.candidate.kind === "NEW" && s.candidate.threadId && excludeThreads.has(s.candidate.threadId));
+  const blockedByReview = (c: Candidate) => opts.verifiedOnly === true && c.status === "REVIEW_REQUIRED" && !c.autoOk;
+  const eligible = scored.filter((s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !blockedByReview(s.candidate));
+  const excludedNew = (c: Candidate) => c.kind === "NEW" && !!c.threadId && excludeThreads.has(c.threadId);
+  const usable = (s: Picked) => {
+    const c = s.candidate;
+    if (excludedNew(c)) return false;
+    if (c.kind === "FOLLOWUP") return s.score >= MIN_SCORE && (c.newFacts ?? 0) > 0;
+    if (s.score < FILL_MIN_SCORE) return false;
+    if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return false;
+    return true;
+  };
+  const pool = eligible.filter(usable).sort((a, b) => Number(b.score >= MIN_SCORE) - Number(a.score >= MIN_SCORE) || b.score - a.score || a.id.localeCompare(b.id));
 
-  // 続報（結局どうなった）
-  const followups: Picked[] = [];
-  for (const s of strong.filter((x) => x.candidate.kind === "FOLLOWUP")) {
-    if (followups.length >= cfg.followupMax) break;
-    if (!s.candidate.threadId || !followups.some((f) => f.candidate.threadId === s.candidate.threadId)) followups.push(s);
+  const picked: Picked[] = [];
+  const frames: Record<string, string | null> = {};
+  const threads = new Set<string>();
+  const canTake = (s: Picked) => {
+    if (picked.includes(s)) return false;
+    if (s.candidate.threadId && threads.has(s.candidate.threadId)) return false;
+    if (s.candidate.kind === "FOLLOWUP" && picked.filter((p) => p.candidate.kind === "FOLLOWUP").length >= cfg.followupMax) return false;
+    return true;
+  };
+  const take = (s: Picked) => {
+    picked.push(s);
+    if (s.candidate.threadId) threads.add(s.candidate.threadId);
+  };
+
+  // 1. 各枠から1本
+  for (const f of FRAMES) {
+    const s = pool.find((x) => frameOf(x.candidate.category) === f.key && canTake(x));
+    frames[f.key] = s?.id ?? null;
+    if (s) take(s);
   }
-  const followupThreads = new Set(followups.map((f) => f.candidate.threadId).filter((t): t is string => !!t));
-
-  // 本編。続報が少ない回は、その空き分だけ本数を増やす
-  const mainLimit = Math.min(cfg.mainMax, cfg.mainCount + (cfg.followupMax - followups.length));
-  const pool = strong.filter(
-    (s) => s.candidate.kind === "NEW" && !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
-  );
-  const main: Picked[] = [];
-  // 分野の上限は、続報の枠も合わせて数える（各分野から1本ずつ）
-  const all = () => [...followups, ...main];
-  for (const s of pool) {
-    if (main.length >= mainLimit) break;
-    if (fits(all(), s.candidate)) main.push(s);
-  }
-
-  // 政治・経済・国際を1本以上（候補があれば、いちばん点数の低い1本と入れ替える）
-  const isHard = (p: Picked) => !!p.candidate.category && HARD_NEWS.has(p.candidate.category);
-  if (cfg.requireHardNews && main.length > 0 && !main.some(isHard)) {
-    const hard = pool.find((s) => isHard(s) && !main.includes(s));
-    if (hard) {
-      const rest = main.slice(0, -1);
-      if (main.length < mainLimit && fits(all(), hard.candidate)) main.push(hard);
-      else if (fits([...followups, ...rest], hard.candidate)) main.splice(main.length - 1, 1, hard);
-    }
-  }
-
-  // 3本に足りなければ埋める。まず点数の基準をゆるめ、次に芸能・スポーツの合計の上限をゆるめ、それでも足りなければ最後に分野の上限を外す。
-  // ゴシップ・宣伝と、人の確認が要るもの（verifiedOnly のとき）は使わない
-  const need = () => REQUIRED_ITEMS - main.length - followups.length;
-  if (need() > 0) {
-    const usedThreads = new Set([...main, ...followups].map((p) => p.candidate.threadId).filter((t): t is string => !!t));
-    const filler = eligible
-      .filter(
-        (s) =>
-          s.candidate.kind === "NEW" &&
-          !main.includes(s) &&
-          s.score >= FILL_MIN_SCORE &&
-          !s.candidate.assessment?.gossip &&
-          !s.candidate.assessment?.promotional &&
-          !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
-      )
-      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-    // 最後の段階（"any"）は分野の上限を外す。必ず3本出すことを、分野のばらつきより優先する（運営者の方針）
-    for (const relaxCategories of [false, true, "any"] as const) {
-      for (const s of filler) {
-        if (need() <= 0) break;
-        if (main.includes(s)) continue;
-        if (s.candidate.threadId && usedThreads.has(s.candidate.threadId)) continue;
-        if (relaxCategories !== "any" && !fits(all(), s.candidate, relaxCategories)) continue;
-        main.push(s);
-        if (s.candidate.threadId) usedThreads.add(s.candidate.threadId);
-      }
+  // 2. 足りない分を埋める（まだ使っていない分野 → どれでも）
+  for (const pass of ["new-category", "any"] as const) {
+    for (const s of pool) {
+      if (picked.length >= REQUIRED_ITEMS) break;
+      if (!canTake(s)) continue;
+      if (pass === "new-category" && s.candidate.category && picked.some((p) => p.candidate.category === s.candidate.category)) continue;
+      take(s);
     }
   }
 
   // 載らなかった理由（管理画面と選定の記録で「なぜ載らなかったか」を見せる）
-  const chosen = new Set([...main, ...followups].map((p) => p.id));
+  const chosen = new Set(picked.map((p) => p.id));
   const reasonOf = (s: Picked): string => {
     const c = s.candidate;
     if (!ELIGIBLE_STATUSES.has(c.status)) return `状態が対象外（${c.status}）`;
-    if (opts.verifiedOnly && c.status === "REVIEW_REQUIRED" && !c.autoOk) return "人の確認が必要（おまかせ投稿では使わない）";
-    if (c.kind === "NEW" && c.threadId && excludeThreads.has(c.threadId)) return "前の配信回に載った出来事";
-    if (c.kind === "NEW" && c.threadId && followupThreads.has(c.threadId)) return "同じ出来事の続報が載る";
-    if (c.kind === "FOLLOWUP") return s.score < MIN_SCORE ? `続報の点数不足（${s.score}）` : "続報の枠の上限";
+    if (blockedByReview(c)) return "人の確認が必要（おまかせ投稿では使わない）";
+    if (excludedNew(c)) return "前の配信回に載った出来事";
+    if (c.kind === "FOLLOWUP" && (s.score < MIN_SCORE || !(c.newFacts ?? 0))) return `続報の点数不足（${s.score}）`;
     if (s.score < FILL_MIN_SCORE) return `点数不足（${s.score}）`;
     if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return "ゴシップ・宣伝（埋め合わせに使わない）";
-    // 基準点以上の候補はふだんの上限（同じ分野1本・芸能とスポーツ合わせて1本）で、埋め合わせの候補はゆるめた上限で調べる
-    return misfit(all(), c, s.score < MIN_SCORE) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
+    if (c.threadId && threads.has(c.threadId)) return "同じ出来事がすでに載る";
+    const frame = frameOf(c.category);
+    return frame && frames[frame] ? `同じ枠（${FRAMES.find((f) => f.key === frame)!.label}）の上位が載る` : "本数の上限";
   };
   const rejected = scored
     .filter((s) => !chosen.has(s.id))
@@ -228,17 +215,21 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     .slice(0, REJECTED_LOG)
     .map((s) => ({ id: s.id, score: s.score, reason: reasonOf(s) }));
 
+  // 表示の順：枠の順（社会・政治 → 暮らし → スポーツ・芸能 → 枠のないもの）。続報は最後
+  const order = (p: Picked) => (p.candidate.kind === "FOLLOWUP" ? 9 : FRAMES.findIndex((f) => f.key === frameOf(p.candidate.category)) + 1 || 4);
   const strip = ({ id, score, parts }: Picked): Scored => ({ id, score, parts });
+  const main = picked.filter((p) => p.candidate.kind === "NEW").sort((a, b) => order(a) - order(b) || b.score - a.score);
   return {
-    main: main.sort((a, b) => b.score - a.score).map(strip),
-    followups: followups.map(strip),
+    main: main.map(strip),
+    followups: picked.filter((p) => p.candidate.kind === "FOLLOWUP").map(strip),
     notes: {
       candidates: candidates.length,
       eligible: eligible.length,
-      belowMinScore: eligible.length - strong.length,
-      excludedThreads: excluded.length,
+      belowMinScore: eligible.filter((s) => s.score < MIN_SCORE).length,
+      excludedThreads: eligible.filter((s) => excludedNew(s.candidate)).length,
       // 基準点に届かない候補で埋めた本数
-      filled: main.filter((m) => m.score < MIN_SCORE).length,
+      filled: picked.filter((m) => m.score < MIN_SCORE).length,
+      frames,
       rejected,
     },
   };

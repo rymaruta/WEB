@@ -26,7 +26,7 @@ export default async function PickupPage() {
         </Link>
         <h1 className="mt-1 text-xl font-extrabold">注目のニュースを出す</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          直近{PICKUP_HOURS}時間に最初に報じられ、速報・注目のニュースとしてまだ出していない出来事です（報じた媒体の多い順）。速報と同じ形のカードで、「速報」の表示をせずに投稿します。自動では投稿しません。
+          直近{PICKUP_HOURS}時間に最初に報じられ、速報・注目のニュースとしてまだ出していない出来事です（報じた媒体の多い順）。速報と同じ形のカードで、「速報」の表示をせずに投稿します。日中（8〜22時台）は、条件に合うものを自動でも1本ずつ投稿します（60分以上あけ、1日8本まで）。
         </p>
         <p className="mt-1 text-sm text-fg-muted">今日の注目のニュース {postedToday} 本（速報の本数には数えません）</p>
       </header>

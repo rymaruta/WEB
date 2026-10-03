@@ -24,6 +24,8 @@ export type SlotConfig = {
   requireHardNews: boolean;
   /** 今日の配信に既に載った出来事も候補にする（いまはどの回も false。同じニュースを1日に2回出さない） */
   allowRepeatToday: boolean;
+  /** 自動で下書きを作り、投稿する回か。昼・夜のまとめは止め、日中は1本ずつ出す（運営者の方針。2026-10-03。src/lib/digest/pickup-auto.ts） */
+  active: boolean;
 };
 
 export const SLOTS: Record<Slot, SlotConfig> = {
@@ -39,6 +41,7 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     windowHours: 14,
     requireHardNews: true,
     allowRepeatToday: false,
+    active: true,
   },
   LUNCH: {
     title: "昼のニュース",
@@ -52,6 +55,7 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     windowHours: 6,
     requireHardNews: false,
     allowRepeatToday: false,
+    active: false,
   },
   EVENING: {
     title: "夜のニュース",
@@ -65,10 +69,14 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     windowHours: 16,
     requireHardNews: true,
     allowRepeatToday: false,
+    active: false,
   },
 };
 
 export const SLOT_ORDER: Slot[] = ["MORNING", "LUNCH", "EVENING"];
+
+/** いま自動で作って投稿する回 */
+export const ACTIVE_SLOTS: Slot[] = SLOT_ORDER.filter((s) => SLOTS[s].active);
 
 /** 1つの配信回に載せる本数の上限。X の1投稿は画像4枚まで（INDEX＋3本）で、1投稿で完結させる */
 export const MAX_ITEMS = 3;

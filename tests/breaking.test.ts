@@ -62,8 +62,9 @@ describe("pickBreaking", () => {
     expect(pickBreaking([fresh], night, 0)).toBeNull();
     expect(pickBreaking([{ ...fresh, riskFlags: ["DISASTER"] }], night, 0)?.id).toBe("a");
   });
-  it("定時の配信の直前は出さない", () => {
-    expect(pickBreaking([{ ...base, firstSeenAt: jst("19:30") }], jst("19:45"), 0)).toBeNull();
+  it("定時の配信（朝）の直前は出さない。昼・夜のまとめは止めたので、その時刻は出せる", () => {
+    expect(pickBreaking([{ ...base, firstSeenAt: jst("06:30") }], jst("06:45"), 0)).toBeNull();
+    expect(pickBreaking([{ ...base, firstSeenAt: jst("19:30") }], jst("19:45"), 0)).not.toBeNull();
   });
 });
 
@@ -73,10 +74,11 @@ describe("時刻の判定", () => {
     expect(isQuietHour(jst("05:59"))).toBe(true);
     expect(isQuietHour(jst("06:00"))).toBe(false);
   });
-  it("定時の20分前から直前まで", () => {
-    expect(isJustBeforeSlot(jst("11:45"))).toBe(true);
-    expect(isJustBeforeSlot(jst("11:30"))).toBe(false);
-    expect(isJustBeforeSlot(jst("12:05"))).toBe(false);
+  it("定時（朝7時）の20分前から直前まで", () => {
+    expect(isJustBeforeSlot(jst("06:45"))).toBe(true);
+    expect(isJustBeforeSlot(jst("06:30"))).toBe(false);
+    expect(isJustBeforeSlot(jst("07:05"))).toBe(false);
+    expect(isJustBeforeSlot(jst("11:45"))).toBe(false);
   });
 });
 

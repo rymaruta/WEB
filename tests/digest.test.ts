@@ -78,123 +78,70 @@ describe("選定の点数", () => {
   });
 });
 
-describe("selectForEdition", () => {
-  it("朝は3本。同じカテゴリーは2本まで", () => {
-    const cs = [...Array.from({ length: 4 }, () => cand({ category: "TECH" })), cand({ category: "ECONOMY" }), cand({ category: "WORLD" }), cand({ category: "SOCIETY" })];
-    const r = selectForEdition(cs, SLOTS.MORNING, new Set());
-    expect(r.main).toHaveLength(3);
-    const byId = new Map(cs.map((c) => [c.id, c]));
-    expect(r.main.filter((m) => byId.get(m.id)!.category === "TECH").length).toBeLessThanOrEqual(2);
+describe("selectForEdition（3つの枠）", () => {
+  const ids = (r: { main: { id: string }[]; followups: { id: string }[] }) => [...r.main, ...r.followups].map((m) => m.id);
+
+  it("社会・政治・経済・国際／暮らし・テック・科学／スポーツ・芸能 の各枠から1本ずつ", () => {
+    const hard = [cand({ category: "ECONOMY" }), cand({ category: "WORLD", publisherCount: 2 })];
+    const life = [cand({ category: "TECH" }), cand({ category: "LIFE", publisherCount: 2 })];
+    const soft = [cand({ category: "SPORTS" }), cand({ category: "ENTERTAINMENT", publisherCount: 2 })];
+    const r = selectForEdition([...soft, ...life, ...hard], SLOTS.MORNING, new Set());
+    expect(r.main.map((m) => m.id)).toEqual([hard[0].id, life[0].id, soft[0].id]);
+    expect(r.notes.frames).toEqual({ hard: hard[0].id, life: life[0].id, soft: soft[0].id });
   });
 
-  it("芸能とスポーツは合わせて1本まで（ほかの候補で3本にできるとき）", () => {
-    const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), cand({ category: "ECONOMY" }), cand({ category: "TECH" })];
-    const r = selectForEdition(cs, SLOTS.MORNING, new Set());
+  it("候補のない枠は、ほかの枠の2番手で埋める（まだ使っていない分野を優先）。必ず3本", () => {
+    const econ = [cand({ category: "ECONOMY" }), cand({ category: "ECONOMY" })];
+    const world = cand({ category: "WORLD", publisherCount: 2 });
+    const sports = cand({ category: "SPORTS" });
+    const r = selectForEdition([...econ, world, sports], SLOTS.MORNING, new Set());
     expect(r.main).toHaveLength(3);
-    const soft = r.main.filter((m) => ["ENTERTAINMENT", "SPORTS"].includes(cs.find((c) => c.id === m.id)!.category!));
-    expect(soft).toHaveLength(1);
+    expect(ids(r)).toContain(world.id);
+    expect(r.notes.frames?.life).toBeNull();
   });
 
-  it("3本に足りないときは、基準点やカテゴリーの上限をゆるめて3本にする", () => {
-    const low = cand({ category: "LIFE", publisherCount: 2, assessment: assess({ impact: 0, longevity: 0 }) });
-    const cs = [cand({ category: "ENTERTAINMENT" }), cand({ category: "SPORTS" }), low];
-    const r = selectForEdition(cs, SLOTS.LUNCH, new Set());
-    expect(r.main).toHaveLength(3);
-    expect(r.notes.filled).toBeGreaterThanOrEqual(1);
-  });
-
-  it("ゆるめても、3本とも同じカテゴリー（スポーツ3本など）にはしない", () => {
+  it("ほかに候補がなければ、同じ分野でも3本にする", () => {
     const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
-    const econ = cand({ category: "ECONOMY", assessment: assess({ impact: 0, longevity: 0 }), publisherCount: 2 });
-    const r = selectForEdition([...sports, econ], SLOTS.LUNCH, new Set());
-    const ids = r.main.map((m) => m.id);
-    expect(ids).toContain(econ.id);
-    expect(ids.filter((id) => sports.some((s) => s.id === id))).toHaveLength(2);
+    expect(selectForEdition(sports, SLOTS.MORNING, new Set()).main).toHaveLength(3);
   });
 
-  it("埋めるときも、ゴシップ・宣伝と同じ出来事は使わない", () => {
-    const a = cand({ category: "ECONOMY" });
-    const same = cand({ category: "ECONOMY", threadId: a.threadId });
-    const promo = cand({ category: "LIFE", assessment: assess({ promotional: true, impact: 0, longevity: 0 }) });
-    const r = selectForEdition([a, same, promo], SLOTS.LUNCH, new Set());
-    expect(r.main.map((m) => m.id)).toEqual([a.id]);
-  });
-
-  it("ゴシップは本数が足りなくても載せない", () => {
-    const cs = [cand({ category: "ECONOMY" }), cand({ category: "ENTERTAINMENT", assessment: assess({ gossip: true, impact: 0, longevity: 0, publicInterest: 0 }) })];
-    const r = selectForEdition(cs, SLOTS.MORNING, new Set());
-    expect(r.main.map((m) => m.id)).toEqual([cs[0].id]);
-    expect(r.notes.belowMinScore).toBe(1);
-  });
-
-  it("朝は政治・経済・国際を1本以上入れる（候補があれば入れ替える）", () => {
-    const tech = Array.from({ length: 2 }, () => cand({ category: "TECH", assessment: assess({ impact: 3, longevity: 3 }) }));
-    const sci = Array.from({ length: 2 }, () => cand({ category: "SCIENCE", assessment: assess({ impact: 3, longevity: 3 }) }));
-    const life = cand({ category: "LIFE", assessment: assess({ impact: 3, longevity: 3 }) });
-    const econ = cand({ category: "ECONOMY", assessment: assess({ impact: 1, longevity: 1 }) });
-    const r = selectForEdition([...tech, ...sci, life, econ], SLOTS.MORNING, new Set());
+  it("基準点に届かない候補は、ほかに候補がないときだけ使う", () => {
+    const low = cand({ category: "LIFE", publisherCount: 2, assessment: assess({ impact: 0, longevity: 0 }) });
+    const r = selectForEdition([cand({ category: "ECONOMY" }), cand({ category: "SPORTS" }), low], SLOTS.MORNING, new Set());
     expect(r.main).toHaveLength(3);
-    expect(r.main.map((m) => m.id)).toContain(econ.id);
+    expect(r.notes.filled).toBe(1);
+  });
+
+  it("ゴシップ・宣伝（基準点未満）と同じ出来事の2本目は使わない", () => {
+    const a = cand({ category: "ECONOMY" });
+    const same = cand({ category: "WORLD", threadId: a.threadId });
+    const promo = cand({ category: "LIFE", assessment: assess({ promotional: true, impact: 0, longevity: 0 }) });
+    const gossip = cand({ category: "ENTERTAINMENT", assessment: assess({ gossip: true, impact: 0, longevity: 0, publicInterest: 0 }) });
+    expect(ids(selectForEdition([a, same, promo, gossip], SLOTS.MORNING, new Set()))).toEqual([a.id]);
   });
 
   it("前の回に載った出来事は、もう一度は載せない", () => {
     const a = cand();
     const b = cand();
-    const r = selectForEdition([a, b], SLOTS.LUNCH, new Set([a.threadId!]));
-    expect(r.main.map((m) => m.id)).toEqual([b.id]);
+    const r = selectForEdition([a, b], SLOTS.MORNING, new Set([a.threadId!]));
+    expect(ids(r)).toEqual([b.id]);
     expect(r.notes.excludedThreads).toBe(1);
   });
 
-  it("要確認・除外・解析待ちの扱い", () => {
-    const review = cand({ status: "REVIEW_REQUIRED" });
-    const rejected = cand({ status: "REJECTED_AUTO" });
-    const queued = cand({ status: "QUEUED" });
-    const r = selectForEdition([review, rejected, queued], SLOTS.LUNCH, new Set());
-    expect(r.main.map((m) => m.id)).toEqual([review.id]);
-  });
-
-  it("夜は続報1本＋本編2本（合わせて3本）。続報の出来事は本編に重ねない", () => {
-    const followA = cand({ kind: "FOLLOWUP", threadId: "tx", newFacts: 2, category: "ECONOMY" });
-    const mainA = cand({ threadId: "tx", category: "ECONOMY" });
-    const others = [cand({ category: "WORLD" }), cand({ category: "TECH" }), cand({ category: "SCIENCE" }), cand({ category: "POLITICS" })];
-    const r = selectForEdition([followA, mainA, ...others], SLOTS.EVENING, new Set());
-    expect(r.followups.map((f) => f.id)).toEqual([followA.id]);
-    expect(r.main).toHaveLength(2);
-    expect(r.main.map((m) => m.id)).not.toContain(mainA.id);
-  });
-
-  it("分野の上限は続報の枠も数える（本編2本＋続報1本で3本とも同じ分野にしない）", () => {
-    const follow = cand({ kind: "FOLLOWUP", threadId: "tf", newFacts: 2, category: "SPORTS" });
-    const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
-    const world = cand({ category: "WORLD" });
-    const r = selectForEdition([follow, ...sports, world], SLOTS.EVENING, new Set());
-    expect(r.followups.map((f) => f.id)).toEqual([follow.id]);
-    expect(r.main.map((m) => m.id)).toContain(world.id);
-    expect(r.main.filter((m) => sports.some((s) => s.id === m.id)).length).toBeLessThanOrEqual(1);
-  });
-
-  it("ほかに候補がなければ、同じ分野でも3本にする（必ず3本）", () => {
-    const follow = cand({ kind: "FOLLOWUP", threadId: "tg", newFacts: 2, category: "SPORTS" });
-    const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
-    const r = selectForEdition([follow, ...sports], SLOTS.EVENING, new Set());
-    expect(r.followups.length + r.main.length).toBe(3);
-  });
-
-  it("おまかせ投稿では、要確認のストーリーを選ばない", () => {
+  it("除外・解析待ちは使わない。おまかせ投稿では、自動で使ってよい要確認だけ使う", () => {
     const review = cand({ status: "REVIEW_REQUIRED", category: "ECONOMY" });
-    const ok = cand({ category: "WORLD" });
-    expect(selectForEdition([review, ok], SLOTS.LUNCH, new Set(), { verifiedOnly: true }).main.map((m) => m.id)).toEqual([ok.id]);
-    expect(selectForEdition([review, ok], SLOTS.LUNCH, new Set()).main.map((m) => m.id).sort()).toEqual([review.id, ok.id].sort());
+    const reviewOk = cand({ status: "REVIEW_REQUIRED", category: "WORLD", autoOk: true });
+    const others = [cand({ status: "REJECTED_AUTO" }), cand({ status: "QUEUED" })];
+    expect(ids(selectForEdition([review, reviewOk, ...others], SLOTS.MORNING, new Set(), { verifiedOnly: true }))).toEqual([reviewOk.id]);
   });
 
-  it("夜は今日配信した出来事（PUBLISHED）も、まとめとして候補にできる", () => {
-    const morning = cand({ status: "PUBLISHED", category: "ECONOMY" });
-    expect(selectForEdition([morning], SLOTS.EVENING, new Set()).main.map((m) => m.id)).toEqual([morning.id]);
-  });
-
-  it("夜に続報がなければ、本編を3本まで増やす", () => {
-    const cs = [cand({ category: "WORLD" }), cand({ category: "TECH" }), cand({ category: "SCIENCE" }), cand({ category: "LIFE" }), cand({ category: "POLITICS" }), cand({ category: "ECONOMY" })];
-    expect(selectForEdition(cs, SLOTS.EVENING, new Set()).main).toHaveLength(3);
+  it("続報は新しい事実があり基準点以上のときだけ、同じ枠で競う（followupMax 本まで）", () => {
+    const follow = cand({ kind: "FOLLOWUP", threadId: "tx", newFacts: 2, category: "ECONOMY", assessment: assess({ impact: 3, longevity: 3 }) });
+    const noFacts = cand({ kind: "FOLLOWUP", threadId: "ty", newFacts: 0, category: "TECH", assessment: assess({ impact: 3, longevity: 3 }) });
+    const r = selectForEdition([follow, noFacts, cand({ category: "ECONOMY" }), cand({ category: "LIFE" }), cand({ category: "SPORTS" })], { ...SLOTS.MORNING, followupMax: 1 }, new Set());
+    expect(r.followups.map((f) => f.id)).toEqual([follow.id]);
+    expect(ids(r)).not.toContain(noFacts.id);
+    expect(ids(r)).toHaveLength(3);
   });
 });
 
@@ -402,6 +349,19 @@ describe("話題性と、要確認の自動掲載", () => {
     expect(isAutoReviewable({ ...base, riskFlags: ["DEATH"], statusNote: "慎重に扱う分野: 死亡" })).toBe(false);
     expect(isAutoReviewable({ ...base, assessment: assess({ gossip: true }) })).toBe(false);
     expect(isAutoReviewable({ ...base, status: "PENDING" })).toBe(false);
+  });
+
+  it("訃報・戦争・医療は、独立4社以上・信頼できる媒体あり・確からしさ0.85以上なら自動で使う", () => {
+    const strict = { ...base, riskFlags: ["DEATH"], statusNote: "慎重に扱う分野: 死亡", publisherCount: 4, confidence: 0.9, trusted: true };
+    expect(isAutoReviewable(strict)).toBe(true);
+    expect(isAutoReviewable({ ...strict, trusted: false })).toBe(false);
+    expect(isAutoReviewable({ ...strict, publisherCount: 3 })).toBe(false);
+    expect(isAutoReviewable({ ...strict, confidence: 0.82 })).toBe(false);
+  });
+
+  it("事件で人名が出てくるもの（実名の容疑者など）は自動では使わない", () => {
+    expect(isAutoReviewable({ ...base, riskFlags: ["CRIME"], statusNote: "慎重に扱う分野: 事件", hasPeople: true })).toBe(false);
+    expect(isAutoReviewable({ ...base, riskFlags: ["CRIME"], statusNote: "慎重に扱う分野: 事件", hasPeople: false })).toBe(true);
   });
 
   it("おまかせ投稿の回でも、自動で載せてよい要確認のものは選ぶ", () => {
