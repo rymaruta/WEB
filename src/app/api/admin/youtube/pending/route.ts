@@ -2,6 +2,7 @@ import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { hasCronSecret } from "@/lib/auth";
 import { buildVideoPrompt, findVideoSummaryCandidates, VIDEO_SUMMARY_SYSTEM, VideoSummarySchema } from "@/lib/youtube";
+import { compactPending } from "@/lib/admin/compact";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,11 @@ export async function GET(request: Request) {
   }
   const limit = Math.min(30, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 10));
   const videos = await findVideoSummaryCandidates(limit);
-  return Response.json({
+  const body = {
     instructions: VIDEO_SUMMARY_SYSTEM,
     outputSchema: z.toJSONSchema(VideoSummarySchema),
     submit: `POST ${siteConfig.url}/api/admin/youtube/{id} に { "result": <outputSchema に従う JSON> } を送る`,
     videos: videos.map((v) => ({ id: v.videoId, prompt: buildVideoPrompt(v) })),
-  });
+  };
+  return Response.json(compactPending(request, body));
 }

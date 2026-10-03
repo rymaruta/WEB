@@ -5,6 +5,7 @@ import { countNewDueTopics, findDueTopics, findUpgradeTopics, loadTopicSources }
 import { hasCronSecret } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildRelatedPrompt, findRelatedEarlier } from "@/lib/ai/related";
+import { compactPending } from "@/lib/admin/compact";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     countNewDueTopics(),
   ]);
 
-  return Response.json({
+  const body = {
     instructions: SYSTEM,
     outputSchema: z.toJSONSchema(ArticleSchema),
     // まだまとめ記事のない、書くべきトピックの数（今回返した分を含む）
@@ -55,5 +56,6 @@ export async function GET(request: Request) {
         };
       }),
     ),
-  });
+  };
+  return Response.json(compactPending(request, body));
 }
