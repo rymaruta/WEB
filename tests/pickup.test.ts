@@ -45,17 +45,23 @@ describe("注目のニュース（速報の表示なし）", () => {
   });
 });
 
-describe("AI 解析前の見出しの下書き", () => {
-  it("句読点の切れ目で12字×2行に詰め、媒体の飾りを外す", async () => {
+describe("AI 解析前の見出しの下書き（見出しだけのカード）", () => {
+  it("話題の見出しの全文を1行で返し、媒体の飾りを外す（切り落とさない）", async () => {
     const { draftHeadline } = await import("@/lib/digest/breaking");
-    const { textWidth } = await import("@/lib/stories/text");
     const h = draftHeadline({ title: "【速報】久保建英、薬指に指輪キラリ！ 幸せ結婚発表から一夜明け…日本代表の練習に登場", aiTitle: null });
-    expect(h.length).toBeLessThanOrEqual(2);
-    expect(h[0].startsWith("久保建英")).toBe(true);
-    for (const l of h) expect(textWidth(l)).toBeLessThanOrEqual(12);
+    expect(h).toHaveLength(1);
+    expect(h[0].startsWith("久保建英、")).toBe(true);
+    expect(h[0].endsWith("日本代表の練習に登場")).toBe(true);
   });
   it("AI の見出しがあれば、それを使う", async () => {
     const { draftHeadline } = await import("@/lib/digest/breaking");
-    expect(draftHeadline({ title: "長い元の見出し…", aiTitle: "マンチェスターC告発者、証人保護の打ち切り報道" }).join("")).toContain("マンチェスターC告発者");
+    expect(draftHeadline({ title: "長い元の見出し…", aiTitle: "マンチェスターC告発者、証人保護の打ち切り報道" })).toEqual(["マンチェスターC告発者、証人保護の打ち切り報道"]);
+  });
+  it("要点のある出来事は12字×2行、要点のない出来事は全部で48字までで確かめる", async () => {
+    const { checkSingleHeadline } = await import("@/lib/digest/check");
+    const long = ["久保建英、薬指に指輪キラリ! 幸せ結婚発表から一夜明け…日本代表の練習に登場"];
+    expect(checkSingleHeadline(long, false)).toEqual([]);
+    expect(checkSingleHeadline(long, true).length).toBeGreaterThan(0);
+    expect(checkSingleHeadline(["あ".repeat(49)], false).length).toBeGreaterThan(0);
   });
 });

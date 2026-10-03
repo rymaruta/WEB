@@ -2,6 +2,18 @@ import { LIMITS } from "@/lib/stories/schema";
 import { textWidth } from "@/lib/stories/text";
 import type { ItemOverride } from "./build";
 
+/** 要点のない「見出しだけのカード」（速報・注目のニュースで AI 解析前の出来事）の見出しの上限。大きな字で折り返して全部見せる */
+export const HEADLINE_ONLY = { maxLines: 4, maxWidth: 48 } as const;
+
+/** 見出しだけのカードの見出しを確かめる（行の数と、全体の字数） */
+export function checkHeadlineOnly(lines: string[]): string[] {
+  const notes: string[] = [];
+  if (lines.length < 1 || lines.length > HEADLINE_ONLY.maxLines) notes.push(`見出しは1〜${HEADLINE_ONLY.maxLines}行です`);
+  const w = textWidth(lines.join(""));
+  if (w > HEADLINE_ONLY.maxWidth) notes.push(`見出しが${w}字です（要点のないカードは${HEADLINE_ONLY.maxWidth}字まで）`);
+  return notes;
+}
+
 /** 文字数の上限を確かめる。超えていれば理由の一覧を返す */
 export function checkOverride(o: ItemOverride): string[] {
   const notes: string[] = [];
@@ -44,4 +56,12 @@ export function editionQualityProblems(items: QualityItem[]): { blocking: string
   const hard = cats.filter((c) => c === "POLITICS" || c === "ECONOMY" || c === "WORLD" || c === "SOCIETY").length;
   if (soft * 2 > items.length && hard === 0) warnings.push(`芸能・スポーツが${soft}本で、社会・政治・経済・国際がない`);
   return { blocking, warnings };
+}
+
+/**
+ * 速報・注目のニュースの見出しを確かめる。要点のある出来事は通常のカード（1〜2行、各12字）、
+ * 要点のない出来事（AI 解析前）は見出しだけのカード（全部で48字まで）の上限で見る
+ */
+export function checkSingleHeadline(lines: string[], hasPoints: boolean): string[] {
+  return hasPoints ? checkOverride({ headline: lines }) : checkHeadlineOnly(lines);
 }

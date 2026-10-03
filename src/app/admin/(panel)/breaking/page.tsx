@@ -54,7 +54,7 @@ export default async function BreakingPage() {
                 <pre className="mt-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{breakingPostText(headline, now).join("\n")}</pre>
               </details>
               <div className="mt-3">
-                <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={headline} previewSrc={`/api/admin/breaking/${s.id}/card`} />
+                <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={headline} previewSrc={`/api/admin/breaking/${s.id}/card`} headlineOnly={queued} />
                 <div className="mt-2">
                   <AiRequestForm action={requestAiBreakingAction.bind(null, s.id)} />
                 </div>

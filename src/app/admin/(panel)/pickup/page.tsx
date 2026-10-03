@@ -55,7 +55,7 @@ export default async function PickupPage() {
                 <pre className="mt-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{pickupPostText(headline).join("\n")}</pre>
               </details>
               <div className="mt-3">
-                <BreakingForm action={publishPickupAction.bind(null, s.id)} headline={headline} kind="注目のニュース" previewSrc={`/api/admin/breaking/${s.id}/card?kind=pickup`} />
+                <BreakingForm action={publishPickupAction.bind(null, s.id)} headline={headline} kind="注目のニュース" previewSrc={`/api/admin/breaking/${s.id}/card?kind=pickup`} headlineOnly={queued} />
                 <Link href={`/topic/${s.topic.id}`} target="_blank" className="mt-2 inline-block text-sm text-fg-muted underline">
                   記事を確かめる ↗
                 </Link>

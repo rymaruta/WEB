@@ -23,9 +23,9 @@ export async function GET(request: Request, { params }: RouteContext<"/api/admin
   // 入力中の見出し（あれば、それをそのまま使う）
   const typed = (url.searchParams.get("headline") ?? "")
     .split("\n")
-    .map((l) => l.trim().slice(0, 40))
+    .map((l) => l.trim().slice(0, 60))
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 4);
   if (typed.length) entry.headline = typed;
   // AI 解析前の出来事は見出しがまだないため、話題の見出しを下書きとして入れる（空のカードにしない）
   else if (entry.headline.length === 0) {

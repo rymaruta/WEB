@@ -10,18 +10,21 @@ const PREVIEW_DELAY_MS = 600;
 
 /**
  * 速報・注目のニュースの見出しを直してから投稿する。見出しは投稿文とカードの両方に使う（1〜2行、各12字まで）。
- * previewSrc を渡すと、入力中の見出しで描いたカードを下に出す（投稿されるカードと同じ見た目を確かめられる）
+ * previewSrc を渡すと、入力中の見出しで描いたカードを下に出す（投稿されるカードと同じ見た目を確かめられる）。
+ * headlineOnly は要点のない出来事（AI 解析前）。見出しだけのカードになり、全部で48字まで大きく折り返して見せる
  */
 export function BreakingForm({
   action,
   headline,
   kind = "速報",
   previewSrc,
+  headlineOnly = false,
 }: {
   action: Action;
   headline: string[];
   kind?: "速報" | "注目のニュース";
   previewSrc?: string;
+  headlineOnly?: boolean;
 }) {
   const [state, run, pending] = useActionState(action, undefined);
   const [text, setText] = useState(headline.join("\n"));
@@ -41,10 +44,10 @@ export function BreakingForm({
       }}
     >
       <label className="block text-sm font-bold">
-        見出し（1〜2行、各12字まで。カードでは改行の位置で折り返します）
+        {headlineOnly ? "見出し（要点のない出来事なので、見出しだけのカードになります。全部で48字まで、大きな字で折り返します）" : "見出し（1〜2行、各12字まで。カードでは改行の位置で折り返します）"}
         <textarea
           name="headline"
-          rows={2}
+          rows={headlineOnly ? 3 : 2}
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-base"

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { hasCronSecret } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createManualBreaking, listBreakingCandidates } from "@/lib/digest/breaking";
-import { checkOverride } from "@/lib/digest/check";
+import { checkSingleHeadline } from "@/lib/digest/check";
 import { publishEdition, PublishError } from "@/lib/digest/publish";
 import { editionKey, jstDate } from "@/lib/digest/slots";
 
@@ -35,17 +35,17 @@ export async function POST(request: Request) {
   const story = sid
     ? await prisma.story.findUnique({
         where: { id: sid },
-        select: { id: true },
+        select: { id: true, points: true },
       })
     : topicId
       ? await prisma.story.findFirst({
           where: { topicId, kind: "NEW" },
           orderBy: { createdAt: "desc" },
-          select: { id: true },
+          select: { id: true, points: true },
         })
       : null;
   if (!story) return Response.json({ error: "story not found" }, { status: 404 });
-  const problems = headline?.length ? checkOverride({ headline }) : [];
+  const problems = headline?.length ? checkSingleHeadline(headline, Array.isArray(story.points) && story.points.length > 0) : [];
   if (problems.length) return Response.json({ error: problems }, { status: 400 });
 
   // 失敗した速報の出し直しは、同じ回の続きとして投稿する（二重に投稿しない）
