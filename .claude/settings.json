@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Skill",
+      "mcp__github",
+      "mcp__Claude_Code_Remote",
+      "mcp__Claude_Docs"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(*EYRLTGCPOS9E4*)",
+      "Bash(*Z01808162ZBG16NIINHQO*)",
+      "Bash(*journey-photo*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "mcp__Claude_Code_Remote__delete_trigger",
+      "mcp__Claude_Code_Remote__archive_session"
+    ]
+  }
+}
