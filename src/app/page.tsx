@@ -65,7 +65,21 @@ export default async function HomePage() {
       <AdsenseScript />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
       {/* ページの見出しはサイト名（画面では上のロゴがサイト名を示しているため、読み上げと検索エンジン向けに置く） */}
-      <h1 className="sr-only">ぜんぶナビ｜主要メディアのニュースをまとめて読めるニュースサイト</h1>
+      <h1 className="sr-only">ぜんぶナビ｜同じ出来事を、どの媒体が・いつ・どう報じたかを比べられるニュースサイト</h1>
+      {/* このサイトが何をするところか（ほかのニュースサイトとの違い）を、最初の画面で一文で示す */}
+      <section aria-label="ぜんぶナビについて" className="rounded-xl border border-border bg-surface px-4 py-3">
+        <p className="text-[15px] leading-snug font-bold">同じ出来事を、どの媒体が・いつ・どう報じたかを1ページで。</p>
+        <p className="mt-1 text-xs leading-relaxed text-fg-muted">
+          {stats.publishers}媒体の配信を数分おきに集め、出来事ごとに「最初の報道」「報道の広がり」「見出しの数字の違い」を記録しています。
+          <Link href="/data" className="ml-1 font-bold text-accent underline">
+            今週の報道データ
+          </Link>
+          ・
+          <Link href="/compare" className="font-bold text-accent underline">
+            報道くらべ
+          </Link>
+        </p>
+      </section>
       {/* X で配信した最新の回（朝・昼・夜のニュース）。X から来た人が同じ形で続きを読めるように一番上に置く */}
       <SinceLastVisit />
       {digest && digestOnTop && <DigestSummaryCard digest={digest} />}

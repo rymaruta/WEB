@@ -68,6 +68,9 @@ export async function getTrendingTopics(opts: {
       ...(opts.genreId ? { genreId: opts.genreId } : {}),
       ...(opts.minPublishers ? { publisherCount: { gte: opts.minPublishers } } : {}),
       ...(opts.excludeIds?.length ? { id: { notIn: opts.excludeIds } } : {}),
+      // ジャンルを決めない「話題」には、企業の発表（PR TIMES など）だけの話題を出さない（報道されたものだけ）。
+      // 新商品などのジャンルの一覧では発表も出す
+      ...(opts.genreId ? {} : { articles: { some: { source: { kind: "NEWS" } } } }),
     },
     orderBy: [{ score: "desc" }, { lastSeenAt: "desc" }],
     skip: opts.skip,

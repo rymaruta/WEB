@@ -20,7 +20,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // AI まとめ記事があるトピックのみ（それ以外のトピックは noindex）
     prisma.topic.findMany({
       // 別の話題にまとめたページ（まとめた先へ移す）は載せない。登録の基準は話題のページと同じ（src/lib/indexing.ts）
-      where: { aiGeneratedAt: { not: null }, mergedIntoId: null },
+      // 報道機関の記事がある話題だけ（企業の発表だけの話題は登録しない）
+      where: { aiGeneratedAt: { not: null }, mergedIntoId: null, articles: { some: { source: { kind: "NEWS" } } } },
       orderBy: { aiGeneratedAt: "desc" },
       take: 8000,
       select: { id: true, aiGeneratedAt: true, publisherCount: true, aiAngles: true, aiBackground: true },
