@@ -155,3 +155,25 @@ describe("なぜ重要（why）の照合", async () => {
     expect(r.article?.why).toBeNull();
   });
 });
+
+describe("人名の照合（採否に使う）", async () => {
+  const { checkArticleFacts, sanitizeArticle } = await import("@/lib/ai/prompt");
+  const src = [{ publisher: "A新聞", publishedAt: new Date("2026-10-02T00:00:00Z"), title: "巨人が敗れる", summary: "山田哲人選手が決勝打を放った" }];
+  const make = (lead: string, body = "試合は終盤に動いた。") =>
+    sanitizeArticle({ title: "巨人が敗れる", lead, points: [{ text: "巨人が敗れた", sources: [1] }], body: [body], sufficient: true } as never, 1)!;
+  it("資料にある人名なら採用する", () => {
+    expect(checkArticleFacts(make("山田哲人選手が決勝打を放った。"), src).article).not.toBeNull();
+  });
+  it("リードに資料にない人名があれば採用しない", () => {
+    const r = checkArticleFacts(make("村上宗隆選手が決勝打を放った。"), src);
+    expect(r.article).toBeNull();
+    expect(r.missing).toContain("村上宗隆");
+  });
+  it("本文の段落に資料にない人名があれば、その段落を落とす", () => {
+    const a = sanitizeArticle(
+      { title: "巨人が敗れる", lead: "巨人が敗れた。", points: [{ text: "巨人が敗れた", sources: [1] }], body: ["試合は終盤に動いた。", "岡本和真選手も出場した。"], sufficient: true } as never,
+      1,
+    )!;
+    expect(checkArticleFacts(a, src).article?.body).toEqual(["試合は終盤に動いた。"]);
+  });
+});
