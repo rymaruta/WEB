@@ -55,11 +55,14 @@ export default async function RankingPage() {
           <p className="mb-2 text-xs text-fg-subtle">{"このサイトから元記事が開かれた回数"}</p>
           <ArticleRanking items={mostRead} metric="clicks" showGenre emptyText="集計中です。記事が読まれるとここに表示されます。" />
         </section>
-        <section className="min-w-0 card p-4">
-          <SectionHeading title="SNSで話題" />
-          <p className="mb-2 text-xs text-fg-subtle">はてなブックマーク数</p>
-          <ArticleRanking items={buzz} metric="social" showGenre />
-        </section>
+        {/* はてなブックマークの収集は利用規約により停止中。数が残っている間だけ出す */}
+        {buzz.length > 0 && (
+          <section className="min-w-0 card p-4">
+            <SectionHeading title="SNSで話題" />
+            <p className="mb-2 text-xs text-fg-subtle">はてなブックマーク数</p>
+            <ArticleRanking items={buzz} metric="social" showGenre />
+          </section>
+        )}
       </div>
     </div>
   );

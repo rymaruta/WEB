@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { publisherLabel } from "@/lib/publisher";
 import { GameSchema, verifyGame, type GameInfo } from "./game";
+import { aiSummary } from "@/lib/rights";
 
 /**
  * ゲームの発売日を、1媒体だけが報じた記事からも集める。
@@ -61,7 +62,7 @@ export const GAME_EXTRACT_SYSTEM = `あなたはゲームニュースの編集�
 - グッズ・くじ・コラボ商品・書籍・体験版・セール・アップデートや追加コンテンツ・イベントは isGameRelease を false にする。`;
 
 export function buildGamePrompt(articles: { publisher: string; publishedAt: Date; title: string; summary: string | null }[]) {
-  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${a.summary ?? "（なし）"}`);
+  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${aiSummary(a.summary, a.publisher) ?? "（なし）"}`);
   return `次の資料から、ゲーム本体の発売に関する情報を読み取ってください。\n\n${lines.join("\n\n")}`;
 }
 

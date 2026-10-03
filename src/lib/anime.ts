@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { publisherLabel } from "@/lib/publisher";
 import { verifyDate } from "./game";
 import { ANIME_KINDS, type AnimeItem, type AnimeKind } from "./anime-kinds";
+import { aiSummary } from "@/lib/rights";
 
 export { ANIME_KIND_LABELS, ANIME_KINDS, type AnimeItem, type AnimeKind } from "./anime-kinds";
 
@@ -50,7 +51,7 @@ export const ANIME_EXTRACT_SYSTEM = `あなたはアニメニュースの編集�
 - 始まる日は資料に書かれている精度で書く（日まで→YYYY-MM-DD、月まで→YYYY-MM）。「今秋」「2027年」のように月が書かれていなければ isSchedule を false にする。`;
 
 export function buildAnimePrompt(articles: { publisher: string; publishedAt: Date; title: string; summary: string | null }[]) {
-  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${a.summary ?? "（なし）"}`);
+  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${aiSummary(a.summary, a.publisher) ?? "（なし）"}`);
   return `次の資料から、アニメの放送・配信・劇場公開の情報を読み取ってください。\n\n${lines.join("\n\n")}`;
 }
 

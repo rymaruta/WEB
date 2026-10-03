@@ -63,7 +63,7 @@ export const CHANGE_EXTRACT_SYSTEM = `あなたはニュースの編集者です
 - 値上げ・値下げは、有名なものだけを載せる。多くの人が知っている会社・ブランド・料金なら major を true、地方の店や小さな会社の話なら false にする。`;
 
 export function buildChangePrompt(articles: { publisher: string; publishedAt: Date; title: string; summary: string | null }[]) {
-  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${a.summary ?? "（なし）"}`);
+  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${aiSummary(a.summary, a.publisher) ?? "（なし）"}`);
   return `次の資料から、暮らしに関わる変更の情報を読み取ってください。\n\n${lines.join("\n\n")}`;
 }
 
@@ -165,6 +165,7 @@ export async function saveChangeExtract(topicId: number, result: ChangeExtract) 
 
 export type { ChangeItem } from "./change-kinds";
 import type { ChangeItem } from "./change-kinds";
+import { aiSummary } from "@/lib/rights";
 
 /** 指定した月（YYYY-MM の配列）に始まる変更。同じ見出しは1件にまとめ、日付順 */
 export async function getChanges(months: string[]): Promise<ChangeItem[]> {

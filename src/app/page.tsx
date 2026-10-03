@@ -114,7 +114,7 @@ export default async function HomePage() {
                   label="ランキングの種類"
                   groups={[
                     ...(mostRead.length > 0 ? [{ key: "read", label: "よく読まれている", content: <ArticleRanking items={mostRead.slice(0, 5)} metric="clicks" /> }] : []),
-                    { key: "buzz", label: "SNSで話題", content: <ArticleRanking items={buzz.slice(0, 5)} metric="social" showGenre /> },
+                    ...(buzz.length > 0 ? [{ key: "buzz", label: "SNSで話題", content: <ArticleRanking items={buzz.slice(0, 5)} metric="social" showGenre /> }] : []),
                     { key: "latest", label: "新着", content: <ArticleRanking items={latest.slice(0, 5)} showGenre /> },
                   ]}
                 />
@@ -129,9 +129,11 @@ export default async function HomePage() {
               )}
               {/* スマホでは上のランキングのタブに入っているため、PC でだけ出す */}
               <div className="hidden space-y-6 lg:block">
-                <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
-                  <ArticleRanking items={buzz} metric="social" showGenre />
-                </SideFold>
+                {buzz.length > 0 && (
+                  <SideFold id="home-buzz" title="SNSで話題" note="はてなブックマーク数">
+                    <ArticleRanking items={buzz} metric="social" showGenre />
+                  </SideFold>
+                )}
                 <SideFold id="home-latest" title="新着">
                   <ArticleRanking items={latest} showGenre />
                 </SideFold>

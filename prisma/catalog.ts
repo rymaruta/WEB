@@ -34,6 +34,9 @@ export type SourceSeed = {
 /** 媒体側のボット対策で自動取得が拒否されるフィード。回避はせず、提携・許諾後に有効化する */
 const BLOCKED = { active: false, disabledReason: "自動取得を拒否（媒体側のボット対策）。提携・許諾後に有効化" } as const;
 
+/** 利用規約が、営利のサイトでの利用・自動収集・要約を禁じる（または許諾制にしている）フィード（2026年10月3日に確認）。許諾後に有効化 */
+const TERMS = { active: false, disabledReason: "利用規約で営利利用・自動収集・要約が禁止または許諾制（2026-10-03 確認）。許諾後に有効化" } as const;
+
 export const sources: SourceSeed[] = [
   // 国内
   { name: "文春オンライン", publisher: "文春オンライン", siteUrl: "https://bunshun.jp/", feedUrl: "https://bunshun.jp/list/feed/rss", genre: "domestic" },
@@ -42,7 +45,7 @@ export const sources: SourceSeed[] = [
   { name: "毎日新聞 速報", publisher: "毎日新聞", siteUrl: "https://mainichi.jp/", feedUrl: "https://mainichi.jp/rss/etc/mainichi-flash.rss", genre: "domestic", ...BLOCKED },
   { name: "TBS NEWS DIG", publisher: "TBS NEWS DIG", siteUrl: "https://newsdig.tbs.co.jp/", feedUrl: "https://newsdig.tbs.co.jp/list/feed/rss", genre: "domestic", ...BLOCKED },
   { name: "日テレNEWS NNN", publisher: "日テレNEWS NNN", siteUrl: "https://news.ntv.co.jp/", feedUrl: "https://news.ntv.co.jp/rss/index.rdf", genre: "domestic", ...BLOCKED },
-  { name: "時事ドットコム アクセスランキング", publisher: "時事ドットコム", siteUrl: "https://www.jiji.com/", feedUrl: "https://www.jiji.com/rss/ranking.rdf", genre: "domestic" },
+  { name: "時事ドットコム アクセスランキング", publisher: "時事ドットコム", siteUrl: "https://www.jiji.com/", feedUrl: "https://www.jiji.com/rss/ranking.rdf", genre: "domestic", ...TERMS },
   { name: "ハフポスト日本版", publisher: "ハフポスト日本版", siteUrl: "https://www.huffingtonpost.jp/", feedUrl: "https://www.huffingtonpost.jp/feeds/index.xml", genre: "domestic", ...BLOCKED },
   { name: "J-CASTニュース", publisher: "J-CASTニュース", siteUrl: "https://www.j-cast.com/", feedUrl: "https://www.j-cast.com/index.xml", genre: "domestic" },
   { name: "ライブドアニュース 主要", publisher: "ライブドアニュース", siteUrl: "https://news.livedoor.com/", feedUrl: "https://news.livedoor.com/topics/rss/top.xml", genre: "domestic" },
@@ -50,15 +53,15 @@ export const sources: SourceSeed[] = [
   // 国際
   { name: "WEDGE ONLINE", publisher: "WEDGE ONLINE", siteUrl: "https://wedge.ismedia.jp/", feedUrl: "https://wedge.ismedia.jp/list/feed/rss", genre: "world" },
   { name: "朝日新聞 国際", publisher: "朝日新聞", siteUrl: "https://www.asahi.com/international/", feedUrl: "https://www.asahi.com/rss/asahi/international.rdf", genre: "world", ...BLOCKED },
-  { name: "BBCニュース ジャパン", publisher: "BBCニュース", siteUrl: "https://www.bbc.com/japanese", feedUrl: "https://feeds.bbci.co.uk/japanese/rss.xml", genre: "world" },
+  { name: "BBCニュース ジャパン", publisher: "BBCニュース", siteUrl: "https://www.bbc.com/japanese", feedUrl: "https://feeds.bbci.co.uk/japanese/rss.xml", genre: "world", ...TERMS },
   { name: "ライブドアニュース 海外", publisher: "ライブドアニュース", siteUrl: "https://news.livedoor.com/", feedUrl: "https://news.livedoor.com/topics/rss/int.xml", genre: "world" },
 
   // 経済
   { name: "Business Insider Japan", publisher: "Business Insider Japan", siteUrl: "https://www.businessinsider.jp/", feedUrl: "https://www.businessinsider.jp/feed/index.xml", genre: "business" },
-  { name: "東洋経済オンライン", publisher: "東洋経済オンライン", siteUrl: "https://toyokeizai.net/", feedUrl: "https://toyokeizai.net/list/feed/rss", genre: "business" },
-  { name: "ダイヤモンド・オンライン", publisher: "ダイヤモンド・オンライン", siteUrl: "https://diamond.jp/", feedUrl: "https://diamond.jp/list/feed/rss/dol", genre: "business" },
+  { name: "東洋経済オンライン", publisher: "東洋経済オンライン", siteUrl: "https://toyokeizai.net/", feedUrl: "https://toyokeizai.net/list/feed/rss", genre: "business", ...TERMS },
+  { name: "ダイヤモンド・オンライン", publisher: "ダイヤモンド・オンライン", siteUrl: "https://diamond.jp/", feedUrl: "https://diamond.jp/list/feed/rss/dol", genre: "business", ...TERMS },
   { name: "プレジデントオンライン", publisher: "プレジデントオンライン", siteUrl: "https://president.jp/", feedUrl: "https://president.jp/list/rss", genre: "business" },
-  { name: "現代ビジネス", publisher: "現代ビジネス", siteUrl: "https://gendai.media/", feedUrl: "https://gendai.media/list/feed/rss", genre: "business" },
+  { name: "現代ビジネス", publisher: "現代ビジネス", siteUrl: "https://gendai.media/", feedUrl: "https://gendai.media/list/feed/rss", genre: "business", ...TERMS },
 
   // IT・科学
   { name: "WIRED.jp", publisher: "WIRED.jp", siteUrl: "https://wired.jp/", feedUrl: "https://wired.jp/feed/rss", genre: "tech" },
@@ -70,10 +73,10 @@ export const sources: SourceSeed[] = [
   { name: "Publickey", publisher: "Publickey", siteUrl: "https://www.publickey1.jp/", feedUrl: "https://www.publickey1.jp/atom.xml", genre: "tech" },
   { name: "ギズモード・ジャパン", publisher: "ギズモード・ジャパン", siteUrl: "https://www.gizmodo.jp/", feedUrl: "https://www.gizmodo.jp/index.xml", genre: "tech" },
   { name: "マイナビニュース", publisher: "マイナビニュース", siteUrl: "https://news.mynavi.jp/", feedUrl: "https://news.mynavi.jp/rss/index", genre: "tech" },
-  { name: "はてなブックマーク IT", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/it", feedUrl: "https://b.hatena.ne.jp/hotentry/it.rss", genre: "tech", kind: "SOCIAL" },
+  { name: "はてなブックマーク IT", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/it", feedUrl: "https://b.hatena.ne.jp/hotentry/it.rss", genre: "tech", kind: "SOCIAL", ...TERMS },
 
   // エンタメ
-  { name: "女性自身", publisher: "女性自身", siteUrl: "https://jisin.jp/", feedUrl: "https://jisin.jp/feed/", genre: "entertainment" },
+  { name: "女性自身", publisher: "女性自身", siteUrl: "https://jisin.jp/", feedUrl: "https://jisin.jp/feed/", genre: "entertainment", ...TERMS },
   { name: "東スポWEB", publisher: "東スポWEB", siteUrl: "https://www.tokyo-sports.co.jp/", feedUrl: "https://www.tokyo-sports.co.jp/list/feed/rss", genre: "entertainment" },
   { name: "朝日新聞 文化・芸能", publisher: "朝日新聞", siteUrl: "https://www.asahi.com/culture/", feedUrl: "https://www.asahi.com/rss/asahi/culture.rdf", genre: "entertainment", ...BLOCKED },
   { name: "毎日新聞 エンタメ", publisher: "毎日新聞", siteUrl: "https://mainichi.jp/enta/", feedUrl: "https://mainichi.jp/rss/etc/mainichi-enta.rss", genre: "entertainment", ...BLOCKED },
@@ -82,13 +85,13 @@ export const sources: SourceSeed[] = [
   { name: "音楽ナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/music", feedUrl: "https://natalie.mu/music/feed/news", genre: "entertainment", ...BLOCKED },
   { name: "映画ナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/eiga", feedUrl: "https://natalie.mu/eiga/feed/news", genre: "entertainment", ...BLOCKED },
   { name: "お笑いナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/owarai", feedUrl: "https://natalie.mu/owarai/feed/news", genre: "entertainment", ...BLOCKED },
-  { name: "はてなブックマーク エンタメ", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/entertainment", feedUrl: "https://b.hatena.ne.jp/hotentry/entertainment.rss", genre: "entertainment", kind: "SOCIAL" },
+  { name: "はてなブックマーク エンタメ", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/entertainment", feedUrl: "https://b.hatena.ne.jp/hotentry/entertainment.rss", genre: "entertainment", kind: "SOCIAL", ...TERMS },
 
   // スポーツ
   { name: "Full-Count", publisher: "Full-Count", siteUrl: "https://full-count.jp/", feedUrl: "https://full-count.jp/feed/", genre: "sports" },
   { name: "BASEBALL KING", publisher: "BASEBALL KING", siteUrl: "https://baseballking.jp/", feedUrl: "https://baseballking.jp/feed", genre: "sports" },
   { name: "サッカーキング", publisher: "サッカーキング", siteUrl: "https://www.soccer-king.jp/", feedUrl: "https://www.soccer-king.jp/feed", genre: "sports" },
-  { name: "ゲキサカ", publisher: "ゲキサカ", siteUrl: "https://web.gekisaka.jp/", feedUrl: "https://web.gekisaka.jp/feed", genre: "sports" },
+  { name: "ゲキサカ", publisher: "ゲキサカ", siteUrl: "https://web.gekisaka.jp/", feedUrl: "https://web.gekisaka.jp/feed", genre: "sports", ...TERMS },
   { name: "FOOTBALL ZONE", publisher: "FOOTBALL ZONE", siteUrl: "https://www.football-zone.net/", feedUrl: "https://www.football-zone.net/feed", genre: "sports" },
   { name: "バスケットボールキング", publisher: "バスケットボールキング", siteUrl: "https://basketballking.jp/", feedUrl: "https://basketballking.jp/feed", genre: "sports" },
   { name: "THE ANSWER", publisher: "THE ANSWER", siteUrl: "https://the-ans.jp/", feedUrl: "https://the-ans.jp/feed/", genre: "sports" },
@@ -113,7 +116,7 @@ export const sources: SourceSeed[] = [
   { name: "AUTOMATON", publisher: "AUTOMATON", siteUrl: "https://automaton-media.com/", feedUrl: "https://automaton-media.com/feed/", genre: "game" },
   { name: "IGN Japan", publisher: "IGN Japan", siteUrl: "https://jp.ign.com/", feedUrl: "https://jp.ign.com/feed.xml", genre: "game", ...BLOCKED },
   { name: "コミックナタリー", publisher: "ナタリー", siteUrl: "https://natalie.mu/comic", feedUrl: "https://natalie.mu/comic/feed/news", genre: "anime", ...BLOCKED },
-  { name: "はてなブックマーク アニメとゲーム", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/game", feedUrl: "https://b.hatena.ne.jp/hotentry/game.rss", genre: "game", kind: "SOCIAL" },
+  { name: "はてなブックマーク アニメとゲーム", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/game", feedUrl: "https://b.hatena.ne.jp/hotentry/game.rss", genre: "game", kind: "SOCIAL", ...TERMS },
 
   // 新商品・グルメ
   { name: "PR TIMES", publisher: "PR TIMES", siteUrl: "https://prtimes.jp/", feedUrl: "https://prtimes.jp/index.rdf", genre: "products", kind: "PRESS" },
@@ -124,7 +127,7 @@ export const sources: SourceSeed[] = [
   { name: "ねとらぼ", publisher: "ITmedia", siteUrl: "https://nlab.itmedia.co.jp/", feedUrl: "https://rss.itmedia.co.jp/rss/2.0/netlab.xml", genre: "life" },
   { name: "ライフハッカー・ジャパン", publisher: "ライフハッカー・ジャパン", siteUrl: "https://www.lifehacker.jp/", feedUrl: "https://www.lifehacker.jp/feed/index.xml", genre: "life" },
   { name: "Car Watch", publisher: "Impress Watch", siteUrl: "https://car.watch.impress.co.jp/", feedUrl: "https://car.watch.impress.co.jp/data/rss/1.0/car/feed.rdf", genre: "life" },
-  { name: "はてなブックマーク 暮らし", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/life", feedUrl: "https://b.hatena.ne.jp/hotentry/life.rss", genre: "life", kind: "SOCIAL" },
-  { name: "はてなブックマーク 世の中", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/social", feedUrl: "https://b.hatena.ne.jp/hotentry/social.rss", genre: "domestic", kind: "SOCIAL" },
-  { name: "はてなブックマーク 政治と経済", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/economics", feedUrl: "https://b.hatena.ne.jp/hotentry/economics.rss", genre: "business", kind: "SOCIAL" },
+  { name: "はてなブックマーク 暮らし", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/life", feedUrl: "https://b.hatena.ne.jp/hotentry/life.rss", genre: "life", kind: "SOCIAL", ...TERMS },
+  { name: "はてなブックマーク 世の中", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/social", feedUrl: "https://b.hatena.ne.jp/hotentry/social.rss", genre: "domestic", kind: "SOCIAL", ...TERMS },
+  { name: "はてなブックマーク 政治と経済", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/economics", feedUrl: "https://b.hatena.ne.jp/hotentry/economics.rss", genre: "business", kind: "SOCIAL", ...TERMS },
 ];
