@@ -84,6 +84,12 @@ describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャン
     const hr = judgeGenre("TDK、「ポルシェ・エクスペリエンスセンター東京」で2027年入社内定式 齋藤昇社長があいさつ", null, "domestic");
     expect(confidentMove(hr, 0.4) ? hr.genre : "domestic").toBe("business");
   });
+  it("外食の季節メニュー・グッズの受注販売は products（IT系の媒体・ゲームの作品名があっても）", () => {
+    expect(judgeGenre("華屋与兵衛、旬の広島県産牡蠣を味わう「季節限定釜めし」を発売", null, "tech").genre).toBe("products");
+    expect(judgeGenre("ココス、「季節のグルメ～きのこ～」開催 – きのこが香る包み焼きハンバーグやタコサラダが登場", null, "tech").genre).toBe("products");
+    const goods = judgeGenre("しまむら×『ドラクエ』コラボグッズの全ラインナップ公開！アパレルやカー用品など100種超え、受注生産販売も決定", null, "game");
+    expect(confidentMove(goods, 0.4) ? goods.genre : "game").toBe("products");
+  });
   it("米国の最高裁・政権の話題は world（「最高裁」「政権」で国内にしない）", () => {
     expect(judgeGenre("米最高裁、トランプ政権による移民追放策の再開容認", null, "business").genre).toBe("world");
   });
