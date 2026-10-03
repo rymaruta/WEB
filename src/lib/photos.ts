@@ -11,7 +11,8 @@ import type { Photo } from "./photo-data";
  * 作者・ライセンスを記録して表示する（CC BY・CC BY-SA の表示義務のため）。
  */
 
-const UA = { "User-Agent": `${siteConfig.name}/1.0 (${siteConfig.url}/about)` };
+// HTTP のヘッダーには ASCII しか書けない（サイト名の日本語を入れると送信前に失敗する）
+const UA = { "User-Agent": `ZenbuNavi/1.0 (${siteConfig.url}/about)` };
 /** 表示してよいライセンス（帰属表示で使えるもの） */
 const FREE_LICENSE = /^(CC0|Public domain|PD|CC BY(-SA)? [1-4]\.0|CC BY(-SA)? 2\.[15])/i;
 /** 人の写真を出さない話題（事件・事故・訃報・私生活のトラブル。写真が当事者の印象を左右するため） */
@@ -20,8 +21,10 @@ const SENSITIVE = /逮捕|容疑|被告|被害|事件|事故|死亡|死去|訃�
 const LOOKUP_BUDGET = 20;
 const CHECK_WINDOW_HOURS = 72;
 
+/** JSON を取る。ページがない（404）は null。それ以外の失敗は例外にし、「写真なし」と記録せずに次の回で探し直す */
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(10_000) });
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.json();
 }
@@ -30,7 +33,7 @@ const stripTags = (s: string) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").
 
 /** 人名から、自由利用ライセンスの人物写真を探す。人物と確かめられない・写真がない場合は null */
 export async function lookupPersonPhoto(name: string): Promise<Photo | null> {
-  const summary = (await getJson(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`).catch(() => null)) as {
+  const summary = (await getJson(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`)) as {
     type?: string;
     title?: string;
     wikibase_item?: string;
@@ -40,9 +43,9 @@ export async function lookupPersonPhoto(name: string): Promise<Photo | null> {
   if (summary.title?.replace(/\s*\(.*\)$/, "").replace(/\s/g, "") !== name.replace(/\s/g, "")) return null;
   const qid = summary.wikibase_item;
   const entity = (await getJson(`https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`)) as {
-    entities: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]> }>;
+    entities?: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]> }>;
   };
-  const claims = entity.entities[qid]?.claims ?? {};
+  const claims = entity?.entities?.[qid]?.claims ?? {};
   const isHuman = (claims.P31 ?? []).some((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id === "Q5");
   const file = claims.P18?.[0]?.mainsnak?.datavalue?.value;
   if (!isHuman || typeof file !== "string") return null;
@@ -55,8 +58,8 @@ export async function lookupPersonPhoto(name: string): Promise<Photo | null> {
       iiprop: "url|extmetadata",
       iiurlwidth: "500",
     })}`,
-  )) as { query?: { pages?: Record<string, { imageinfo?: { thumburl?: string; descriptionurl?: string; extmetadata?: Record<string, { value?: string }> }[] }> } };
-  const ii = Object.values(info.query?.pages ?? {})[0]?.imageinfo?.[0];
+  )) as null | { query?: { pages?: Record<string, { imageinfo?: { thumburl?: string; descriptionurl?: string; extmetadata?: Record<string, { value?: string }> }[] }> } };
+  const ii = Object.values(info?.query?.pages ?? {})[0]?.imageinfo?.[0];
   const license = ii?.extmetadata?.LicenseShortName?.value ?? "";
   if (!ii?.thumburl || !ii.descriptionurl || !FREE_LICENSE.test(license)) return null;
   const artist = stripTags(ii.extmetadata?.Artist?.value ?? "").slice(0, 40) || "不明";

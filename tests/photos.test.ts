@@ -35,7 +35,7 @@ describe("イメージ写真（lib/stock-photos）", () => {
   });
 
   it("主なジャンルに既定の写真がある", () => {
-    for (const g of ["domestic", "world", "business", "tech", "entertainment"]) {
+    for (const g of ["domestic", "world", "business", "tech", "entertainment", "sports"]) {
       expect(stockPhoto("きょうのできごと", g, 1)).not.toBeNull();
     }
   });
@@ -45,5 +45,32 @@ describe("イメージ写真の選び方", () => {
   it("見出しの語に合う写真を選ぶ", () => {
     expect(stockPhoto("日銀が利上げを決定", "business", 3)?.page).toMatch(/Bank_of_Japan|%E6%97%A5%E6%9C%AC%E9%8A%80%E8%A1%8C|BOJ|Nihon/i);
     expect(stockPhoto("衆院で法案が可決", "domestic", 3)?.page).toMatch(/Diet/);
+  });
+
+  it("球団名など企業・地名と同じ語は、スポーツの話題でだけ使う", () => {
+    expect(stockPhoto("ヤクルトが新商品を発売", "products", 1)).toBeNull();
+    expect(stockPhoto("ヤクルト山田哲人が決勝打", "sports", 1)?.page).toMatch(/Jingu|Stadium|Koshien|baseball|Baseball|Tokyo_Dome|File:/);
+  });
+});
+
+describe("人物写真の問い合わせ", () => {
+  it("ヘッダーは ASCII だけ（日本語を入れると送信前に失敗する）。ページがなければ null", async () => {
+    const { lookupPersonPhoto } = await import("@/lib/photos");
+    const calls: RequestInit[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      calls.push(init);
+      return new Response("", { status: 404 });
+    });
+    await expect(lookupPersonPhoto("山田太郎")).resolves.toBeNull();
+    const ua = (calls[0].headers as Record<string, string>)["User-Agent"];
+    expect(ua).toMatch(/^[\x20-\x7e]+$/);
+    vi.unstubAllGlobals();
+  });
+
+  it("通信の失敗は例外にする（「写真なし」と記録しない）", async () => {
+    const { lookupPersonPhoto } = await import("@/lib/photos");
+    vi.stubGlobal("fetch", async () => new Response("", { status: 429 }));
+    await expect(lookupPersonPhoto("山田太郎")).rejects.toThrow();
+    vi.unstubAllGlobals();
   });
 });

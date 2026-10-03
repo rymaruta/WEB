@@ -5,7 +5,8 @@ import type { Photo } from "./photo-data";
  * 出来事そのものの写真ではないため、表示では「イメージ」と明記する。
  * 上から順に見出しの語（re）と照らし、最初に当たったものを使う。当たらなければ、そのジャンルの写真（genre）から話題ごとに選ぶ
  */
-type StockPhoto = Photo & { re?: RegExp; genre?: string };
+/** re: 見出しの語。scope: その語を見るジャンル（球団名などは企業や地名と同じ語のため、スポーツの話題に限る）。genre: そのジャンルの既定の写真 */
+type StockPhoto = Photo & { re?: RegExp; scope?: string; genre?: string };
 
 export const STOCK_PHOTOS: StockPhoto[] = [
   // diet
@@ -48,11 +49,27 @@ export const STOCK_PHOTOS: StockPhoto[] = [
   { re: /映画|劇場|興行収入|公開初日|試写会/, genre: "entertainment", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Empty_Movie_Theater_Seats_%2854279616742%29.jpg/500px-Empty_Movie_Theater_Seats_%2854279616742%29.jpg", page: "https://commons.wikimedia.org/wiki/File:Empty_Movie_Theater_Seats_(54279616742).jpg", credit: "Eden, Janine and Jim from New York City / CC BY 2.0" },
   // microphone
   { re: /会見|インタビュー|番組|ラジオ|司会|MC|お笑い|芸人/, genre: "entertainment", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Gooseneck_microphone_on_podium_with_stage_bokeh_lights_01.jpg/500px-Gooseneck_microphone_on_podium_with_stage_bokeh_lights_01.jpg", page: "https://commons.wikimedia.org/wiki/File:Gooseneck_microphone_on_podium_with_stage_bokeh_lights_01.jpg", credit: "A S M Jobaer / CC BY-SA 4.0" },
+  // sumo
+  { re: /相撲|大相撲|横綱|大関|関脇|小結|力士|親方/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Ryogoku_Kokugikan_painting_2_2013-08-29.jpg/500px-Ryogoku_Kokugikan_painting_2_2013-08-29.jpg", page: "https://commons.wikimedia.org/wiki/File:Ryogoku_Kokugikan_painting_2_2013-08-29.jpg", credit: "Guilhem Vellut / CC BY 2.0" },
+  // boxing
+  { re: /ボクシング|井上尚弥|世界王者|王座/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Set-up_of_a_boxing_Ring.jpg/500px-Set-up_of_a_boxing_Ring.jpg", page: "https://commons.wikimedia.org/wiki/File:Set-up_of_a_boxing_Ring.jpg", credit: "Micheal Kaluba / CC BY-SA 4.0" },
+  // volleyball
+  { re: /バレーボール|バレー|Vリーグ|SVリーグ/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Volleyball_match_-_shakehands_before_the_match.jpg/500px-Volleyball_match_-_shakehands_before_the_match.jpg", page: "https://commons.wikimedia.org/wiki/File:Volleyball_match_-_shakehands_before_the_match.jpg", credit: "Zorro2212 / CC BY-SA 3.0" },
+  // basketball
+  { re: /バスケットボール|バスケ|Bリーグ|NBA|八村|河村勇輝/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Tech-Cavaliers_Women%27s_Basketball_game_%282024-03-03%29.jpg/500px-Tech-Cavaliers_Women%27s_Basketball_game_%282024-03-03%29.jpg", page: "https://commons.wikimedia.org/wiki/File:Tech-Cavaliers_Women%27s_Basketball_game_(2024-03-03).jpg", credit: "Sean Dudley / Public domain" },
+  // tennis
+  { re: /テニス|全豪|全仏|全英|全米オープン|ウィンブルドン|錦織|大坂なおみ/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Evening_tennis_match%2C_Kirkstall_Abbey_-_geograph.org.uk_-_6858907.jpg/500px-Evening_tennis_match%2C_Kirkstall_Abbey_-_geograph.org.uk_-_6858907.jpg", page: "https://commons.wikimedia.org/wiki/File:Evening_tennis_match,_Kirkstall_Abbey_-_geograph.org.uk_-_6858907.jpg", credit: "Stephen Craven / CC BY-SA 2.0" },
+  // golf
+  { re: /ゴルフ|PGA|LPGA|ツアー優勝|松山英樹/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG/500px-Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG", page: "https://commons.wikimedia.org/wiki/File:Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG", credit: "Neuroxic / CC BY 4.0" },
+  // soccer
+  { re: /サッカー|Jリーグ|J1|J2|プレミアリーグ|ラ・リーガ|セリエA|ブンデス|チャンピオンズリーグ|W杯|ワールドカップ|なでしこ|日本代表|ゴール|監督/, scope: "sports", genre: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/2019_J.League_Cup_Final.jpg/500px-2019_J.League_Cup_Final.jpg", page: "https://commons.wikimedia.org/wiki/File:2019_J.League_Cup_Final.jpg", credit: "ある男 / CC0" },
+  // baseball
+  { re: /野球|プロ野球|大リーグ|MLB|ドジャース|巨人|阪神|ヤクルト|ロッテ|ソフトバンク|日本ハム|楽天|西武|オリックス|広島|中日|DeNA|本塁打|投手|打者|甲子園/, scope: "sports", genre: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_%283845206361%29.jpg/500px-%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_%283845206361%29.jpg", page: "https://commons.wikimedia.org/wiki/File:%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_(3845206361).jpg", credit: "Ethan Prater / CC BY 2.0" },
 ];
 
 /** 見出しとジャンルから、イメージ写真を選ぶ。同じジャンルの既定が複数あれば話題ごとに散らす */
 export function stockPhoto(title: string, genreSlug: string, seed = 0): Photo | null {
-  const byWord = STOCK_PHOTOS.filter((p) => p.re?.test(title));
+  const byWord = STOCK_PHOTOS.filter((p) => p.re?.test(title) && (!p.scope || p.scope === genreSlug));
   const pool = byWord.length > 0 ? byWord.slice(0, 1) : STOCK_PHOTOS.filter((p) => p.genre === genreSlug);
   const p = pool.length > 0 ? pool[Math.abs(seed) % pool.length] : null;
   return p ? { url: p.url, page: p.page, credit: p.credit } : null;
