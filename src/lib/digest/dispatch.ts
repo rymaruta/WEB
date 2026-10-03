@@ -3,7 +3,7 @@ import { countNewDueTopics } from "@/lib/ai/store";
 import { findGenreCheckCandidates } from "@/lib/topics/genre-check";
 import { logEvent } from "@/lib/events";
 import { fireRoutine, routineReady, ROUTINES, type RoutineName } from "./routine";
-import { jstAt, jstDate, SLOT_ORDER, SLOTS } from "./slots";
+import { jstAt, jstDate, ACTIVE_SLOTS, SLOTS } from "./slots";
 
 /**
  * 仕事がたまったときだけ、Claude Code の定期実行をサーバーから起動する（無料。決まった時刻を待たず、空振りもしない）。
@@ -14,7 +14,8 @@ import { jstAt, jstDate, SLOT_ORDER, SLOTS } from "./slots";
 export const DISPATCH_RULES: Record<Exclude<RoutineName, "breaking" | "tasks">, { minPending: number; minIntervalMinutes: number; staleMinutes: number }> = {
   // 5件たまったら起動。1件でも2時間たてば起動する
   articles: { minPending: 5, minIntervalMinutes: 50, staleMinutes: 120 },
-  digest: { minPending: 5, minIntervalMinutes: 50, staleMinutes: 120 },
+  // 日中の注目のニュース（1本ずつ）は解析済みの出来事から選ぶため、早めに解析する（3件たまるか、1件でも1時間たてば）
+  digest: { minPending: 3, minIntervalMinutes: 45, staleMinutes: 60 },
 };
 
 /** 起動しない時間帯（日本時間 1時〜6時） */
@@ -28,7 +29,7 @@ export const FIRE_SCOPE = "routine.fire";
  */
 export function beforeBuild(now: Date): boolean {
   const date = jstDate(now);
-  return SLOT_ORDER.some((slot) => {
+  return ACTIVE_SLOTS.some((slot) => {
     const minutes = (jstAt(date, SLOTS[slot].buildAt).getTime() - now.getTime()) / 60_000;
     return minutes >= 25 && minutes <= 70;
   });

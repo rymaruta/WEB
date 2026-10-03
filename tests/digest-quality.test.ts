@@ -46,20 +46,21 @@ describe("載らなかった理由の記録", () => {
     const r = selectForEdition([...sports, ...others, old], SLOTS.LUNCH, new Set(["t-old"]));
     const reason = new Map(r.notes.rejected.map((x) => [x.id, x.reason]));
     expect(reason.get("old")).toBe("前の配信回に載った出来事");
-    expect(reason.get("s2")).toMatch(/上限/);
+    expect(reason.get("s2")).toMatch(/同じ枠/);
     // 選ばれたものは記録に入らない
     for (const m of r.main) expect(reason.has(m.id)).toBe(false);
   });
 
-  it("基準点以上の候補は、ふだんの上限（芸能・スポーツは合わせて1本）で理由を付ける", () => {
+  it("同じ枠で負けた候補には、その理由を付ける", () => {
     const cs = [
       cand({ id: "sp1", category: "SPORTS", publisherCount: 9 }),
       cand({ id: "en1", category: "ENTERTAINMENT", publisherCount: 8 }),
       cand({ id: "so1", category: "SOCIETY" }),
       cand({ id: "ec1", category: "ECONOMY" }),
+      cand({ id: "li1", category: "LIFE" }),
     ];
     const r = selectForEdition(cs, SLOTS.MORNING, new Set());
-    expect(r.notes.rejected.find((x) => x.id === "en1")?.reason).toBe("芸能・スポーツの合計の上限");
+    expect(r.notes.rejected.find((x) => x.id === "en1")?.reason).toBe("同じ枠（スポーツ・芸能）の上位が載る");
   });
 
   it("人の確認が要る候補は、おまかせ投稿では理由つきで外す", () => {

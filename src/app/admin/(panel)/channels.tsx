@@ -39,7 +39,7 @@ export async function ChannelsSection() {
       <h2 className="mb-3 font-bold">配信先</h2>
       <ul className="divide-y divide-border">
         <Row name="X" badge={<Badge ok={s.x.configured} label={s.x.configured ? "稼働中" : "未設定"} />}>
-          <p>1日3回（7:00・12:00・20:00）と速報</p>
+          <p>朝7:00の3本、日中の注目のニュース（1本ずつ）、速報</p>
           {s.x.lastPublishedAt && <p>最後の投稿 {formatDateTime(s.x.lastPublishedAt)}</p>}
         </Row>
 

@@ -5,7 +5,10 @@ import { createActionToken } from "@/lib/admin/token";
 import { HOT, hotReason, isHot } from "@/lib/stories/hot";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
-import { editionKey, isSingleSlot, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
+import { isTrustedPublisher } from "./trusted";
+
+export { isTrustedPublisher };
+import { editionKey, isSingleSlot, jstAt, jstDate, jstTime, ACTIVE_SLOTS, SLOTS } from "./slots";
 
 /**
  * 速報の自動投稿。誤報を出さないことを最優先に、条件を厳しく絞る。
@@ -56,11 +59,6 @@ export type BreakingCandidate = {
 /** 「AI に確認させて投稿」の記録（EventLog の scope）。ref はストーリーの ID */
 export const REQUEST_SCOPE = "breaking.requested";
 
-/** 1媒体だけでも自動の速報にしてよい、信頼できる媒体（通信社・全国紙・在京テレビ局・大手スポーツ紙・専門の大手媒体） */
-const TRUSTED_PUBLISHERS =
-  /NHK|時事|共同通信|朝日新聞|読売|毎日新聞|日本経済新聞|日経|産経|TBS|日テレ|テレ朝|FNN|フジテレビ|スポニチ|日刊スポーツ|スポーツ報知|サンケイスポーツ|デイリースポーツ|中日スポーツ|ゲキサカ|サッカーキング|Full-Count|oricon|オリコン|BBC/i;
-
-export const isTrustedPublisher = (name: string) => TRUSTED_PUBLISHERS.test(name);
 
 /** 日本時間の時（0〜23） */
 const jstHour = (at: Date) => Number(jstTime(at).split(":")[0]);
@@ -73,7 +71,7 @@ export function isQuietHour(now: Date): boolean {
 /** 定時の配信の直前か（その回に載るので速報は出さない） */
 export function isJustBeforeSlot(now: Date): boolean {
   const date = jstDate(now);
-  return SLOT_ORDER.some((slot) => {
+  return ACTIVE_SLOTS.some((slot) => {
     const diff = jstAt(date, SLOTS[slot].publishAt).getTime() - now.getTime();
     return diff >= 0 && diff <= BREAKING_RULES.beforeSlotMinutes * 60_000;
   });
@@ -434,7 +432,7 @@ export async function stampBreakingTime(editionId: string, now = new Date()) {
 }
 
 // ---------------------------------------------------------------------------
-// 注目のニュース（速報の表示なし。自動では出さず、人が選んで手動で投稿する）
+// 注目のニュース（速報の表示なし。人が選んで出すほか、日中は自動でも1本ずつ出す。src/lib/digest/pickup-auto.ts）
 // 速報ほど急ぎではないが、多くの媒体が報じた出来事を、速報と同じ形の1枚のカードで出す
 // ---------------------------------------------------------------------------
 
@@ -469,7 +467,7 @@ export async function listPickupCandidates(now = new Date(), take = 20) {
 }
 
 /** 選んだ出来事で注目のニュースの回を作る（承認済み）。同じ出来事の回が今日すでにあれば null */
-export async function createPickup(storyId: string, now = new Date(), headline?: string[], layout: CardLayout = "points") {
+export async function createPickup(storyId: string, now = new Date(), headline?: string[], layout: CardLayout = "points", approvedBy = "admin") {
   const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
   if (!story || (!story.headline.length && !headline?.length)) return null;
   const date = jstDate(now);
@@ -484,7 +482,7 @@ export async function createPickup(storyId: string, now = new Date(), headline?:
         scheduledAt: now,
         deadlineAt: now,
         approvedAt: now,
-        approvedBy: "admin",
+        approvedBy,
         postText: pickupPostText(edited ?? story.headline),
         items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...itemOverride(edited, layout) }] },
       },

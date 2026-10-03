@@ -25,21 +25,17 @@ describe("selfHost", () => {
 });
 
 describe("DAILY_JOBS", () => {
-  it("朝・昼・夜の下書きを投稿の50分前に作り、公式ストア・映画・テレビアニメの予定を朝に取り込む", () => {
+  it("朝の下書きを投稿の50分前に作り（昼・夜のまとめは止めた）、公式ストア・映画・テレビアニメの予定を朝に取り込む", () => {
     expect(DAILY_JOBS.filter((j) => !j.publish).map((j) => [j.path, j.at])).toEqual([
       ["/api/cron/digest?slot=MORNING", "06:10"],
-      ["/api/cron/digest?slot=LUNCH", "11:10"],
-      ["/api/cron/digest?slot=EVENING", "19:10"],
       ["/api/cron/game-listings", "05:10"],
       ["/api/cron/movie-listings", "05:20"],
       ["/api/cron/anime-listings", "05:25"],
     ]);
   });
-  it("承認済みの回を 7:00・12:00・20:00 に、Threads の1本を 21:00 に投稿する", () => {
+  it("朝の回を 7:00 に、Threads の1本を 21:00 に投稿する", () => {
     expect(DAILY_JOBS.filter((j) => j.publish).map((j) => [j.path, j.at])).toEqual([
       ["/api/cron/publish?slot=MORNING", "07:00"],
-      ["/api/cron/publish?slot=LUNCH", "12:00"],
-      ["/api/cron/publish?slot=EVENING", "20:00"],
       ["/api/cron/threads-daily?run=1", "21:00"],
     ]);
   });
@@ -48,9 +44,8 @@ describe("DAILY_JOBS", () => {
 describe("missedPublishJobs", () => {
   it("投稿の時刻を過ぎて30分以内なら、その回を拾い直す", () => {
     const at = (iso: string) => new Date(iso);
-    expect(missedPublishJobs(at("2026-10-01T20:03:00+09:00"), msSinceJst).map((j) => j.name)).toEqual(["publish-evening"]);
-    expect(missedPublishJobs(at("2026-10-01T19:59:00+09:00"), msSinceJst)).toEqual([]);
-    expect(missedPublishJobs(at("2026-10-01T20:45:00+09:00"), msSinceJst)).toEqual([]);
+    expect(missedPublishJobs(at("2026-10-01T06:59:00+09:00"), msSinceJst)).toEqual([]);
+    expect(missedPublishJobs(at("2026-10-01T07:45:00+09:00"), msSinceJst)).toEqual([]);
     expect(missedPublishJobs(at("2026-10-01T07:10:00+09:00"), msSinceJst).map((j) => j.name)).toEqual(["publish-morning"]);
   });
 });

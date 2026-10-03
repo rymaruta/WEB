@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { autoApproveEnabled, isBeforeBuild, jstDate, jstDateLabel, jstTime, SLOT_ORDER, SLOTS } from "@/lib/digest/slots";
+import { autoApproveEnabled, isBeforeBuild, jstDate, jstDateLabel, jstTime, ACTIVE_SLOTS, SLOTS } from "@/lib/digest/slots";
 import { buildAction } from "../actions";
 import { BuildButton } from "./build-button";
 import { ChannelsSection } from "./channels";
@@ -37,7 +37,7 @@ export default async function AdminHome() {
       })
     ).map((s) => s.id),
   );
-  const missing = SLOT_ORDER.filter((slot) => !editions.some((e) => e.date === today && e.slot === slot) && now.getTime() < Date.parse(`${today}T${SLOTS[slot].publishAt}:00+09:00`));
+  const missing = ACTIVE_SLOTS.filter((slot) => !editions.some((e) => e.date === today && e.slot === slot) && now.getTime() < Date.parse(`${today}T${SLOTS[slot].publishAt}:00+09:00`));
 
   return (
     <div className="space-y-4">

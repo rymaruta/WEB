@@ -13,7 +13,7 @@ export function DigestSummaryCard({ digest }: { digest: DigestSummary }) {
           {digest.title}
           <span className="ml-2 inline-block text-xs font-bold whitespace-nowrap text-fg-muted">{digest.dateLabel}</span>
         </h2>
-        <p className="shrink-0 text-[11px] text-fg-subtle">毎日 7:00・12:00・20:00</p>
+        <p className="shrink-0 text-[11px] text-fg-subtle">毎朝 7:00</p>
       </div>
       <ol>
         {digest.items.map((item, i) => (

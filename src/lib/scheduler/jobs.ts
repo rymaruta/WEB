@@ -1,4 +1,4 @@
-import { SLOTS } from "@/lib/digest/slots";
+import { ACTIVE_SLOTS, SLOTS } from "@/lib/digest/slots";
 
 /** 定期処理の一覧。各ジョブは自分自身の API を Bearer 認証付きで呼び出す（ロックや再検証は API 側の実装を共有する） */
 export type Job = {
@@ -15,6 +15,8 @@ export const JOBS: Job[] = [
   { name: "stories", path: "/api/cron/stories", intervalMinutes: 5, envKey: "STORIES_INTERVAL_MINUTES" },
   // 速報の確認。解析が終わった出来事を見て、条件に合えば投稿する。一斉に報じられた出来事の知らせも出す（src/lib/digest/breaking.ts）
   { name: "breaking", path: "/api/cron/breaking", intervalMinutes: 5, envKey: "BREAKING_INTERVAL_MINUTES" },
+  // 日中の注目のニュースの自動投稿（1本ずつ。60分以上あけ、1日8本まで。src/lib/digest/pickup-auto.ts）
+  { name: "pickup", path: "/api/cron/pickup", intervalMinutes: 10, envKey: "PICKUP_INTERVAL_MINUTES" },
   // Bluesky への同時投稿の再試行と、Threads のトークンの延長（src/lib/digest/crosspost.ts）。認証情報がなければ何もしない
   { name: "crosspost", path: "/api/cron/crosspost", intervalMinutes: 10, envKey: "CROSSPOST_INTERVAL_MINUTES" },
   // 仕事がたまった Claude Code の定期実行（まとめ記事・ダイジェスト用の解析）を起動する（src/lib/digest/dispatch.ts）
@@ -46,7 +48,7 @@ export type DailyJob = {
   publish?: boolean;
 };
 
-const SLOT_KEYS = ["MORNING", "LUNCH", "EVENING"] as const;
+const SLOT_KEYS = ACTIVE_SLOTS;
 
 export const DAILY_JOBS: DailyJob[] = [
   ...SLOT_KEYS.map((slot) => ({

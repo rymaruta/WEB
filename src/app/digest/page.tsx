@@ -6,7 +6,7 @@ export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "配信アーカイブ",
-  description: "毎日 7:00・12:00・20:00 に配信している「朝・昼・夜のニュース」の過去の回をまとめて読めます。",
+  description: "X で配信した「朝のニュース」などの過去の回をまとめて読めます。",
   alternates: { canonical: "/digest" },
 };
 
@@ -22,7 +22,7 @@ export default async function DigestArchivePage() {
     <div className="mx-auto max-w-3xl space-y-5">
       <header>
         <h1 className="text-2xl font-black tracking-tight">配信アーカイブ</h1>
-        <p className="mt-1 text-sm text-fg-muted">毎日 7:00・12:00・20:00 に、知っておきたいニュースを3本ずつ配信しています。</p>
+        <p className="mt-1 text-sm text-fg-muted">毎朝 7:00 に知っておきたいニュースを3本、日中は大きなニュースを1本ずつ配信しています。</p>
       </header>
       {byDate.size === 0 ? (
         <p className="card p-6 text-sm text-fg-subtle">まだ配信した回はありません。</p>
