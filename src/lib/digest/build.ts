@@ -58,7 +58,7 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
   });
   const topicIds = [...new Set(stories.map((s) => s.topicId))];
   const [topics, clicks, outlets] = await Promise.all([
-    prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, publisherCount: true, genre: { select: { slug: true } } } }),
+    prisma.topic.findMany({ where: { id: { in: topicIds } }, select: { id: true, title: true, aiTitle: true, publisherCount: true, genre: { select: { slug: true } } } }),
     prisma.article.groupBy({ by: ["topicId"], where: { topicId: { in: topicIds } }, _sum: { clicks: true, socialCount: true } }),
     prisma.article.findMany({
       where: { topicId: { in: topicIds }, source: { kind: "NEWS" } },
@@ -71,6 +71,7 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
   for (const o of outlets) if (o.topicId) outletRows.set(o.topicId, [...(outletRows.get(o.topicId) ?? []), o]);
   const publishers = new Map(topics.map((t) => [t.id, Math.min(t.publisherCount, independentOutletsOf(outletRows.get(t.id) ?? []))]));
   const genreOf = new Map(topics.map((t) => [t.id, t.genre.slug]));
+  const titleOf = new Map(topics.map((t) => [t.id, t.aiTitle || t.title]));
   const clickSum = new Map(clicks.map((c) => [c.topicId, c._sum.clicks ?? 0]));
   const socialSum = new Map(clicks.map((c) => [c.topicId, c._sum.socialCount ?? 0]));
   return stories.map((s) => ({
@@ -81,6 +82,8 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
     category: (s.category as Category | null) ?? categoryOfGenre(genreOf.get(s.topicId)),
     threadId: s.eventThreadId,
     topicId: s.topicId,
+    genre: genreOf.get(s.topicId),
+    title: titleOf.get(s.topicId),
     assessment: s.assessment as Assessment | null,
     publisherCount: publishers.get(s.topicId) ?? 0,
     hasPrimary: s.sources.some((x) => x.isPrimary),
