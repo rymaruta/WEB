@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { ArticleRanking } from "@/components/article-ranking";
@@ -61,6 +62,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-10">
+      <AdsenseScript />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(siteJsonLd()) }} />
       {/* ページの見出しはサイト名（画面では上のロゴがサイト名を示しているため、読み上げと検索エンジン向けに置く） */}
       <h1 className="sr-only">ぜんぶナビ｜主要メディアのニュースをまとめて読めるニュースサイト</h1>
