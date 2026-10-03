@@ -154,7 +154,8 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
   const scored = candidates.map((c) => ({ ...scoreCandidate(c), candidate: c }));
   const blockedByReview = (c: Candidate) => opts.verifiedOnly === true && c.status === "REVIEW_REQUIRED" && !c.autoOk;
   const eligible = scored.filter((s) => ELIGIBLE_STATUSES.has(s.candidate.status) && !blockedByReview(s.candidate));
-  const excludedNew = (c: Candidate) => c.kind === "NEW" && !!c.threadId && excludeThreads.has(c.threadId);
+  // 前の回・速報で出した出来事（30時間以内）は、新しいストーリーも続報も載せない（同じ日に「結局どうなった」を繰り返さない）
+  const excludedNew = (c: Candidate) => !!c.threadId && excludeThreads.has(c.threadId);
   const usable = (s: Picked) => {
     const c = s.candidate;
     if (excludedNew(c)) return false;
