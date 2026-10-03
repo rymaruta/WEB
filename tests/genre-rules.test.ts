@@ -78,6 +78,12 @@ describe("judgeGenre（3つ目の検証データ：2026-10-03 朝に各ジャン
     expect(judgeGenre("日本各地の“ケンミン熱愛グルメ”が大阪に集結！", null, "products").genre).toBe("products");
     expect(judgeGenre("App Store／Google Play向けアプリゲーム 祝！「キングダム 覇道」", null, "products").genre).toBe("game");
   });
+  it("出版社と漫画の媒体の話題は anime、内定式は business（配信元が社会でも）", () => {
+    const manga = judgeGenre("集英社「少年ジャンプ＋」林士平氏との業務委託関係をすべて終了", null, "domestic");
+    expect(confidentMove(manga, 0.4) ? manga.genre : "domestic").toBe("anime");
+    const hr = judgeGenre("TDK、「ポルシェ・エクスペリエンスセンター東京」で2027年入社内定式 齋藤昇社長があいさつ", null, "domestic");
+    expect(confidentMove(hr, 0.4) ? hr.genre : "domestic").toBe("business");
+  });
 });
 
 describe("judgeGenre（指摘された例）", () => {
