@@ -17,6 +17,11 @@ describe("reportDays（報道の動き）", () => {
     expect(days).toHaveLength(1);
     expect(days[0]).toMatchObject({ day: "2026-10-02", newOutlets: ["C放送"], headline: { articleId: 4, publisher: "C放送" } });
   });
+  it("深夜の第一報の数分後の記事は、日付が変わっても第一報の波として入れない", () => {
+    expect(
+      reportDays([art(1, "A新聞", "2026-10-01T23:58:00", "第一報"), art(2, "B通信", "2026-10-02T00:13:00", "追いかけ"), art(3, "C放送", "2026-10-02T00:30:00", "追いかけ")]),
+    ).toEqual([]);
+  });
   it("転載・企業の発表は数えない", () => {
     expect(reportDays([art(1, "PR TIMES", "2026-10-01T09:00:00", "発表", "PRESS"), art(2, "ライブドアニュース", "2026-10-02T09:00:00", "x")])).toEqual([]);
   });

@@ -53,27 +53,33 @@ export function deltaUpdate(row: DeltaRow): Extract<TopicUpdate, { kind: "facts"
 }
 
 /**
- * 報道の動きを日ごとにまとめる。最初の報道の日は「第一報」として別に出すため、2日目以降だけを返す。
- * 新しく報じた媒体がなく、見出しも前の日と同じ日は出さない（転載・再配信は数えない）
+ * 第一報からこの時間までの報道は、第一報と同じ波（同じ発表を各社が追いかけたもの）として「その後」に入れない。
+ * 日付の区切りだけで分けると、深夜の第一報の数分後の記事が「翌日の新たな報道」になってしまう（src/lib/topics/brief.ts と同じ間隔）
+ */
+export const FIRST_WAVE_HOURS = 12;
+
+/**
+ * 報道の動きを日ごと（日本時間）にまとめる。第一報から FIRST_WAVE_HOURS 時間までの報道は第一報として別に出すため、それより後だけを返す。
+ * 転載・再配信は数えない
  */
 export function reportDays(articles: CoverageArticle[]): Extract<TopicUpdate, { kind: "reports" }>[] {
   const news = originalReports(articles);
   if (news.length === 0) return [];
-  const firstDay = jstDay(news[0].publishedAt);
+  const waveEnd = news[0].publishedAt.getTime() + FIRST_WAVE_HOURS * 3_600_000;
   const seen = new Set<string>();
   const byDay = new Map<string, { newOutlets: string[]; last: CoverageArticle }>();
   for (const a of news) {
+    const later = a.publishedAt.getTime() > waveEnd;
+    const isNew = !seen.has(a.publisher);
+    seen.add(a.publisher);
+    if (!later) continue;
     const day = jstDay(a.publishedAt);
     const entry = byDay.get(day) ?? { newOutlets: [], last: a };
-    if (!seen.has(a.publisher)) {
-      seen.add(a.publisher);
-      if (day !== firstDay) entry.newOutlets.push(a.publisher);
-    }
+    if (isNew) entry.newOutlets.push(a.publisher);
     entry.last = a;
     byDay.set(day, entry);
   }
   return [...byDay]
-    .filter(([day]) => day !== firstDay)
     .map(([day, e]) => ({
       kind: "reports" as const,
       at: e.last.publishedAt,
