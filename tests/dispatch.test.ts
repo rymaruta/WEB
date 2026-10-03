@@ -29,3 +29,12 @@ describe("beforeBuild", () => {
     expect(beforeBuild(new Date("2026-10-03T05:20:00+09:00"))).toBe(true);
   });
 });
+
+describe("articlesPending", async () => {
+  const { articlesPending } = await import("@/lib/digest/dispatch");
+  it("ジャンルの確認待ちも、20 件で 1 件分として数える（書く記事がなくても確認が止まらないように）", () => {
+    expect(articlesPending(0, 160)).toBe(8);
+    expect(articlesPending(3, 19)).toBe(3);
+    expect(articlesPending(2, 60)).toBe(5);
+  });
+});
