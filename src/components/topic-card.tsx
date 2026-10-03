@@ -4,6 +4,8 @@ import { hasPublisherName, publisherLabel } from "@/lib/publisher";
 import { displayExcerpt, displayImage } from "@/lib/rights";
 import { readPhoto } from "@/lib/photo-data";
 import { stockPhoto } from "@/lib/stock-photos";
+import { extractNames } from "@/lib/stories/verify";
+import { keyTerms } from "@/lib/topics/merge-check";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -40,7 +42,9 @@ function describe(topic: TopicCardData) {
   const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : person ? person.credit : stock ? `イメージ・${stock.credit}` : undefined;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する
   const title = topic.aiTitle || cleanTitle(topic.title);
-  return { lead, title, summary, publishers, image, imageCredit, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
+  // 写真がないときに代替表示に出す語（見出しの人名、なければ固有の語）
+  const label = image ? undefined : (extractNames(title)[0] ?? [...keyTerms(title)][0]);
+  return { lead, title, summary, publishers, image, imageCredit, portrait: Boolean(person), label, hasAi: Boolean(topic.aiGeneratedAt), multi: topic.articleCount > 1 };
 }
 
 /** 画像の出典。媒体の画像を表示するときは、画像の右上に媒体名を出す */
@@ -90,7 +94,7 @@ function CoverageBadge({ count }: { count: number }) {
 
 /** トップの一番大きな枠。ジャンル色のパネルに報道媒体数を大きく示す */
 export function HeroTopic({ topic, priority = true, label = "トップニュース" }: { topic: TopicCardData; priority?: boolean; label?: string }) {
-  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group grid h-full overflow-hidden md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -102,6 +106,8 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
           sizes="(max-width: 1024px) 100vw, 800px"
           iconClassName="h-16 w-16"
           credit={imageCredit}
+          portrait={portrait}
+          label={imageLabel}
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <ImageCredit credit={image ? imageCredit : undefined} />
@@ -157,7 +163,7 @@ export function RumorBadge() {
 
 /** 2列に並べる中サイズのカード */
 export function TopicTile({ topic }: { topic: TopicCardData }) {
-  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
   if (!lead) return null;
   return (
     <article className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
@@ -166,6 +172,8 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
           src={image}
           genreSlug={topic.genre.slug}
           credit={imageCredit}
+          portrait={portrait}
+          label={imageLabel}
           className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <ImageCredit credit={image ? imageCredit : undefined} />
@@ -205,7 +213,7 @@ type CardProps = { topic: TopicCardData; variant?: Variant; showGenre?: boolean;
 
 /** 一覧の1行 */
 export function TopicCard({ topic, variant = "standard", showGenre = true, rank }: CardProps) {
-  const { lead, title, summary, publishers, image, imageCredit, hasAi } = describe(topic);
+  const { lead, title, summary, publishers, image, imageCredit, portrait, label: imageLabel, hasAi } = describe(topic);
   if (!lead) return null;
   const compact = variant === "compact";
   return (
@@ -232,7 +240,7 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
       </div>
       {!compact && (
         <TopicLink topic={topic} leadId={lead.id} className="relative block h-[72px] w-24 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-32">
-          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
+          <Thumbnail src={image} genreSlug={topic.genre.slug} credit={imageCredit} portrait={portrait} label={imageLabel} iconClassName="h-6 w-6" className="absolute inset-0 h-full w-full" />
         </TopicLink>
       )}
     </article>

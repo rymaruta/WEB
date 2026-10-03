@@ -167,7 +167,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         <div className="px-5 pb-5 sm:px-6">
           {figure && (
             <figure className="mb-5">
-              <Thumbnail src={figure.url} genreSlug={topic.genre.slug} priority className="aspect-[16/9] w-full rounded-xl object-cover" sizes="(max-width: 768px) 100vw, 720px" />
+              <Thumbnail src={figure.url} genreSlug={topic.genre.slug} portrait={!figure.stock} priority className="aspect-[16/9] w-full rounded-xl object-cover" sizes="(max-width: 768px) 100vw, 720px" />
               {/* 自由利用ライセンスの写真の作者・ライセンス（CC BY・CC BY-SA の表示）。イメージ写真は出来事の写真でないと明記する */}
               <figcaption className="mt-1 text-[11px] text-fg-subtle">
                 {figure.stock ? "イメージ写真・" : "写真："}

@@ -3,9 +3,11 @@ import { aiSummary, displayExcerpt, displayImage } from "@/lib/rights";
 import { sources } from "../prisma/catalog";
 
 describe("媒体の利用規約に基づく見せ方（lib/rights）", () => {
-  it("媒体の画像は表示しない", () => {
+  it("媒体の画像は、規約で認める媒体（PR TIMES）のものだけ表示する", () => {
     expect(displayImage("https://example.com/a.jpg", "ITmedia")).toBeNull();
     expect(displayImage("https://example.com/a.jpg", "4Gamer.net")).toBeNull();
+    expect(displayImage("https://prcdn.freetls.fastly.net/release_image/1/2/a.png", "PR TIMES")).toMatch(/^https/);
+    expect(displayImage("", "PR TIMES")).toBeNull();
   });
 
   it("説明文は規約で認める媒体（4Gamer.net・PR TIMES）だけ表示する", () => {
