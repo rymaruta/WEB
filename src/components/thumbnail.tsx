@@ -20,13 +20,15 @@ type Props = {
   portrait?: boolean;
   /** 画像がないときに、代替表示に大きく出す語（話題の中心の人名・社名など） */
   label?: string;
+  /** 語を置く位置（大きな枠は下に媒体数を重ねるため上に置く） */
+  labelAt?: "center" | "top";
 };
 
 /**
  * 記事のサムネイル。媒体が RSS で配信する画像を、当サイトで保存・加工せず、そのまま媒体から表示する（出典を明記する）。
  * 画像がない・読み込めない場合はジャンル色とアイコンの代替表示にする。
  */
-export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, portrait = false, label, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
+export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, portrait = false, label, labelAt = "center", sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // サーバー描画された画像が、React の準備前に読み込みに失敗していた場合も代替表示にする
@@ -36,20 +38,27 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
   }, []);
   const color = `var(--g-${genreSlug})`;
   if (!src || failed) {
+    // 写真がない話題の、当サイトが描くサムネイル（ジャンルの色・模様・話題の中心の語）。画像を読み込まないので表示は速い
     return (
       <div
         aria-hidden
-        className={`@container flex items-center justify-center text-white/85 ${className}`}
-        style={{ background: `linear-gradient(135deg, ${color}, color-mix(in oklab, ${color} 45%, #000))` }}
+        className={`@container relative flex overflow-hidden text-white ${label ? (labelAt === "top" ? "items-start" : "items-center") : "items-center justify-center"} ${className}`}
+        style={{ background: `linear-gradient(135deg, ${color}, color-mix(in oklab, ${color} 55%, #000))` }}
       >
+        {/* 細かい点の模様と、右上の大きな円（写真のない枠を平板に見せない） */}
+        <span className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.16)_1.2px,transparent_1.3px)] [background-size:14px_14px]" />
+        <span className="pointer-events-none absolute -top-[25cqw] -right-[12cqw] aspect-square w-[55cqw] rounded-full bg-white/10" />
         {label ? (
-          // 写真がない話題は、話題の中心の語を大きく出す（アイコンだけの枠が並ばないように）
-          <span className="flex max-w-[90%] flex-col items-center gap-1 text-center">
-            <GenreIcon slug={genreSlug} className="h-5 w-5 opacity-80" />
-            <span className="line-clamp-2 text-[clamp(13px,4cqw,28px)] leading-tight font-black tracking-tight break-all drop-shadow">{label}</span>
-          </span>
+          <>
+            <GenreIcon slug={genreSlug} className="pointer-events-none absolute right-[5cqw] bottom-[5cqw] h-[18cqw] w-[18cqw] opacity-25" />
+            <span
+              className={`relative line-clamp-2 max-w-[78%] px-[6cqw] text-[clamp(12px,10cqw,46px)] leading-[1.1] font-black tracking-tight break-all [text-shadow:0_2px_10px_rgba(0,0,0,0.25)] ${labelAt === "top" ? "pt-[14cqw] md:pt-[10cqw]" : ""}`}
+            >
+              {label}
+            </span>
+          </>
         ) : (
-          <GenreIcon slug={genreSlug} className={iconClassName} />
+          <GenreIcon slug={genreSlug} className={`relative opacity-85 ${iconClassName}`} />
         )}
       </div>
     );
