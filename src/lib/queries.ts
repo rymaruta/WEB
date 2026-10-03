@@ -7,6 +7,7 @@ import { isOutage, outageStatus, type OutageItem } from "@/lib/outages";
 import { COUNTRIES, countTags, TAG_GENRES, TEAMS, type Tag, type TagKind } from "@/lib/tags";
 import { parseSearchTerms, rankSearchResults, termVariants } from "@/lib/search-terms";
 import { countReports, diversifyRising, type RisingRow } from "@/lib/topics/rising";
+import { isRoutineTitle, isUnlistable } from "@/lib/topics/routine";
 import { workKey } from "@/lib/work-keys";
 
 /** 「いま話題」の対象期間 */
@@ -46,15 +47,21 @@ export const getGenres = cache(() => prisma.genre.findMany({ orderBy: { sortOrde
 
 export const getGenre = cache((slug: string) => prisma.genre.findUnique({ where: { slug } }));
 
-/** 話題度順のトピック。minPublishers で「複数媒体が報じたもの」に絞れる */
-export function getTrendingTopics(opts: {
+/** 話題の一覧から外した分を補うために、多めに読む件数 */
+const UNLISTABLE_MARGIN = 10;
+
+/**
+ * 話題度順のトピック。minPublishers で「複数媒体が報じたもの」に絞れる。
+ * 定型の記事（占い・予告先発など）と、何が起きたかが書かれていない見出しの話題は出さない（src/lib/topics/routine.ts）
+ */
+export async function getTrendingTopics(opts: {
   genreId?: number;
   minPublishers?: number;
   skip?: number;
   take: number;
   excludeIds?: number[];
 }) {
-  return prisma.topic.findMany({
+  const topics = await prisma.topic.findMany({
     where: {
       lastSeenAt: { gte: since(TRENDING_HOURS) },
       aiNotNews: false,
@@ -64,9 +71,10 @@ export function getTrendingTopics(opts: {
     },
     orderBy: [{ score: "desc" }, { lastSeenAt: "desc" }],
     skip: opts.skip,
-    take: opts.take,
+    take: opts.take + UNLISTABLE_MARGIN,
     include: topicCardInclude,
   });
+  return topics.filter((t) => !isUnlistable(t.aiTitle || t.title)).slice(0, opts.take);
 }
 
 export function countTrendingTopics(genreId?: number) {
@@ -111,13 +119,15 @@ const withTopic = { genre: true, topic: { select: { id: true, aiGeneratedAt: tru
 /** 「よく読まれている」の対象期間（古い記事が上に残らないよう、話題の一覧より短くする） */
 const MOST_READ_HOURS = 24;
 
-export function getMostRead(take: number) {
-  return prisma.article.findMany({
+export async function getMostRead(take: number) {
+  const articles = await prisma.article.findMany({
     where: { publishedAt: { gte: since(MOST_READ_HOURS) }, clicks: { gt: 0 }, source: { kind: "NEWS" } },
     orderBy: [{ clicks: "desc" }, { publishedAt: "desc" }],
-    take,
+    take: take + UNLISTABLE_MARGIN,
     include: withTopic,
   });
+  // 占い・セール情報など、毎日同じ形で出る記事は「よく読まれているニュース」に出さない
+  return articles.filter((a) => !isRoutineTitle(a.title)).slice(0, take);
 }
 
 /**
