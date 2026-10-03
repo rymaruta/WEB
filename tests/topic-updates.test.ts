@@ -104,3 +104,12 @@ describe("要点の確認状況", () => {
     expect(citedCounts(ids, sources)).toEqual({ news: 3, official: true });
   });
 });
+
+describe("latestUpdateText", () => {
+  it("いちばん新しい動きを1文にする", async () => {
+    const { latestUpdateText } = await import("@/lib/topics/updates");
+    const d = new Date();
+    expect(latestUpdateText([{ kind: "official", at: d, articleId: 1, publisher: "国土交通省", government: true, title: "発表" }], (p) => p)?.text).toBe("国土交通省が発表：発表");
+    expect(latestUpdateText([], (p) => p)).toBeNull();
+  });
+});

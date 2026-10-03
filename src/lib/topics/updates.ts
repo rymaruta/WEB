@@ -122,3 +122,12 @@ export const getTopicDeltas = cache(async (topicIds: number[]): Promise<DeltaRow
   });
   return rows.map((r) => ({ topicId: r.topicId, analyzedAt: r.analyzedAt!, delta: r.delta, sources: r.sources }));
 });
+
+/** 「3行でわかる」の「その後」に出す、いちばん新しい動きの1文 */
+export function latestUpdateText(updates: TopicUpdate[], label: (publisher: string) => string): { text: string; at: Date } | null {
+  const u = updates[0];
+  if (!u) return null;
+  if (u.kind === "facts") return { text: u.now?.text ?? u.facts[0].text, at: u.at };
+  if (u.kind === "official") return { text: `${label(u.publisher)}が発表：${u.title}`, at: u.at };
+  return { text: u.newOutlets.length > 0 ? `${u.newOutlets.length}社が新たに報道：${u.headline.title}` : `続報：${u.headline.title}`, at: u.at };
+}

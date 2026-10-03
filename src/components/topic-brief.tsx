@@ -3,7 +3,7 @@ import { relativeTime } from "@/lib/format";
 import type { TopicBrief as Brief } from "@/lib/topics/brief";
 
 /** 「3行でわかる」：何が起きたか・なぜ重要か・その後どうなったか。話題ページの冒頭に置き、読む手間を減らす */
-export function TopicBrief({ brief, lastSeenAt }: { brief: Brief; lastSeenAt: Date }) {
+export function TopicBrief({ brief, lastSeenAt, latest }: { brief: Brief; lastSeenAt: Date; latest?: { text: string; at: Date } | null }) {
   const rows: { label: string; body: React.ReactNode }[] = [
     { label: "何が起きた", body: brief.what },
     ...(brief.why ? [{ label: "なぜ重要", body: brief.why }] : []),
@@ -14,6 +14,12 @@ export function TopicBrief({ brief, lastSeenAt }: { brief: Brief; lastSeenAt: Da
           {brief.next.title}
           <span className="ml-1.5 text-xs font-normal text-fg-subtle">（{relativeTime(brief.next.at)}）</span>
         </Link>
+      ) : latest ? (
+        // 同じ出来事の別の話題がなくても、この話題のその後の動き（新たな報道・続報・公式の発表）があれば、その最新を出す
+        <a href="#topic-updates" className="hover:text-accent">
+          {latest.text}
+          <span className="ml-1.5 text-xs text-fg-subtle">（{relativeTime(latest.at)}・その後の動きを見る ↓）</span>
+        </a>
       ) : (
         <span className="text-fg-muted">続報はまだありません（最新の報道 {relativeTime(lastSeenAt)}）</span>
       ),

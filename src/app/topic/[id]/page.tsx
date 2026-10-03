@@ -29,7 +29,7 @@ import { readAiArticle } from "@/lib/ai/article";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
-import { buildUpdates, getTopicDeltas, officialLag } from "@/lib/topics/updates";
+import { buildUpdates, getTopicDeltas, latestUpdateText, officialLag } from "@/lib/topics/updates";
 import { TopicUpdates } from "@/components/topic-updates";
 import { originalReports } from "@/lib/coverage";
 import { splitPoints, POINT_STATUS_LABEL } from "@/lib/ai/point-status";
@@ -247,7 +247,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </figcaption>
             </figure>
           )}
-          {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} />}
+          {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} latest={latestUpdateText(updates, publisherLabel)} />}
           {ai && (
             <div className="mb-6">
               <AiArticleView
