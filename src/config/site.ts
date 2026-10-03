@@ -17,4 +17,6 @@ export const siteConfig = {
   crawlerUserAgent: `ZenbuNaviBot/1.0 (+${siteUrl}/about)`,
   /** Google AdSense のサイト運営者 ID（公開情報）。空にすると広告のコードを読み込まない */
   adsenseClient: process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "ca-pub-7935293964724460",
+  /** Google アナリティクス 4 の測定 ID（公開情報）。空にすると計測のコードを読み込まない */
+  gaMeasurementId: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-FCN9Q3839P",
 } as const;
