@@ -54,7 +54,7 @@ export default async function QuickBreakingPage({ params }: PageProps<"/admin/qu
         <div className="border-t border-border pt-3">
           <p className="mb-2 text-sm font-bold">自分で見出しを直して、今すぐ投稿する</p>
           <pre className="mb-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{breakingPostText(headline, new Date()).join("\n")}</pre>
-          <BreakingForm action={quickPublishAction.bind(null, token)} headline={headline} />
+          <BreakingForm action={quickPublishAction.bind(null, token)} headline={headline} headlineOnly={story.status === "QUEUED"} />
         </div>
       </section>
     </main>

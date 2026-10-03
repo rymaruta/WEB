@@ -207,7 +207,24 @@ function FollowupCardView({ card }: { card: FollowupCard }) {
   );
 }
 
+/** 要点のないカードの見出し。全部を大きく、折り返して見せる（字数が多いほど字を小さくする） */
+function BigHeadline({ lines }: { lines: string[] }) {
+  const length = [...lines.join("")].length;
+  const size = length <= 20 ? 9 : length <= 30 ? 8 : length <= 40 ? 7 : 6.2;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", fontWeight: 900, fontSize: px(size), lineHeight: 1.3 }}>
+      {lines.map((l, i) => (
+        <div key={i} style={{ display: "flex", flexWrap: "wrap" }}>
+          {l}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BreakingCardView({ card }: { card: BreakingCard }) {
+  // AI 解析前などで要点がなければ、見出しだけを大きく見せる
+  const headlineOnly = card.points.length === 0 && !card.unknown;
   return (
     <Frame
       color={card.color}
@@ -221,6 +238,9 @@ function BreakingCardView({ card }: { card: BreakingCard }) {
         </div>,
       ]}
       middle={
+        headlineOnly ? (
+          <BigHeadline lines={card.headline} />
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: px(4) }}>
           <Headline lines={card.headline} />
           <div style={{ display: "flex", flexDirection: "column", gap: px(2.2), fontFamily: BODY, fontWeight: 700, fontSize: px(4.4), lineHeight: 1.42 }}>
@@ -238,6 +258,7 @@ function BreakingCardView({ card }: { card: BreakingCard }) {
             </div>
           )}
         </div>
+        )
       }
       bottom={footer(card.sources, card.stamp)}
     />

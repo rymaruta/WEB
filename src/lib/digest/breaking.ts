@@ -3,8 +3,7 @@ import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
 import { createActionToken } from "@/lib/admin/token";
 import { HOT, hotReason, isHot } from "@/lib/stories/hot";
-import { LIMITS, type Assessment } from "@/lib/stories/schema";
-import { textWidth } from "@/lib/stories/text";
+import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
 import { editionKey, isSingleSlot, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
 
@@ -297,8 +296,8 @@ export async function listBreakingCandidates(now = new Date(), take = 20) {
 }
 
 /**
- * 解析待ちの出来事に出す、見出しの下書き。話題の見出し（AI の見出しがあればそれ）を、句読点・空白の切れ目で
- * 12字×2行に詰める（入りきらない後ろは落とす。投稿の前に人が確かめて直す）
+ * 解析待ちの出来事に出す、見出しの下書き。話題の見出し（AI の見出しがあればそれ）の全文を1行で返す。
+ * 要点のない出来事のカードは「見出しだけのカード」になり、見出しを大きく折り返して全部見せる（src/lib/digest/cards.tsx）
  */
 export function draftHeadline(topic: { title: string; aiTitle: string | null }): string[] {
   const text = (topic.aiTitle || topic.title)
@@ -307,39 +306,7 @@ export function draftHeadline(topic: { title: string; aiTitle: string | null }):
     .replace(/【[^】]*】/g, "")
     .replace(/[（(][^）)]*[）)]\s*$/, "")
     .trim();
-  const width = LIMITS.headlineWidth;
-  // 句読点・記号・空白の後ろで区切る（区切りの記号は前の塊に残す）
-  const chunks = text.split(/(?<=[、。，,！!？?…・\s])/u).map((c) => c.trim()).filter(Boolean);
-  const lines: string[] = [];
-  let cur = "";
-  for (const chunk of chunks) {
-    for (const piece of hardSplit(chunk, width)) {
-      if (textWidth(cur + piece) <= width) cur += piece;
-      else {
-        if (cur) lines.push(cur);
-        cur = piece;
-      }
-      if (lines.length >= LIMITS.headlineLines) break;
-    }
-    if (lines.length >= LIMITS.headlineLines) break;
-  }
-  if (cur && lines.length < LIMITS.headlineLines) lines.push(cur);
-  return lines.length ? lines.map((l) => l.replace(/[、，,・「『（(\s]+$/u, "")) : [text];
-}
-
-/** 1つの塊が1行に入らないときは、行の幅で切る */
-function hardSplit(chunk: string, width: number): string[] {
-  if (textWidth(chunk) <= width) return [chunk];
-  const out: string[] = [];
-  let cur = "";
-  for (const ch of chunk) {
-    if (textWidth(cur + ch) > width) {
-      out.push(cur);
-      cur = ch;
-    } else cur += ch;
-  }
-  if (cur) out.push(cur);
-  return out;
+  return [text || topic.title];
 }
 
 // ---------------------------------------------------------------------------

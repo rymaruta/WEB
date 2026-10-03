@@ -244,17 +244,24 @@ export async function publishBreakingAction(storyId: string, _: ActionState, for
   return doPublishBreaking(storyId, form);
 }
 
+/** 出来事に AI 解析の要点があるか（なければ、見出しだけのカードになる） */
+async function storyHasPoints(storyId: string): Promise<boolean> {
+  const { prisma } = await import("@/lib/db");
+  const s = await prisma.story.findUnique({ where: { id: storyId }, select: { points: true } });
+  return Array.isArray(s?.points) && s.points.length > 0;
+}
+
 /** 選んだ出来事を、いますぐ注目のニュース（速報の表示なし）として X に投稿する。自動では出さず、ここからだけ出す */
 export async function publishPickupAction(storyId: string, _: ActionState, form: FormData): Promise<ActionState> {
   await requireAdmin();
   const { prisma } = await import("@/lib/db");
   const { createPickup } = await import("@/lib/digest/breaking");
-  const { checkOverride } = await import("@/lib/digest/check");
+  const { checkSingleHeadline } = await import("@/lib/digest/check");
   const headline = String(form.get("headline") ?? "")
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  const problems = headline.length ? checkOverride({ headline }) : [];
+  const problems = headline.length ? checkSingleHeadline(headline, await storyHasPoints(storyId)) : [];
   if (problems.length) return { error: problems.join("\n") };
   const { editionKey, jstDate } = await import("@/lib/digest/slots");
   const { publishEdition, PublishError } = await import("@/lib/digest/publish");
@@ -285,13 +292,13 @@ export async function quickPublishAction(token: string, _: ActionState, form: Fo
 async function doPublishBreaking(storyId: string, form: FormData): Promise<ActionState> {
   const { prisma } = await import("@/lib/db");
   const { createManualBreaking } = await import("@/lib/digest/breaking");
-  const { checkOverride } = await import("@/lib/digest/check");
+  const { checkSingleHeadline } = await import("@/lib/digest/check");
   // 見出しは投稿の前に直せる（カードと投稿文の両方に使う）
   const headline = String(form.get("headline") ?? "")
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  const problems = headline.length ? checkOverride({ headline }) : [];
+  const problems = headline.length ? checkSingleHeadline(headline, await storyHasPoints(storyId)) : [];
   if (problems.length) return { error: problems.join("\n") };
   const { editionKey, jstDate } = await import("@/lib/digest/slots");
   const { publishEdition, PublishError } = await import("@/lib/digest/publish");
