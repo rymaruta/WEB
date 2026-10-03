@@ -3,7 +3,8 @@ import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { coverageTimes, elapsedLabel, numberDiffs } from "@/lib/coverage";
+import { coverageTimes, elapsedLabel, numberDiffs, spreadCurve } from "@/lib/coverage";
+import { CoverageSpread } from "@/components/coverage-spread";
 import { isIndexableArticle } from "@/lib/indexing";
 import { featurePath, featureShortName, isFeatureMonth, type FeatureKind } from "@/lib/features";
 import { AiArticleView } from "@/components/ai-article";
@@ -96,6 +97,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const coverage = topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, title: a.title, kind: a.source.kind }));
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
+  const spread = spreadCurve(coverage);
   const featureLinks = relatedFeatures(topic);
   // なぜ重要かは、まとめ記事の「なぜ重要」（照合済み）を優先し、なければ配信候補の文を使う
   const brief = buildBrief(ai?.lead, ai?.why?.text ?? why, timeline, topic);
@@ -243,6 +245,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             </nav>
           )}
           <EventTimeline entries={timeline} currentId={topic.id} />
+        {/* 報道の広がり（独立した媒体の数の累積。3媒体以上のとき） */}
+        <CoverageSpread points={spread} />
         <h2 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h2>
         {/* 見出しの数字が媒体で分かれているとき（報じた時点の違いなど）。どの媒体がどの数字かを並べる */}
         {diffs.length > 0 && (

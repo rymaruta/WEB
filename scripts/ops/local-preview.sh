@@ -16,7 +16,7 @@ if [ "${1:-}" != --no-build ]; then
   cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
 fi
 # 起動中のサーバーは名前が next-server に変わるため、その名前で止める
-pkill -x next-server 2>/dev/null || true; sleep 1
+pkill -f "^next-server" 2>/dev/null || true; sleep 1
 (cd .next/standalone && PORT=3102 HOSTNAME=127.0.0.1 nohup node server.js >"$ZN_SCRATCH/server.log" 2>&1 &)
 until curl -s -o /dev/null http://127.0.0.1:3102/; do sleep 1; done
 echo "http://127.0.0.1:3102 （管理 API は Bearer localtest）"
