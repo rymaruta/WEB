@@ -244,6 +244,36 @@ export async function publishBreakingAction(storyId: string, _: ActionState, for
   return doPublishBreaking(storyId, form);
 }
 
+/** 選んだ出来事を、いますぐ注目のニュース（速報の表示なし）として X に投稿する。自動では出さず、ここからだけ出す */
+export async function publishPickupAction(storyId: string, _: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const { prisma } = await import("@/lib/db");
+  const { createPickup } = await import("@/lib/digest/breaking");
+  const { checkOverride } = await import("@/lib/digest/check");
+  const headline = String(form.get("headline") ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const problems = headline.length ? checkOverride({ headline }) : [];
+  if (problems.length) return { error: problems.join("\n") };
+  const { editionKey, jstDate } = await import("@/lib/digest/slots");
+  const { publishEdition, PublishError } = await import("@/lib/digest/publish");
+  // 失敗した回の出し直しは、同じ回の続きとして投稿する（二重に投稿しない）
+  const existing = await prisma.edition.findUnique({ where: { key: editionKey(jstDate(new Date()), "PICKUP", storyId) }, select: { id: true, status: true } });
+  if (existing?.status === "PUBLISHED") return { error: "この出来事は、今日すでに注目のニュースとして投稿しています" };
+  const editionId = existing?.id ?? (await createPickup(storyId, new Date(), headline.length ? headline : undefined))?.id;
+  if (!editionId) return { error: headline.length ? "回を作れませんでした。画面を開き直してください" : "見出しを入力してください" };
+  try {
+    const r = await publishEdition(editionId);
+    revalidatePath("/admin/pickup");
+    const url = r.status === "published" && r.firstPostId ? `\nhttps://x.com/i/web/status/${r.firstPostId}` : "";
+    return { ok: `注目のニュースとして X に投稿しました${url}` };
+  } catch (e) {
+    if (e instanceof PublishError) return { error: `${e.message}\nもう一度押すと、続きから投稿します。` };
+    throw e;
+  }
+}
+
 /** メールのリンク（署名付き・期限つき）から、ログインせずに速報を投稿する */
 export async function quickPublishAction(token: string, _: ActionState, form: FormData): Promise<ActionState> {
   const { verifyActionToken } = await import("@/lib/admin/token");

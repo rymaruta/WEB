@@ -25,7 +25,7 @@ export default async function AdminHome() {
   const today = jstDate(now);
   const tomorrow = jstDate(new Date(now.getTime() + 86_400_000));
   const editions = await prisma.edition.findMany({
-    where: { date: { in: [today, tomorrow] }, slot: { not: "BREAKING" } },
+    where: { date: { in: [today, tomorrow] }, slot: { notIn: ["BREAKING", "PICKUP"] } },
     include: { items: { select: { storyId: true, confirmed: true } } },
     orderBy: { scheduledAt: "asc" },
   });
@@ -78,6 +78,9 @@ export default async function AdminHome() {
           ))}
           <Link href="/admin/breaking" className="rounded-lg border border-accent px-4 py-2 text-sm font-bold text-accent hover:bg-accent-soft">
             ⚡ 速報を作る
+          </Link>
+          <Link href="/admin/pickup" className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:bg-surface-muted">
+            📌 注目のニュースを出す
           </Link>
         </div>
       </section>

@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     // 定時配信の回（投稿済みのもの）
     prisma.edition.findMany({
-      where: { status: "PUBLISHED", slot: { not: "BREAKING" } },
+      where: { status: "PUBLISHED", slot: { notIn: ["BREAKING", "PICKUP"] } },
       orderBy: { scheduledAt: "desc" },
       take: 3000,
       select: { date: true, slot: true, publishedAt: true },

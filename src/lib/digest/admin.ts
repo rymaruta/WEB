@@ -7,7 +7,7 @@ import { checkOverride } from "./check";
 import { buildEdition, loadCandidates, loadEntries, type ItemOverride } from "./build";
 import { altText, buildCards, composePostText, replyText, splitParts } from "./compose";
 import { REQUIRED_ITEMS, scoreCandidate } from "./select";
-import { MAX_ITEMS, SLOTS, type Slot } from "./slots";
+import { isSingleSlot, MAX_ITEMS, SLOTS, type Slot } from "./slots";
 
 /**
  * 管理画面からの操作（並べ替え・追加・削除・編集・承認）。呼び出し側でログインを確かめてから使う。
@@ -21,7 +21,7 @@ type ItemRow = { position: number; storyId: string; role: "MAIN" | "FOLLOWUP"; s
 async function editableEdition(id: string) {
   const e = await prisma.edition.findUnique({ where: { id }, include: { items: { orderBy: { position: "asc" } } } });
   if (!e) throw new AdminError("配信回が見つかりません");
-  if (e.slot === "BREAKING") throw new AdminError("速報はこの画面では編集できません");
+  if (isSingleSlot(e.slot)) throw new AdminError("速報・注目のニュースはこの画面では編集できません");
   if (e.status !== "DRAFT" && e.status !== "SKIPPED") throw new AdminError("承認済み・投稿済みの配信回は変更できません。先に承認を取り消してください");
   return e;
 }
@@ -231,7 +231,7 @@ export async function rebuild(editionId: string) {
 /** 配信回の詳細（画面表示用） */
 export async function editionDetail(id: string) {
   const e = await prisma.edition.findUnique({ where: { id }, include: { items: { orderBy: { position: "asc" } } } });
-  if (!e || e.slot === "BREAKING") return null;
+  if (!e || isSingleSlot(e.slot)) return null;
   const entries = await loadEntries(e.items.map((r) => ({ position: r.position, role: r.role, storyId: r.storyId, override: r.override })));
   const stories = await prisma.story.findMany({
     where: { id: { in: e.items.map((i) => i.storyId) } },
@@ -253,7 +253,7 @@ export async function editionDetail(id: string) {
 /** 追加できる候補（点数の高い順） */
 export async function candidatePool(editionId: string) {
   const e = await prisma.edition.findUnique({ where: { id: editionId }, include: { items: true } });
-  if (!e || e.slot === "BREAKING") return [];
+  if (!e || isSingleSlot(e.slot)) return [];
   const cfg = SLOTS[e.slot as Slot];
   const since = new Date(e.scheduledAt.getTime() - cfg.windowHours * 3_600_000);
   const included = new Set(e.items.map((i) => i.storyId));
@@ -288,7 +288,7 @@ export async function cancelEdition(editionId: string) {
 export async function reopenForRepost(editionId: string) {
   const e = await prisma.edition.findUnique({ where: { id: editionId }, select: { key: true, slot: true, status: true } });
   if (!e) throw new AdminError("配信回が見つかりません");
-  if (e.slot === "BREAKING") throw new AdminError("速報は出し直せません");
+  if (isSingleSlot(e.slot)) throw new AdminError("速報・注目のニュースは出し直せません");
   if (e.status !== "PUBLISHED") throw new AdminError("投稿済みの回ではありません");
   await prisma.$transaction([
     prisma.publication.deleteMany({ where: { editionId } }),

@@ -229,6 +229,8 @@ enum EditionSlot {
   LUNCH
   EVENING
   BREAKING
+  /** 注目のニュース（速報の表示なし。人が選んで手動で投稿する1本） */
+  PICKUP
 }
 
 enum EditionStatus {

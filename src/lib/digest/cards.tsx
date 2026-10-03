@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
 import { siteConfig } from "@/config/site";
 import { loadGoogleFont } from "@/lib/og-font";
-import { BREAKING_COLOR, FOLLOWUP_COLOR, INK, type BreakingCard, type Card, type FollowupCard, type IndexCard, type NewsCard } from "./compose";
+import { FOLLOWUP_COLOR, INK, type BreakingCard, type Card, type FollowupCard, type IndexCard, type NewsCard } from "./compose";
 
 /**
  * ダイジェストのカード画像（1080×1080）。デザインは仕様書 v2 の「Kaname」。
@@ -210,11 +210,11 @@ function FollowupCardView({ card }: { card: FollowupCard }) {
 function BreakingCardView({ card }: { card: BreakingCard }) {
   return (
     <Frame
-      color={BREAKING_COLOR}
+      color={card.color}
       rows={[21, 58, 21]}
       top={[
-        <div key="l" style={{ display: "flex", fontSize: px(3.4), fontWeight: 900, letterSpacing: "0.1em", color: "#ffffff", background: BREAKING_COLOR, borderRadius: px(1), padding: `${px(0.9)}px ${px(2.2)}px` }}>
-          速報
+        <div key="l" style={{ display: "flex", fontSize: px(3.4), fontWeight: 900, letterSpacing: "0.1em", color: "#ffffff", background: card.color, borderRadius: px(1), padding: `${px(0.9)}px ${px(2.2)}px` }}>
+          {card.label}
         </div>,
         <div key="r" style={{ display: "flex", fontFamily: BODY, fontSize: px(3), fontWeight: 700 }}>
           {card.asOf}
@@ -226,7 +226,7 @@ function BreakingCardView({ card }: { card: BreakingCard }) {
           <div style={{ display: "flex", flexDirection: "column", gap: px(2.2), fontFamily: BODY, fontWeight: 700, fontSize: px(4.4), lineHeight: 1.42 }}>
             {card.points.map((p, i) => (
               <div key={i} style={{ display: "flex" }}>
-                <div style={{ width: px(5.4), display: "flex", fontFamily: DISPLAY, fontWeight: 900, fontSize: px(4.1), color: BREAKING_COLOR }}>{i + 1}</div>
+                <div style={{ width: px(5.4), display: "flex", fontFamily: DISPLAY, fontWeight: 900, fontSize: px(4.1), color: card.color }}>{i + 1}</div>
                 <div style={{ flex: 1, display: "flex" }}>{p}</div>
               </div>
             ))}

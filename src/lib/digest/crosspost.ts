@@ -16,7 +16,7 @@ import { digestPath } from "./archive";
 import { CARD_SIZE, renderCard } from "./cards";
 import { altText, POST_CTA } from "./compose";
 import { loadForPublish } from "./publish";
-import type { Slot } from "./slots";
+import { isSingleSlot, type Slot } from "./slots";
 
 /**
  * X に投稿した回を、Bluesky にも投稿する（同時投稿）。本文は X と同じで、画像への案内の代わりに記事へのリンクを付ける。
@@ -66,7 +66,7 @@ async function editionLink(editionId: string): Promise<string> {
     where: { id: editionId },
     select: { slot: true, date: true, items: { orderBy: { position: "asc" }, take: 1, select: { story: { select: { topicId: true } } } } },
   });
-  const path = e.slot === "BREAKING" ? `/topic/${e.items[0]?.story.topicId}` : digestPath(e.date, e.slot as Slot);
+  const path = isSingleSlot(e.slot) ? `/topic/${e.items[0]?.story.topicId}` : digestPath(e.date, e.slot as Slot);
   return `${siteConfig.url}${path}`;
 }
 

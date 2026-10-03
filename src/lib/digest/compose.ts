@@ -21,6 +21,8 @@ export const CATEGORY_COLORS: Record<Category, string> = {
 };
 export const FOLLOWUP_COLOR = "#2b3f8f";
 export const BREAKING_COLOR = "#d4590b";
+/** 注目のニュース（速報の表示なし）の色 */
+export const PICKUP_COLOR = "#0f6e5a";
 export const INK = "#16181d";
 
 /** 1投稿の画像の上限（X の仕様） */
@@ -176,6 +178,9 @@ export type FollowupCard = {
 
 export type BreakingCard = {
   type: "BREAKING";
+  /** 左上の札（「速報」または「注目」）と、その色 */
+  label: string;
+  color: string;
   /** 「10:42 時点」 */
   asOf: string;
   headline: string[];
@@ -268,11 +273,16 @@ export function buildCards(view: EditionView): Card[] {
   return cards;
 }
 
-/** 速報のカード。時刻は「◯時◯分時点」と明記し、分かっていないことを分けて書く（仕様 15 章） */
-export function buildBreakingCard(entry: EditionEntry, at: Date, unknown: string | null): BreakingCard {
+/**
+ * 速報のカード。時刻は「◯時◯分時点」と明記し、分かっていないことを分けて書く（仕様 15 章）。
+ * 注目のニュース（kind = "PICKUP"）も同じ形で、札を「注目」にする（速報とは言わない）
+ */
+export function buildBreakingCard(entry: EditionEntry, at: Date, unknown: string | null, kind: "BREAKING" | "PICKUP" = "BREAKING"): BreakingCard {
   const time = jstTime(at);
   return {
     type: "BREAKING",
+    label: kind === "PICKUP" ? "注目" : "速報",
+    color: kind === "PICKUP" ? PICKUP_COLOR : BREAKING_COLOR,
     asOf: `${time} 時点`,
     headline: entry.headline,
     points: entry.points.slice(0, unknown ? 2 : 3).map((p) => p.text),
@@ -306,7 +316,7 @@ export function altText(card: Card): string {
         .join("\n");
       break;
     case "BREAKING":
-      text = [`［速報 ${card.asOf}］${card.headline.join(" ")}`, ...card.points.map((p) => `・${p}`), card.unknown ? `まだ分かっていないこと：${card.unknown}` : "", card.sources]
+      text = [`［${card.label} ${card.asOf}］${card.headline.join(" ")}`, ...card.points.map((p) => `・${p}`), card.unknown ? `まだ分かっていないこと：${card.unknown}` : "", card.sources]
         .filter(Boolean)
         .join("\n");
       break;
