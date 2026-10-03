@@ -120,6 +120,11 @@ describe("selectForEdition（3つの枠）", () => {
     expect(ids(selectForEdition([a, same, promo, gossip], SLOTS.MORNING, new Set()))).toEqual([a.id]);
   });
 
+  it("前の回に載った出来事は、続報としても載せない", () => {
+    const f = cand({ kind: "FOLLOWUP", threadId: "tz", newFacts: 2, assessment: assess({ impact: 3, longevity: 3 }) });
+    expect(ids(selectForEdition([f], SLOTS.MORNING, new Set(["tz"])))).toEqual([]);
+  });
+
   it("前の回に載った出来事は、もう一度は載せない", () => {
     const a = cand();
     const b = cand();
