@@ -12,6 +12,10 @@ export const siteConfig = {
     "国内・国際・経済・IT・エンタメ・スポーツ・グルメ新商品まで、主要メディアの最新ニュースをジャンル横断でまとめて届ける総合ポータル。",
   url: siteUrl,
   contactEmail: process.env.CONTACT_EMAIL ?? "contact@example.com",
+  /** 運営者の表示名（屋号） */
+  operator: "ぜんぶナビ編集部",
+  /** 運営開始 */
+  launchedAt: "2026年9月",
   /** 公式 X アカウント（構造化データの sameAs などに使う） */
   xUrl: "https://x.com/ZenbuNavi",
   crawlerUserAgent: `ZenbuNaviBot/1.0 (+${siteUrl}/about)`,

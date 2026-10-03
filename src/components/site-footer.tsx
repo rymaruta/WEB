@@ -28,8 +28,10 @@ const GROUPS: { title: string; links: { href: string; label: string; external?: 
   {
     title: "このサイトについて",
     links: [
-      { href: "/about", label: "運営方針・お問い合わせ" },
+      { href: "/about", label: "運営方針・運営者情報" },
+      { href: "/contact", label: "お問い合わせ" },
       { href: "/sources", label: "掲載メディア" },
+      { href: "/terms", label: "利用規約・免責事項" },
       { href: "/privacy", label: "プライバシーポリシー" },
     ],
   },

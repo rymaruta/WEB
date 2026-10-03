@@ -3,14 +3,14 @@ import Link from "next/link";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
-  title: "運営方針・お問い合わせ",
+  title: "運営方針・運営者情報",
   alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 card p-5 text-[15px] leading-relaxed sm:p-8">
-      <h1 className="text-2xl font-extrabold">運営方針・お問い合わせ</h1>
+      <h1 className="text-2xl font-extrabold">運営方針・運営者情報</h1>
 
       <section>
         <h2 className="mb-2 text-lg font-bold">{siteConfig.name}について</h2>
@@ -98,14 +98,37 @@ export default function AboutPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-lg font-bold">運営者</h2>
-        <p>{siteConfig.name}</p>
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-lg font-bold">お問い合わせ</h2>
-        <p>
-          <a href={`mailto:${siteConfig.contactEmail}`} className="text-accent underline">{siteConfig.contactEmail}</a>
+        <h2 className="mb-2 text-lg font-bold">運営者情報</h2>
+        <dl className="grid grid-cols-[7em_1fr] gap-x-3 gap-y-1">
+          <dt className="font-bold">サイト名</dt>
+          <dd>{siteConfig.name}</dd>
+          <dt className="font-bold">運営</dt>
+          <dd>{siteConfig.operator}</dd>
+          <dt className="font-bold">運営開始</dt>
+          <dd>{siteConfig.launchedAt}</dd>
+          <dt className="font-bold">URL</dt>
+          <dd>https://zenbu-navi.com</dd>
+          <dt className="font-bold">お問い合わせ</dt>
+          <dd>
+            <Link href="/contact" className="text-accent underline">
+              お問い合わせフォーム
+            </Link>
+            ／
+            <a href={`mailto:${siteConfig.contactEmail}`} className="text-accent underline">
+              {siteConfig.contactEmail}
+            </a>
+          </dd>
+        </dl>
+        <p className="mt-2 text-sm text-fg-muted">
+          ご利用の条件は
+          <Link href="/terms" className="text-accent underline">
+            利用規約・免責事項
+          </Link>
+          、情報の取り扱いは
+          <Link href="/privacy" className="text-accent underline">
+            プライバシーポリシー
+          </Link>
+          をご覧ください。
         </p>
       </section>
     </article>
