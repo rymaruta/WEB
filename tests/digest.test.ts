@@ -163,6 +163,16 @@ describe("selectForEdition", () => {
     expect(r.main.map((m) => m.id)).not.toContain(mainA.id);
   });
 
+  it("分野の上限は続報の枠も数える（本編2本＋続報1本で3本とも同じ分野にしない）", () => {
+    const follow = cand({ kind: "FOLLOWUP", threadId: "tf", newFacts: 2, category: "SPORTS" });
+    const sports = [cand({ category: "SPORTS" }), cand({ category: "SPORTS" })];
+    const world = cand({ category: "WORLD" });
+    const r = selectForEdition([follow, ...sports, world], SLOTS.EVENING, new Set());
+    expect(r.followups.map((f) => f.id)).toEqual([follow.id]);
+    expect(r.main.map((m) => m.id)).toContain(world.id);
+    expect(r.main.filter((m) => sports.some((s) => s.id === m.id)).length).toBeLessThanOrEqual(1);
+  });
+
   it("おまかせ投稿では、要確認のストーリーを選ばない", () => {
     const review = cand({ status: "REVIEW_REQUIRED", category: "ECONOMY" });
     const ok = cand({ category: "WORLD" });

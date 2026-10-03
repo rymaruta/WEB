@@ -159,9 +159,11 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     (s) => s.candidate.kind === "NEW" && !(s.candidate.threadId && (excludeThreads.has(s.candidate.threadId) || followupThreads.has(s.candidate.threadId))),
   );
   const main: Picked[] = [];
+  // 分野の上限は、続報の枠も合わせて数える（本編2本＋続報1本で、3本とも同じ分野になるのを防ぐ）
+  const all = () => [...followups, ...main];
   for (const s of pool) {
     if (main.length >= mainLimit) break;
-    if (fits(main, s.candidate)) main.push(s);
+    if (fits(all(), s.candidate)) main.push(s);
   }
 
   // 政治・経済・国際を1本以上（候補があれば、いちばん点数の低い1本と入れ替える）
@@ -170,8 +172,8 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     const hard = pool.find((s) => isHard(s) && !main.includes(s));
     if (hard) {
       const rest = main.slice(0, -1);
-      if (main.length < mainLimit && fits(main, hard.candidate)) main.push(hard);
-      else if (fits(rest, hard.candidate)) main.splice(main.length - 1, 1, hard);
+      if (main.length < mainLimit && fits(all(), hard.candidate)) main.push(hard);
+      else if (fits([...followups, ...rest], hard.candidate)) main.splice(main.length - 1, 1, hard);
     }
   }
 
@@ -196,7 +198,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
         if (need() <= 0) break;
         if (main.includes(s)) continue;
         if (s.candidate.threadId && usedThreads.has(s.candidate.threadId)) continue;
-        if (!fits(main, s.candidate, relaxCategories)) continue;
+        if (!fits(all(), s.candidate, relaxCategories)) continue;
         main.push(s);
         if (s.candidate.threadId) usedThreads.add(s.candidate.threadId);
       }
@@ -215,7 +217,7 @@ export function selectForEdition(candidates: Candidate[], cfg: SlotConfig, exclu
     if (s.score < FILL_MIN_SCORE) return `点数不足（${s.score}）`;
     if (s.score < MIN_SCORE && (c.assessment?.gossip || c.assessment?.promotional)) return "ゴシップ・宣伝（埋め合わせに使わない）";
     // 基準点以上の候補はふだんの上限（同じ分野2本・芸能とスポーツ合わせて1本）で、埋め合わせの候補はゆるめた上限で調べる
-    return misfit(main, c, s.score < MIN_SCORE) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
+    return misfit(all(), c, s.score < MIN_SCORE) ?? (s.score < MIN_SCORE ? `点数不足（${s.score}、本数は足りた）` : "本数の上限");
   };
   const rejected = scored
     .filter((s) => !chosen.has(s.id))
