@@ -23,7 +23,7 @@ export default async function BreakingPage() {
         </Link>
         <h1 className="mt-1 text-xl font-extrabold">速報を作る</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          直近{MANUAL_BREAKING_HOURS}時間に最初に報じられた、まだ配信していない出来事です（報じた媒体の多い順。AI 解析前の出来事も出します）。投稿文とカードの「◯時◯分時点」は、投稿した時刻になります。見出しは投稿の前に直せます。
+          直近{MANUAL_BREAKING_HOURS}時間に最初に報じられ、まだ配信していない、世間の関心が高い出来事です（よく知られた人・会社・作品、日本代表、災害、8媒体以上。報じた媒体の多い順。AI 解析前の出来事も出します）。条件に合うものは自動で AI が確認して投稿します。投稿文とカードの「◯時◯分時点」は、投稿した時刻になります。見出しは投稿の前に直せます。
         </p>
         <p className="mt-1 text-sm text-fg-muted">
           今日の速報 {postedToday} 本（自動の速報は1日{BREAKING_RULES.maxPerDay}本まで。ここで出した分も数えます）
