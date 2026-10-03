@@ -34,8 +34,8 @@ describe("イメージ写真（lib/stock-photos）", () => {
     }
   });
 
-  it("主なジャンルに既定の写真がある", () => {
-    for (const g of ["domestic", "world", "business", "tech", "entertainment", "sports"]) {
+  it("すべてのジャンルに既定の写真がある", () => {
+    for (const g of ["domestic", "world", "business", "tech", "entertainment", "sports", "game", "anime", "products", "life"]) {
       expect(stockPhoto("きょうのできごと", g, 1)).not.toBeNull();
     }
   });
@@ -47,8 +47,15 @@ describe("イメージ写真の選び方", () => {
     expect(stockPhoto("衆院で法案が可決", "domestic", 3)?.page).toMatch(/Diet/);
   });
 
+  it("食べ物・乗り物・天気などの語に合う写真を選ぶ", () => {
+    expect(stockPhoto("新作ラーメンを発売", "products", 1)?.page).toMatch(/File:/);
+    expect(stockPhoto("東海道新幹線が運転見合わせ", "life", 1)?.page).toMatch(/Shinkansen|N700|File:/i);
+    expect(stockPhoto("便利な収納術", "life", 1)?.page).not.toMatch(/airplane|Boeing|Airbus/i);
+  });
+
   it("球団名など企業・地名と同じ語は、スポーツの話題でだけ使う", () => {
-    expect(stockPhoto("ヤクルトが新商品を発売", "products", 1)).toBeNull();
+    const baseball = stockPhoto("ヤクルト山田哲人が決勝打", "sports", 1)?.page;
+    expect(stockPhoto("ヤクルトが新商品を発売", "products", 1)?.page).not.toBe(baseball);
     expect(stockPhoto("ヤクルト山田哲人が決勝打", "sports", 1)?.page).toMatch(/Jingu|Stadium|Koshien|baseball|Baseball|Tokyo_Dome|File:/);
   });
 });

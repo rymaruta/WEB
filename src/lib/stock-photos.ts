@@ -63,6 +63,48 @@ export const STOCK_PHOTOS: StockPhoto[] = [
   { re: /ゴルフ|PGA|LPGA|ツアー優勝|松山英樹/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG/500px-Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG", page: "https://commons.wikimedia.org/wiki/File:Putting_green_at_the_Royal_Canberra_Golf_Club_4.JPG", credit: "Neuroxic / CC BY 4.0" },
   // soccer
   { re: /サッカー|Jリーグ|J1|J2|プレミアリーグ|ラ・リーガ|セリエA|ブンデス|チャンピオンズリーグ|W杯|ワールドカップ|なでしこ|日本代表|ゴール|監督/, scope: "sports", genre: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/2019_J.League_Cup_Final.jpg/500px-2019_J.League_Cup_Final.jpg", page: "https://commons.wikimedia.org/wiki/File:2019_J.League_Cup_Final.jpg", credit: "ある男 / CC0" },
+  // marathon
+  { re: /マラソン|駅伝|陸上|箱根/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Tokyo_Marathon_2019_Runner_%2846349210105%29.jpg/500px-Tokyo_Marathon_2019_Runner_%2846349210105%29.jpg", page: "https://commons.wikimedia.org/wiki/File:Tokyo_Marathon_2019_Runner_(46349210105).jpg", credit: "nakashi from Chofu, Tokyo, JAPAN / CC BY-SA 2.0" },
+  // horse
+  { re: /競馬|G1|ダービー|有馬記念|天皇賞|騎手|JRA/, scope: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Japan_Cup_2023_Goal.jpg/500px-Japan_Cup_2023_Goal.jpg", page: "https://commons.wikimedia.org/wiki/File:Japan_Cup_2023_Goal.jpg", credit: "Hatomizinko3 / CC BY 4.0" },
+  // china
+  { re: /中国|習近平|北京|中国外務省|台湾/, genre: "world", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Beijing_China_Tiananmen-Square-05.jpg/500px-Beijing_China_Tiananmen-Square-05.jpg", page: "https://commons.wikimedia.org/wiki/File:Beijing_China_Tiananmen-Square-05.jpg", credit: "CEphoto, Uwe Aranas / CC BY-SA 3.0" },
+  // korea
+  { re: /韓国|ソウル|北朝鮮|李在明/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/Seoul_City_Wall_and_Downtown_Seoul.jpg/500px-Seoul_City_Wall_and_Downtown_Seoul.jpg", page: "https://commons.wikimedia.org/wiki/File:Seoul_City_Wall_and_Downtown_Seoul.jpg", credit: "서울연구원 / CC BY 4.0" },
+  // russia
+  { re: /ロシア|プーチン|モスクワ|クレムリン/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Vista_general_del_Kremlin%2C_Mosc%C3%BA%2C_Rusia%2C_2016-10-03%2C_DD_18-19_HDR.jpg/500px-Vista_general_del_Kremlin%2C_Mosc%C3%BA%2C_Rusia%2C_2016-10-03%2C_DD_18-19_HDR.jpg", page: "https://commons.wikimedia.org/wiki/File:Vista_general_del_Kremlin,_Mosc%C3%BA,_Rusia,_2016-10-03,_DD_18-19_HDR.jpg", credit: "Diego Delso / CC BY-SA 4.0" },
+  // ukraine
+  { re: /ウクライナ|ゼレンスキー|キーウ/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/%D0%92%D0%B8%D0%B4%D1%83%D0%B1%D0%B8%D1%86%D1%8C%D0%BA%D0%B8%D0%B9_%D0%BC%D0%BE%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80-3.JPG/500px-%D0%92%D0%B8%D0%B4%D1%83%D0%B1%D0%B8%D1%86%D1%8C%D0%BA%D0%B8%D0%B9_%D0%BC%D0%BE%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80-3.JPG", page: "https://commons.wikimedia.org/wiki/File:%D0%92%D0%B8%D0%B4%D1%83%D0%B1%D0%B8%D1%86%D1%8C%D0%BA%D0%B8%D0%B9_%D0%BC%D0%BE%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80-3.JPG", credit: "Nick Grapsy / CC BY-SA 4.0" },
+  // usa
+  { re: /米国|アメリカ|米連邦|米最高裁/, genre: "world", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/US_Capitol_west_side.JPG/500px-US_Capitol_west_side.JPG", page: "https://commons.wikimedia.org/wiki/File:US_Capitol_west_side.JPG", credit: "Martin Falbisoner / CC BY-SA 3.0" },
+  // plane
+  { re: /航空|旅客機|空港|ANA|JAL|欠航|航空便/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Airplane_at_airport_kochine_2.jpg/500px-Airplane_at_airport_kochine_2.jpg", page: "https://commons.wikimedia.org/wiki/File:Airplane_at_airport_kochine_2.jpg", credit: "रोहित साव27 / CC0" },
+  // game
+  { re: /ゲーム|Switch|PS5|プレイステーション|Xbox|Steam|任天堂|eスポーツ|DLC|攻略/, genre: "game", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Nintendo-Switch-Pro-Controller-FL.jpg/500px-Nintendo-Switch-Pro-Controller-FL.jpg", page: "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Pro-Controller-FL.jpg", credit: "Evan-Amos / Public domain" },
+  // arcade
+  { re: /アニメ|漫画|マンガ|コミック|声優|劇場版|秋葉原/, genre: "anime", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Pedestrians_Crossing%2C_Akihabara%2C_Tokyo%2C_Japan.jpg/500px-Pedestrians_Crossing%2C_Akihabara%2C_Tokyo%2C_Japan.jpg", page: "https://commons.wikimedia.org/wiki/File:Pedestrians_Crossing,_Akihabara,_Tokyo,_Japan.jpg", credit: "DLKR / CC0" },
+  // ramen
+  { re: /ラーメン|麺|うどん|そば|カップヌードル|焼きそば/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Ramen_Bowl_2.jpg/500px-Ramen_Bowl_2.jpg", page: "https://commons.wikimedia.org/wiki/File:Ramen_Bowl_2.jpg", credit: "Shisma / CC BY 4.0" },
+  // burger
+  { re: /バーガー|マクドナルド|モスバーガー|ロッテリア|ナゲット|ポテト/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Big_Mac_hamburger.jpg/500px-Big_Mac_hamburger.jpg", page: "https://commons.wikimedia.org/wiki/File:Big_Mac_hamburger.jpg", credit: "Evan-Amos / CC0" },
+  // coffee
+  { re: /コーヒー|カフェ|ラテ|スタバ|スターバックス|ドトール|コメダ|フラペチーノ/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Cup_of_coffee_with_latte_art_2016.jpg/500px-Cup_of_coffee_with_latte_art_2016.jpg", page: "https://commons.wikimedia.org/wiki/File:Cup_of_coffee_with_latte_art_2016.jpg", credit: "Abdulrohmatt / CC BY-SA 4.0" },
+  // sweets
+  { re: /スイーツ|ケーキ|パフェ|チョコ|アイス|ドーナツ|和菓子|プリン|クッキー|モンブラン/, genre: "products", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Piece_of_chocolate_cake_on_a_white_plate_decorated_with_chocolate_sauce.jpg/500px-Piece_of_chocolate_cake_on_a_white_plate_decorated_with_chocolate_sauce.jpg", page: "https://commons.wikimedia.org/wiki/File:Piece_of_chocolate_cake_on_a_white_plate_decorated_with_chocolate_sauce.jpg", credit: "Daria YakovlevaMinor edits made by Subsidiary account / CC0" },
+  // convenience
+  { re: /コンビニ|セブン|ローソン|ファミマ|ファミリーマート|新商品|新発売|期間限定/, genre: "products", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Hot_drinks_in_Japanese_Convenience_Store_%2813539630815%29.jpg/500px-Hot_drinks_in_Japanese_Convenience_Store_%2813539630815%29.jpg", page: "https://commons.wikimedia.org/wiki/File:Hot_drinks_in_Japanese_Convenience_Store_(13539630815).jpg", credit: "Martin Lewison / CC BY-SA 2.0" },
+  // shopping
+  { re: /セール|ショッピング|商店街|百貨店|アウトレット|オープン/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Teramachi_Street_2022-04_ac_%287%29.jpg/500px-Teramachi_Street_2022-04_ac_%287%29.jpg", page: "https://commons.wikimedia.org/wiki/File:Teramachi_Street_2022-04_ac_(7).jpg", credit: "Asturio Cantabrio / CC BY-SA 4.0" },
+  // shinkansen
+  { re: /新幹線|JR|鉄道|列車|旅行|観光|ホテル|温泉|帰省/, genre: "life", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Line_scan_photo_of_Shinkansen_N700A_Series_Set_G13_in_2017%2C_car_16.png/500px-Line_scan_photo_of_Shinkansen_N700A_Series_Set_G13_in_2017%2C_car_16.png", page: "https://commons.wikimedia.org/wiki/File:Line_scan_photo_of_Shinkansen_N700A_Series_Set_G13_in_2017,_car_16.png", credit: "Dllu / CC BY-SA 4.0" },
+  // hospital
+  { re: /病院|医療|医師|感染|ワクチン|健康|がん|熱中症|厚労省/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Corridor_on_the_second_level_-_N%C3%84L_hospital_1.jpg/500px-Corridor_on_the_second_level_-_N%C3%84L_hospital_1.jpg", page: "https://commons.wikimedia.org/wiki/File:Corridor_on_the_second_level_-_N%C3%84L_hospital_1.jpg", credit: "W.carter / CC0" },
+  // school
+  { re: /学校|教育|受験|入試|大学|高校|中学|小学校|子育て/, url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Hitane_Elementary_School_classroom_1.jpg/500px-Hitane_Elementary_School_classroom_1.jpg", page: "https://commons.wikimedia.org/wiki/File:Hitane_Elementary_School_classroom_1.jpg", credit: "Douglas P Perkins / CC BY 3.0" },
+  // home
+  { re: /暮らし|家事|掃除|収納|節約|住宅|家賃|料理|レシピ/, genre: "life", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Interior_of_Shaw_house_-_Karuizawa%2C_Japan_-_DSC01944.JPG/500px-Interior_of_Shaw_house_-_Karuizawa%2C_Japan_-_DSC01944.JPG", page: "https://commons.wikimedia.org/wiki/File:Interior_of_Shaw_house_-_Karuizawa,_Japan_-_DSC01944.JPG", credit: "Daderot / CC0" },
+  // sky
+  { re: /天気|台風|大雨|気象|猛暑|雪|気温|紅葉/, genre: "life", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Field%2C_corn%2C_Liechtenstein%2C_Mountains%2C_Alps%2C_Vaduz%2C_sky%2C_clouds%2C_landscape.jpg/500px-Field%2C_corn%2C_Liechtenstein%2C_Mountains%2C_Alps%2C_Vaduz%2C_sky%2C_clouds%2C_landscape.jpg", page: "https://commons.wikimedia.org/wiki/File:Field,_corn,_Liechtenstein,_Mountains,_Alps,_Vaduz,_sky,_clouds,_landscape.jpg", credit: "Paranoid / Public domain" },
   // baseball
   { re: /野球|プロ野球|大リーグ|MLB|ドジャース|巨人|阪神|ヤクルト|ロッテ|ソフトバンク|日本ハム|楽天|西武|オリックス|広島|中日|DeNA|本塁打|投手|打者|甲子園/, scope: "sports", genre: "sports", url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_%283845206361%29.jpg/500px-%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_%283845206361%29.jpg", page: "https://commons.wikimedia.org/wiki/File:%E6%89%93%E7%8E%87%E3%81%A8%E6%9C%AC%E5%A1%81%E6%89%93%E6%95%B0_(3845206361).jpg", credit: "Ethan Prater / CC BY 2.0" },
 ];
