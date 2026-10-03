@@ -78,6 +78,7 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
     // 分野が読み取れていない出来事は、話題のジャンルから補う（分野が空だと、同じ分野の本数の上限が効かないため）
     category: (s.category as Category | null) ?? categoryOfGenre(genreOf.get(s.topicId)),
     threadId: s.eventThreadId,
+    topicId: s.topicId,
     assessment: s.assessment as Assessment | null,
     publisherCount: publishers.get(s.topicId) ?? 0,
     hasPrimary: s.sources.some((x) => x.isPrimary),
@@ -96,24 +97,31 @@ export async function loadCandidates(since: Date, includePublished: boolean): Pr
   }));
 }
 
-/** 前の配信回（今日の前の回と前日の夜）に載った出来事 */
-async function previousThreads(slot: Slot, date: string, now: Date): Promise<Set<string>> {
+/**
+ * 前の配信回（今日の前の回と前日の夜）に載った出来事と、ストーリーそのもの。
+ * 出来事（系列）が付いていないストーリーもあるため、ストーリーの id でも除く。速報・注目のニュースで出したものも除く
+ */
+async function previousItems(slot: Slot, date: string, now: Date): Promise<{ threads: Set<string>; stories: Set<string>; topics: Set<number> }> {
   const cfg = SLOTS[slot];
   const editions = await prisma.edition.findMany({
     where: {
       scheduledAt: { gte: new Date(now.getTime() - EXCLUDE_LOOKBACK_HOURS * 3_600_000), lt: jstAt(date, cfg.publishAt) },
       status: { in: ["APPROVED", "PUBLISHED"] },
-      slot: { notIn: ["BREAKING", "PICKUP"] },
     },
-    select: { date: true, items: { select: { story: { select: { eventThreadId: true } } } } },
+    select: { date: true, items: { select: { storyId: true, story: { select: { eventThreadId: true, topicId: true } } } } },
   });
   const threads = new Set<string>();
+  const stories = new Set<string>();
+  const topics = new Set<number>();
   for (const e of editions) {
-    // 夜の「今日これだけ」は1日のまとめなので、今日の回に載った出来事も候補に残す
     if (cfg.allowRepeatToday && e.date === date) continue;
-    for (const i of e.items) if (i.story.eventThreadId) threads.add(i.story.eventThreadId);
+    for (const i of e.items) {
+      stories.add(i.storyId);
+      topics.add(i.story.topicId);
+      if (i.story.eventThreadId) threads.add(i.story.eventThreadId);
+    }
   }
-  return threads;
+  return { threads, stories, topics };
 }
 
 /**
@@ -127,8 +135,12 @@ export async function buildEdition(slot: Slot, now = new Date()) {
   const existing = await prisma.edition.findUnique({ where: { key }, select: { id: true, status: true } });
   if (existing) return { created: false as const, id: existing.id, status: existing.status };
 
-  const candidates = await loadCandidates(new Date(now.getTime() - cfg.windowHours * 3_600_000), cfg.allowRepeatToday);
-  const selection = selectForEdition(candidates, cfg, await previousThreads(slot, date, now), { verifiedOnly: autoApproveEnabled() });
+  const prev = await previousItems(slot, date, now);
+  // 前の回・速報で出したストーリーと、同じ話題の新しいストーリー（続報を除く）は候補にしない
+  const candidates = (await loadCandidates(new Date(now.getTime() - cfg.windowHours * 3_600_000), cfg.allowRepeatToday)).filter(
+    (c) => !prev.stories.has(c.id) && !(c.kind === "NEW" && c.topicId !== undefined && prev.topics.has(c.topicId)),
+  );
+  const selection = selectForEdition(candidates, cfg, prev.threads, { verifiedOnly: autoApproveEnabled() });
   const picked = [
     ...selection.main.map((s) => ({ ...s, role: "MAIN" as const })),
     ...selection.followups.map((s) => ({ ...s, role: "FOLLOWUP" as const })),

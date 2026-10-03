@@ -22,7 +22,7 @@ export type SlotConfig = {
   windowHours: number;
   /** 政治・経済・国際のいずれかを1本以上入れる */
   requireHardNews: boolean;
-  /** 今日の配信に既に載った出来事も候補にする（夜の「今日これだけ」は1日のまとめのため） */
+  /** 今日の配信に既に載った出来事も候補にする（いまはどの回も false。同じニュースを1日に2回出さない） */
   allowRepeatToday: boolean;
 };
 
@@ -64,7 +64,7 @@ export const SLOTS: Record<Slot, SlotConfig> = {
     followupMax: 1,
     windowHours: 16,
     requireHardNews: true,
-    allowRepeatToday: true,
+    allowRepeatToday: false,
   },
 };
 

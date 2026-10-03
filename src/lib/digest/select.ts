@@ -12,6 +12,8 @@ export type Candidate = {
   status: string;
   category: Category | null;
   threadId: string | null;
+  /** 話題の id（前の回に出した話題を除くため） */
+  topicId?: number;
   assessment: Assessment | null;
   publisherCount: number;
   hasPrimary: boolean;
