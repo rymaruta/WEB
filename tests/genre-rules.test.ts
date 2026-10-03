@@ -163,3 +163,19 @@ describe("decideTopicGenre", () => {
     expect(d.note).toBeNull();
   });
 });
+
+describe("judgeGenre（2026-10-03 の本番の目視で見つけた誤り）", () => {
+  it("格闘技はスポーツ", () => {
+    expect(judgeGenre("【ＲＩＺＩＮ】井上直樹が挑戦者決定戦へ サバテロへのリベンジに「しっかり倒して、やり返しにいきたい」", null, "entertainment").genre).toBe("sports");
+  });
+  it("アニメの試写会は、ゲーム系の媒体が載せていてもアニメ", () => {
+    const j = judgeGenre("アニメ「サイバーパンク: エッジランナーズ2」は，4人の主人公が織りなす群像劇に。第1話試写会＆制作陣・キャスト陣の舞台挨拶をレポート", null, "game", "4Gamer.net");
+    expect(j.genre).toBe("anime");
+    expect(confidentMove(j, TOPIC_MIN_CONFIDENCE)).toBe(true);
+  });
+  it("作品の舞台化は芸能", () => {
+    const j = judgeGenre("不朽の名作RPG 「幻想水滸伝」舞台化第2弾 舞台「幻想水滸伝-デュナン統一戦争篇-」2027年7月 東京＆大阪で上演決定！", null, "products", "PR TIMES");
+    expect(j.genre).toBe("entertainment");
+    expect(confidentMove(j, TOPIC_MIN_CONFIDENCE)).toBe(true);
+  });
+});
