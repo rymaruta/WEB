@@ -1,5 +1,6 @@
 import { formatDateTime } from "@/lib/format";
 import type { PreviousCoverage, StoryMaterial } from "./schema";
+import { aiSummary } from "@/lib/rights";
 
 const COMMON_RULES = `- 資料に書かれている事実だけを使う。資料にない数字・人名・日時・原因・背景知識・用語の説明を加えない。推測や意見を書かない。
 - 誇張や煽りの言葉（衝撃、ヤバい、必見、まさか、炎上 など）と感嘆符を使わない。ハッシュタグを付けない。
@@ -36,7 +37,7 @@ function materialLines(materials: StoryMaterial[]): string {
   return materials
     .map((m) => {
       const label = m.isPrimary ? "（公式発表）" : "";
-      return `[${m.position}] ${m.publisher}${label}／${formatDateTime(m.publishedAt)}\n見出し: ${m.title}\n要約: ${m.summary ?? "（なし）"}`;
+      return `[${m.position}] ${m.publisher}${label}／${formatDateTime(m.publishedAt)}\n見出し: ${m.title}\n要約: ${aiSummary(m.summary, m.publisher) ?? "（なし）"}`;
     })
     .join("\n\n");
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cleanTitle } from "@/lib/feed/text";
 import { hasPublisherName, publisherLabel } from "@/lib/publisher";
+import { displayExcerpt, displayImage } from "@/lib/rights";
 import type { ReactNode } from "react";
 import { relativeTime } from "@/lib/format";
 import { marketEventLabel } from "@/lib/market-event";
@@ -20,12 +21,15 @@ type Variant = "standard" | "compact";
 function describe(topic: TopicCardData) {
   const primary = topic.articles.filter((a) => a.source.kind !== "SOCIAL");
   const lead = primary[0] ?? topic.articles[0];
-  const summary =
-    topic.aiLead || ((primary.find((a) => a.summary) ?? topic.articles.find((a) => a.summary))?.summary ?? null);
+  // 要約は当サイトが書いたものを出す。媒体の説明文は、規約で認める媒体のものだけ（lib/rights）
+  const excerptOf = (a: (typeof topic.articles)[number]) => displayExcerpt(a.summary, a.publisher);
+  const summary = topic.aiLead || ((primary.find(excerptOf) ?? topic.articles.find(excerptOf))?.summary ?? null);
   const publishers = [...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))];
   // 画像は報道機関の記事から選ぶ。SNS 経由の記事は、名前の分かる媒体のものだけ（企業や個人のサイトの画面写真を大きく出さない）
-  const imageArticle = primary.find((a) => a.imageUrl) ?? topic.articles.find((a) => a.imageUrl && hasPublisherName(a.publisher));
-  const image = imageArticle?.imageUrl ?? null;
+  // 媒体の画像は、規約で表示を認める媒体のものだけ（lib/rights）
+  const imageOf = (a: (typeof topic.articles)[number]) => displayImage(a.imageUrl, a.publisher);
+  const imageArticle = primary.find(imageOf) ?? topic.articles.find((a) => imageOf(a) && hasPublisherName(a.publisher));
+  const image = imageArticle ? imageOf(imageArticle) : null;
   // 画像の出典（画像を配信した媒体）
   const imageCredit = imageArticle ? publisherLabel(imageArticle.publisher) : undefined;
   // AI まとめ記事があれば、その見出し（当サイト独自の見出し）を表示する

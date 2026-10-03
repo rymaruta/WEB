@@ -32,6 +32,7 @@ import { kindTone } from "@/components/kind-badge";
 import { workKey, workPath } from "@/lib/work-keys";
 import { getRelatedNews } from "@/lib/topics/related-news";
 import { jstDay } from "@/lib/archive";
+import { displayExcerpt, displayImage } from "@/lib/rights";
 
 export const revalidate = 60;
 
@@ -52,7 +53,7 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
   // まとめた先がある話題は、ページの読み込み後に転送する（200 で返るため）。検索エンジンには、まとめた先を正規の URL として伝える
   if (topic.mergedIntoId) return { alternates: { canonical: `/topic/${topic.mergedIntoId}` }, robots: { index: false, follow: true } };
   const ai = readAiArticle(topic);
-  const summary = ai?.lead || (topic.articles.find((a) => a.summary)?.summary ?? undefined);
+  const summary = ai?.lead || (topic.articles.map((a) => displayExcerpt(a.summary, a.publisher)).find(Boolean) ?? undefined);
   const title = ai?.title ?? topic.title;
   return {
     title,
@@ -224,14 +225,14 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                   {cleanTitle(a.title)}
                 </OutboundLink>
                 {/* まとめ記事があるときは要約を繰り返さず、元記事への入口だけを並べる（スマホで縦に長くなりすぎないように） */}
-                {a.summary && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
+                {displayExcerpt(a.summary, a.publisher) && !ai && <p className="mt-1 text-sm text-fg-muted">{a.summary}</p>}
                 <OutboundLink articleId={a.id} className="mt-1 inline-block text-xs font-semibold text-accent hover:underline">
                   {publisherLabel(a.publisher)}で続きを読む ↗
                 </OutboundLink>
               </div>
-              {a.imageUrl && (
+              {displayImage(a.imageUrl, a.publisher) && (
                 <OutboundLink articleId={a.id} className="relative hidden w-36 shrink-0 self-start overflow-hidden rounded-lg sm:block">
-                  <Thumbnail src={a.imageUrl} genreSlug={topic.genre.slug} credit={a.publisher} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
+                  <Thumbnail src={displayImage(a.imageUrl, a.publisher)} genreSlug={topic.genre.slug} credit={a.publisher} iconClassName="h-6 w-6" className="aspect-[16/9] w-full" />
                 </OutboundLink>
               )}
             </li>

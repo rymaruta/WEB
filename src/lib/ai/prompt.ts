@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { GameSchema, verifyGame } from "@/lib/game";
 import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
 import { BANNED_WORDS, extractFacts, extractNames, factInSources } from "@/lib/stories/verify";
+import { aiSummary } from "@/lib/rights";
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
 
@@ -109,7 +110,7 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 export function buildPrompt(sources: { publisher: string; publishedAt: Date; title: string; summary: string | null; kind: string }[]) {
   const lines = sources.map((s, i) => {
     const label = s.kind === "PRESS" ? "（企業発表）" : "";
-    return `[${i + 1}] ${publisherLabel(s.publisher)}${label}／${formatDateTime(s.publishedAt)}\n見出し: ${s.title}\n要約: ${s.summary ?? "（なし）"}`;
+    return `[${i + 1}] ${publisherLabel(s.publisher)}${label}／${formatDateTime(s.publishedAt)}\n見出し: ${s.title}\n要約: ${aiSummary(s.summary, s.publisher) ?? "（なし）"}`;
   });
   return `次の資料をもとに、まとめ記事を書いてください。\n\n${lines.join("\n\n")}`;
 }

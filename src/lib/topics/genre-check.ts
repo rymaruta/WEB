@@ -5,6 +5,7 @@ import { GENRE_SLUGS } from "@/lib/ai/prompt";
 import { logEvent } from "@/lib/events";
 import { refreshTopics } from "./cluster";
 import { checkMerge } from "./merge-check";
+import { aiSummary } from "@/lib/rights";
 
 /**
  * 話題のジャンルを、内容から判定し直す。
@@ -152,7 +153,7 @@ export async function findGenreCheckCandidates(limit = GENRE_CHECK_LIMIT, now = 
       id: t.id,
       genre: t.genre.slug,
       title: t.title,
-      articles: t.articles.map((a) => ({ ...a, summary: a.summary?.slice(0, 120) ?? null })),
+      articles: t.articles.map((a) => ({ ...a, summary: aiSummary(a.summary, a.publisher)?.slice(0, 120) ?? null })),
       ...(t.genreNote?.startsWith("recheck ") ? { hint: `ルールによる判定（前回の AI の判定と食い違い）: ${t.genreNote.slice(8, 160)}` } : {}),
     }));
 }

@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { publisherLabel } from "@/lib/publisher";
 import { verifyDate } from "./game";
 import { PRODUCT_KINDS, type ProductItem, type ProductKind } from "./product-kinds";
+import { aiSummary } from "@/lib/rights";
 
 export { PRODUCT_KIND_LABELS, PRODUCT_KINDS, type ProductItem, type ProductKind } from "./product-kinds";
 
@@ -44,7 +45,7 @@ export const PRODUCT_EXTRACT_SYSTEM = `あなたはニュースの編集者で�
 - 商品名は資料の表記のまま。発売日は日まで書かれているものだけ（月だけなら isRelease を false）。`;
 
 export function buildProductPrompt(articles: { publisher: string; publishedAt: Date; title: string; summary: string | null }[]) {
-  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${a.summary ?? "（なし）"}`);
+  const lines = articles.map((a, i) => `[${i + 1}] ${publisherLabel(a.publisher)}／${formatDateTime(a.publishedAt)}\n見出し: ${a.title}\n要約: ${aiSummary(a.summary, a.publisher) ?? "（なし）"}`);
   return `次の資料から、新商品の発売の情報を読み取ってください。\n\n${lines.join("\n\n")}`;
 }
 
