@@ -18,6 +18,12 @@ const STOP = new Set([
 /** 人名・役職の後ろに付く語。「立花氏」と「立花孝志被告」を同じ人として比べるために外す */
 const NAME_TAIL = /(氏|さん|被告|容疑者|選手|監督|社長|首相|大臣|農相|農水相|知事|議員)$/u;
 
+/** 役職・敬称つきの人名（「簗農水相」「簗和生農相」「泉健太氏」）の、名前の部分 */
+const PERSON = /([\p{Script=Han}々]{1,4})(?:氏|さん|被告|容疑者|選手|監督|社長|首相|農水大臣|大臣|農水相|農相|知事|議員)/gu;
+export function personNames(title: string): string[] {
+  return [...title.normalize("NFKC").matchAll(PERSON)].map((m) => m[1]);
+}
+
 /** 見出しの中の、固有の語の候補（カタカナ2字以上・漢字2字以上・英数字2字以上） */
 export function keyTerms(title: string): Set<string> {
   const t = title.normalize("NFKC");
@@ -57,6 +63,13 @@ export function sharedTerms(a: string, b: string): string[] {
     const run = commonRun(x, y);
     if (run && !terms.includes(run)) terms.push(run);
   }
+  // 1字の名字（「簗農水相」の「簗」）は、もう一方の見出しで同じ字が役職・敬称つきの名前の先頭にあれば同じ人とみなす（例：「簗和生農相」）。
+  // 役職・敬称つきの名前どうしに限る（「林農相」と「林業」は同じにしない）
+  const pa = personNames(a);
+  const pb = personNames(b);
+  for (const [xs, ys] of [[pa, pb], [pb, pa]])
+    for (const x of xs.filter((n) => n.length === 1))
+      if (ys.some((y) => y.indexOf(x) >= 0 && y.indexOf(x) <= 1) && !terms.includes(x)) terms.push(x);
   return terms;
 }
 

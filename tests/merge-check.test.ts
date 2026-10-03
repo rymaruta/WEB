@@ -35,3 +35,19 @@ describe("checkMerge", () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe("1字の名字", () => {
+  const at = new Date("2026-10-02T10:00:00+09:00");
+  it("「簗農水相」と「簗和生農相」は同じ人としてまとめてよい", () => {
+    expect(
+      checkMerge(
+        { title: "簗和生農相、予算カット発言を認める 辞任は否定 自民内には支援しなかったことへの", firstSeenAt: at },
+        { title: "泉健太氏「しつこい押し問答は野党の評価を落とす」 簗農水相報道めぐる持論が物議.", firstSeenAt: at },
+      ).ok,
+    ).toBe(true);
+    expect(sharedTerms("国交省が農相報道調査 簗氏「回答せず」繰り返し", "簗和生農水大臣、再び予算発言の説明回避")).toContain("簗");
+  });
+  it("役職・敬称のない語とは結び付けない（「林農相」と「林業」）", () => {
+    expect(checkMerge({ title: "林農相が会見", firstSeenAt: at }, { title: "林業の担い手不足が深刻に", firstSeenAt: at }).ok).toBe(false);
+  });
+});
