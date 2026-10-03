@@ -15,7 +15,6 @@ import { ReadTitle } from "./read-title";
 import type { TopicCardData } from "@/lib/queries";
 import { GenreBadge } from "./genre-badge";
 import { OutboundLink } from "./outbound-link";
-import { PublisherAvatars } from "./publisher-avatars";
 import { RankBadge } from "./rank-badge";
 import { Thumbnail } from "./thumbnail";
 import { kindTone } from "./kind-badge";
@@ -150,7 +149,6 @@ export function HeroTopic({ topic, priority = true, label = "トップニュー�
         </TopicLink>
         {summary && <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-fg-muted">{summary}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-xs text-fg-subtle">
-          <PublisherAvatars names={publishers} size="md" />
           <PublisherLine publishers={publishers} max={3} />
           <span className="ml-auto flex items-center gap-1.5">
             <NewBadge since={topic.firstSeenAt} />
@@ -224,7 +222,6 @@ export function TopicTile({ topic }: { topic: TopicCardData }) {
         </TopicLink>
         {summary && <p className="mt-1.5 line-clamp-2 text-[13px] text-fg-muted">{summary}</p>}
         <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-fg-subtle">
-          <PublisherAvatars names={publishers} max={4} />
           <PublisherLine publishers={publishers} max={2} />
           <span className="ml-auto flex shrink-0 items-center gap-1.5">
             <NewBadge since={topic.firstSeenAt} />
@@ -259,7 +256,6 @@ export function TopicCard({ topic, variant = "standard", showGenre = true, rank 
           <MarketEventBadge event={topic.aiMarketEvent} />
           {topic.aiGameKind === "rumor" && <RumorBadge />}
           <CoverageBadge count={topic.publisherCount} />
-          {topic.publisherCount > 1 && !compact && <PublisherAvatars names={publishers} max={4} />}
           <PublisherLine publishers={publishers} max={compact ? 2 : 3} />
           <NewBadge since={topic.firstSeenAt} />
           <time dateTime={topic.lastSeenAt.toISOString()}>{relativeTime(topic.lastSeenAt)}</time>

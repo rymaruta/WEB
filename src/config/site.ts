@@ -7,9 +7,9 @@ const siteUrl =
 
 export const siteConfig = {
   name: "ぜんぶナビ",
-  tagline: "ニュースも話題も、ぜんぶここで。",
+  tagline: "その出来事、どこが・いつ・どう報じた？",
   description:
-    "国内・国際・経済・IT・エンタメ・スポーツ・グルメ新商品まで、主要メディアの最新ニュースをジャンル横断でまとめて届ける総合ポータル。",
+    "同じ出来事を、どの媒体が・いつ・どう報じたかを1ページで比べられるニュースサイト。各社の報道を出来事ごとにまとめ、最初の報道・報道の広がり・数字の違いを記録しています。",
   url: siteUrl,
   contactEmail: process.env.CONTACT_EMAIL ?? "contact@example.com",
   /** 運営者の表示名（屋号） */

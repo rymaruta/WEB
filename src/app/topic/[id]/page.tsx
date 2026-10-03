@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
@@ -66,10 +67,15 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
     openGraph: { title, description: summary, type: "article", siteName: siteConfig.name, locale: "ja_JP" },
     // 検索エンジンに登録するのは、独自の価値があるまとめ記事だけ（src/lib/indexing.ts）。
     // 見出しと元記事へのリンクだけのページや、1〜2媒体の言い換えにとどまる記事は登録しない
-    robots: isIndexableArticle({ publisherCount: topic.publisherCount, hasAi: !!ai, angles: ai?.angles.length ?? 0, background: ai?.background.length ?? 0 })
-      ? undefined
-      : { index: false, follow: true },
+    // 企業の発表（PR TIMES など）だけの話題は、同じ文章がほかのサイトにも載るため登録しない
+    robots: topicIndexable(topic, ai) ? undefined : { index: false, follow: true },
   };
+}
+
+/** 検索エンジンに登録し、広告を出す話題か（報道機関の記事があり、独自の価値があるまとめ記事。src/lib/indexing.ts） */
+function topicIndexable(topic: { publisherCount: number; articles: { source: { kind: string } }[] }, ai: { angles: unknown[]; background: unknown[] } | null): boolean {
+  if (!topic.articles.some((a) => a.source.kind === "NEWS")) return false;
+  return isIndexableArticle({ publisherCount: topic.publisherCount, hasAi: !!ai, angles: ai?.angles.length ?? 0, background: ai?.background.length ?? 0 });
 }
 
 /** 記事ページで最初から見せる元記事の数（残りは「ほか○件」で開く） */
@@ -140,6 +146,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* 広告は、検索エンジンに登録する独自の価値がある話題だけ（src/components/adsense-script.tsx） */}
+      {topicIndexable(topic, ai) && <AdsenseScript />}
       <ReadingProgress />
       <article className="card min-w-0 overflow-hidden">
         {ai && (
