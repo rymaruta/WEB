@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { countNewDueTopics } from "@/lib/ai/store";
+import { findGenreCheckCandidates } from "@/lib/topics/genre-check";
 import { logEvent } from "@/lib/events";
 import { fireRoutine, routineReady, ROUTINES, type RoutineName } from "./routine";
 import { jstAt, jstDate, SLOT_ORDER, SLOTS } from "./slots";
@@ -44,8 +45,22 @@ export function shouldFire(rule: { minPending: number; minIntervalMinutes: numbe
 
 const jstHour = (d: Date) => (d.getUTCHours() + 9) % 24;
 
+/** ジャンルの確認待ちの話題を、まとめ記事の「待ち」に換算する割合（20 件で 1 件分） */
+export const GENRE_BACKLOG_PER_UNIT = 20;
+
+/**
+ * まとめ記事作成の定期処理の「待ち」。まとめ記事を書く話題に加え、ジャンルの確認待ちの話題も数える
+ * （ジャンルの確認はこの定期処理の中で行うため、書く記事がないと確認も止まっていた。2026-10-03）
+ */
+export function articlesPending(dueTopics: number, genreBacklog: number): number {
+  return dueTopics + Math.floor(genreBacklog / GENRE_BACKLOG_PER_UNIT);
+}
+
 async function pendingOf(name: keyof typeof DISPATCH_RULES) {
-  if (name === "articles") return countNewDueTopics();
+  if (name === "articles") {
+    const [due, genre] = await Promise.all([countNewDueTopics(), findGenreCheckCandidates().then((t) => t.length).catch(() => 0)]);
+    return articlesPending(due, genre);
+  }
   return prisma.story.count({ where: { status: { in: ["QUEUED", "DELTA_QUEUED"] } } });
 }
 
