@@ -44,3 +44,18 @@ describe("注目のニュース（速報の表示なし）", () => {
     expect(editionKey("2026-10-03", "BREAKING", "s1")).toBe("2026-10-03:BREAKING:s1");
   });
 });
+
+describe("AI 解析前の見出しの下書き", () => {
+  it("句読点の切れ目で12字×2行に詰め、媒体の飾りを外す", async () => {
+    const { draftHeadline } = await import("@/lib/digest/breaking");
+    const { textWidth } = await import("@/lib/stories/text");
+    const h = draftHeadline({ title: "【速報】久保建英、薬指に指輪キラリ！ 幸せ結婚発表から一夜明け…日本代表の練習に登場", aiTitle: null });
+    expect(h.length).toBeLessThanOrEqual(2);
+    expect(h[0].startsWith("久保建英")).toBe(true);
+    for (const l of h) expect(textWidth(l)).toBeLessThanOrEqual(12);
+  });
+  it("AI の見出しがあれば、それを使う", async () => {
+    const { draftHeadline } = await import("@/lib/digest/breaking");
+    expect(draftHeadline({ title: "長い元の見出し…", aiTitle: "マンチェスターC告発者、証人保護の打ち切り報道" }).join("")).toContain("マンチェスターC告発者");
+  });
+});

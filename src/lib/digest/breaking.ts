@@ -3,7 +3,8 @@ import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
 import { createActionToken } from "@/lib/admin/token";
 import { HOT, hotReason, isHot } from "@/lib/stories/hot";
-import type { Assessment } from "@/lib/stories/schema";
+import { LIMITS, type Assessment } from "@/lib/stories/schema";
+import { textWidth } from "@/lib/stories/text";
 import { publishEdition } from "./publish";
 import { editionKey, isSingleSlot, jstAt, jstDate, jstTime, SLOT_ORDER, SLOTS } from "./slots";
 
@@ -295,9 +296,50 @@ export async function listBreakingCandidates(now = new Date(), take = 20) {
   return { stories, postedToday };
 }
 
-/** 解析待ちの出来事に出す、見出しの下書き（話題の見出し。投稿の前に人が12字×2行に直す） */
+/**
+ * 解析待ちの出来事に出す、見出しの下書き。話題の見出し（AI の見出しがあればそれ）を、句読点・空白の切れ目で
+ * 12字×2行に詰める（入りきらない後ろは落とす。投稿の前に人が確かめて直す）
+ */
 export function draftHeadline(topic: { title: string; aiTitle: string | null }): string[] {
-  return [topic.aiTitle || topic.title];
+  const text = (topic.aiTitle || topic.title)
+    .normalize("NFKC")
+    // 媒体の飾り（【速報】など）と、末尾の媒体名の括弧を外す
+    .replace(/【[^】]*】/g, "")
+    .replace(/[（(][^）)]*[）)]\s*$/, "")
+    .trim();
+  const width = LIMITS.headlineWidth;
+  // 句読点・記号・空白の後ろで区切る（区切りの記号は前の塊に残す）
+  const chunks = text.split(/(?<=[、。，,！!？?…・\s])/u).map((c) => c.trim()).filter(Boolean);
+  const lines: string[] = [];
+  let cur = "";
+  for (const chunk of chunks) {
+    for (const piece of hardSplit(chunk, width)) {
+      if (textWidth(cur + piece) <= width) cur += piece;
+      else {
+        if (cur) lines.push(cur);
+        cur = piece;
+      }
+      if (lines.length >= LIMITS.headlineLines) break;
+    }
+    if (lines.length >= LIMITS.headlineLines) break;
+  }
+  if (cur && lines.length < LIMITS.headlineLines) lines.push(cur);
+  return lines.length ? lines.map((l) => l.replace(/[、，,・「『（(\s]+$/u, "")) : [text];
+}
+
+/** 1つの塊が1行に入らないときは、行の幅で切る */
+function hardSplit(chunk: string, width: number): string[] {
+  if (textWidth(chunk) <= width) return [chunk];
+  const out: string[] = [];
+  let cur = "";
+  for (const ch of chunk) {
+    if (textWidth(cur + ch) > width) {
+      out.push(cur);
+      cur = ch;
+    } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -50,13 +50,11 @@ export default async function BreakingPage() {
                 {cautions.length > 0 && <span className="font-bold text-accent">注意：{cautions.map((f) => RISK_LABELS[f as keyof typeof RISK_LABELS] ?? f).join("・")}</span>}
               </div>
               <details className="mt-2">
-                <summary className="cursor-pointer text-sm font-bold text-accent">プレビュー（直す前の見出し）</summary>
+                <summary className="cursor-pointer text-sm font-bold text-accent">投稿文（直す前の見出し）</summary>
                 <pre className="mt-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{breakingPostText(headline, now).join("\n")}</pre>
-                {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面のプレビュー（その場で作る画像） */}
-                <img src={`/api/admin/breaking/${s.id}/card`} alt="速報のカードのプレビュー" loading="lazy" className="mt-2 w-full max-w-sm rounded-lg border border-border" />
               </details>
               <div className="mt-3">
-                <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={headline} />
+                <BreakingForm action={publishBreakingAction.bind(null, s.id)} headline={headline} previewSrc={`/api/admin/breaking/${s.id}/card`} />
                 <div className="mt-2">
                   <AiRequestForm action={requestAiBreakingAction.bind(null, s.id)} />
                 </div>

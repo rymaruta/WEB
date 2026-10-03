@@ -51,13 +51,11 @@ export default async function PickupPage() {
                 {cautions.length > 0 && <span className="font-bold text-accent">注意：{cautions.map((f) => RISK_LABELS[f as keyof typeof RISK_LABELS] ?? f).join("・")}</span>}
               </div>
               <details className="mt-2">
-                <summary className="cursor-pointer text-sm font-bold text-accent">プレビュー（直す前の見出し）</summary>
+                <summary className="cursor-pointer text-sm font-bold text-accent">投稿文（直す前の見出し）</summary>
                 <pre className="mt-2 rounded-lg bg-surface-muted p-3 text-sm whitespace-pre-wrap">{pickupPostText(headline).join("\n")}</pre>
-                {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面のプレビュー（その場で作る画像） */}
-                <img src={`/api/admin/breaking/${s.id}/card?kind=pickup`} alt="注目のニュースのカードのプレビュー" loading="lazy" className="mt-2 w-full max-w-sm rounded-lg border border-border" />
               </details>
               <div className="mt-3">
-                <BreakingForm action={publishPickupAction.bind(null, s.id)} headline={headline} kind="注目のニュース" />
+                <BreakingForm action={publishPickupAction.bind(null, s.id)} headline={headline} kind="注目のニュース" previewSrc={`/api/admin/breaking/${s.id}/card?kind=pickup`} />
                 <Link href={`/topic/${s.topic.id}`} target="_blank" className="mt-2 inline-block text-sm text-fg-muted underline">
                   記事を確かめる ↗
                 </Link>
