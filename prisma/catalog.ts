@@ -130,4 +130,20 @@ export const sources: SourceSeed[] = [
   { name: "はてなブックマーク 暮らし", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/life", feedUrl: "https://b.hatena.ne.jp/hotentry/life.rss", genre: "life", kind: "SOCIAL", ...TERMS },
   { name: "はてなブックマーク 世の中", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/social", feedUrl: "https://b.hatena.ne.jp/hotentry/social.rss", genre: "domestic", kind: "SOCIAL", ...TERMS },
   { name: "はてなブックマーク 政治と経済", publisher: "はてなブックマーク", siteUrl: "https://b.hatena.ne.jp/hotentry/economics", feedUrl: "https://b.hatena.ne.jp/hotentry/economics.rss", genre: "business", kind: "SOCIAL", ...TERMS },
+  // 官公庁の発表（公共データ利用規約 第1.0版＝PDL1.0。出典を明記すれば営利でも利用できる。2026-10-04 確認）。
+  // 報道ではなく当事者の発表なので、企業の発表と同じく PRESS として扱い、「報じた媒体の数」には数えない。
+  // 厚生労働省・内閣府・消費者庁は RSS のページで「ホームページの作成・再配布はお断り」としているため入れない
+  { name: "首相官邸", publisher: "首相官邸", siteUrl: "https://www.kantei.go.jp/", feedUrl: "https://www.kantei.go.jp/index-jnews.rdf", genre: "domestic", kind: "PRESS" },
+  { name: "国土交通省 報道発表", publisher: "国土交通省", siteUrl: "https://www.mlit.go.jp/", feedUrl: "https://www.mlit.go.jp/pressrelease.rdf", genre: "domestic", kind: "PRESS" },
+  { name: "総務省 新着", publisher: "総務省", siteUrl: "https://www.soumu.go.jp/", feedUrl: "https://www.soumu.go.jp/news.rdf", genre: "domestic", kind: "PRESS" },
+  { name: "消防庁 報道発表", publisher: "消防庁", siteUrl: "https://www.fdma.go.jp/", feedUrl: "https://www.fdma.go.jp/pressrelease/houdou/index.xml", genre: "domestic", kind: "PRESS" },
+  { name: "文部科学省 新着", publisher: "文部科学省", siteUrl: "https://www.mext.go.jp/", feedUrl: "https://www.mext.go.jp/b_menu/news/index.rdf", genre: "domestic", kind: "PRESS" },
+  { name: "農林水産省 報道発表", publisher: "農林水産省", siteUrl: "https://www.maff.go.jp/", feedUrl: "https://www.maff.go.jp/j/press/rss.xml", genre: "domestic", kind: "PRESS" },
+  { name: "法務省 新着", publisher: "法務省", siteUrl: "https://www.moj.go.jp/", feedUrl: "https://www.moj.go.jp/news.xml", genre: "domestic", kind: "PRESS" },
+  { name: "警察庁 新着", publisher: "警察庁", siteUrl: "https://www.npa.go.jp/", feedUrl: "https://www.npa.go.jp/newlyarrived/rss20.xml", genre: "domestic", kind: "PRESS" },
+  { name: "金融庁 新着", publisher: "金融庁", siteUrl: "https://www.fsa.go.jp/", feedUrl: "https://www.fsa.go.jp/fsaNewsListAll_rss2.xml", genre: "business", kind: "PRESS" },
+  { name: "財務省 新着", publisher: "財務省", siteUrl: "https://www.mof.go.jp/", feedUrl: "https://www.mof.go.jp/news.rss", genre: "business", kind: "PRESS" },
+  { name: "総務省統計局 新着", publisher: "総務省統計局", siteUrl: "https://www.stat.go.jp/", feedUrl: "https://www.stat.go.jp/whatsnew/news.rdf", genre: "business", kind: "PRESS" },
+  { name: "デジタル庁 新着", publisher: "デジタル庁", siteUrl: "https://www.digital.go.jp/", feedUrl: "https://www.digital.go.jp/rss/news.xml", genre: "tech", kind: "PRESS" },
+  { name: "IPA 重要なセキュリティ情報", publisher: "IPA（情報処理推進機構）", siteUrl: "https://www.ipa.go.jp/", feedUrl: "https://www.ipa.go.jp/security/alert-rss.rdf", genre: "tech", kind: "PRESS" },
 ];
