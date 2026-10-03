@@ -14,6 +14,9 @@ export type Candidate = {
   threadId: string | null;
   /** 話題の id（前の回に出した話題を除くため） */
   topicId?: number;
+  /** 話題のジャンル（slug）と見出し（日中の自動投稿で、告知の多いジャンルを絞るため） */
+  genre?: string;
+  title?: string;
   assessment: Assessment | null;
   publisherCount: number;
   hasPrimary: boolean;

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
+import { famousSubject } from "@/lib/fame";
 import { createPickup } from "./breaking";
 import { loadCandidates } from "./build";
 import { publishEdition } from "./publish";
@@ -14,7 +15,12 @@ import { jstDate, jstTime } from "./slots";
  * - 最初の報道から12時間以内。独立した媒体3社以上。照合を通ったもの（要確認は自動で使ってよいものだけ）。確からしさ 0.8 以上
  * - ゴシップ・宣伝は出さない。30時間以内に X に出したニュース（同じ話題・同じ出来事）は出さない
  * - 直前に出した枠（社会・政治／暮らし・テック／スポーツ・芸能）と違う枠を優先する
+ * - ゲーム・アニメ・新商品は、1つの告知を多くの媒体が一斉に載せやすいため、世間の関心がある（誰もが知っている作品・会社）ときだけ
  */
+/** 告知が多く、媒体の数が関心の高さを示さないジャンル */
+export const PROMO_GENRES = new Set(["game", "anime", "products"]);
+
+/** 日中の自動投稿の条件 */
 export const AUTO_PICKUP = {
   fromHour: 8,
   untilHour: 23,
@@ -86,8 +92,15 @@ export async function runAutoPickup(now = new Date()) {
   const candidates = (await loadCandidates(new Date(now.getTime() - AUTO_PICKUP.maxAgeHours * 3_600_000), false))
     .filter((c) => !stories.has(c.id) && !(c.topicId !== undefined && topics.has(c.topicId)) && !(c.threadId && threads.has(c.threadId)))
     .map((c) => ({ ...c, score: scoreCandidate(c).score }));
+  // ゲーム・アニメ・新商品は、世間の関心がある（よく知られた作品・会社）ものだけ候補に残す
+  const kept: typeof candidates = [];
+  for (const c of candidates) {
+    // 媒体の数では判断しない（告知は一斉に載る）。よく知られた作品・会社のときだけ（例: 任天堂、ポケモン）
+    if (c.genre && PROMO_GENRES.has(c.genre) && !(await famousSubject(c.title ?? "").catch(() => null))) continue;
+    kept.push(c);
+  }
   const lastFrame = last?.slot === "PICKUP" || last?.slot === "BREAKING" ? frameOf((last.items[0]?.story.category as Candidate["category"]) ?? null) : null;
-  const pick = pickAutoPickup(candidates, lastFrame);
+  const pick = pickAutoPickup(kept, lastFrame);
   if (!pick) return { result: "none" as const, candidates: candidates.length };
 
   const edition = await createPickup(pick.id, now, undefined, "headline", "auto-pickup");

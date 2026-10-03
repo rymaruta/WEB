@@ -74,11 +74,24 @@ export async function getTrendingTopics(opts: {
     },
     orderBy: [{ score: "desc" }, { lastSeenAt: "desc" }],
     skip: opts.skip,
-    take: opts.take + UNLISTABLE_MARGIN,
+    take: opts.take + UNLISTABLE_MARGIN + (opts.genreId ? 0 : PROMO_MARGIN),
     include: topicCardInclude,
   });
-  return topics.filter((t) => !isUnlistable(t.aiTitle || t.title)).slice(0, opts.take);
+  const listable = topics.filter((t) => !isUnlistable(t.aiTitle || t.title));
+  if (opts.genreId) return listable.slice(0, opts.take);
+  // ジャンルを決めない「話題」では、ゲーム・アニメ・新商品の告知を PROMO_IN_TRENDING 本までにする（一斉に載る告知で埋まらないように）
+  let promo = 0;
+  return listable
+    .filter((t) => !PROMO_GENRE_SLUGS.has(t.genre.slug) || ++promo <= PROMO_IN_TRENDING)
+    .slice(0, opts.take);
 }
+
+/** 告知が多く、媒体の数が関心の高さを示さないジャンル（src/lib/digest/pickup-auto.ts と同じ） */
+const PROMO_GENRE_SLUGS = new Set(["game", "anime", "products"]);
+/** 「話題」に出すゲーム・アニメ・新商品の上限 */
+const PROMO_IN_TRENDING = 2;
+/** 告知を外しても本数が足りるよう、多めに読む数 */
+const PROMO_MARGIN = 15;
 
 export function countTrendingTopics(genreId?: number) {
   return prisma.topic.count({
