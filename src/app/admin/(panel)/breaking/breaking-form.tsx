@@ -11,7 +11,8 @@ const PREVIEW_DELAY_MS = 600;
 /**
  * 速報・注目のニュースの見出しを直してから投稿する。見出しは投稿文とカードの両方に使う（1〜2行、各12字まで）。
  * previewSrc を渡すと、入力中の見出しで描いたカードを下に出す（投稿されるカードと同じ見た目を確かめられる）。
- * headlineOnly は要点のない出来事（AI 解析前）。見出しだけのカードになり、全部で48字まで大きく折り返して見せる
+ * headlineOnly は要点のない出来事（AI 解析前）。見出しだけのカードになり、全部で48字まで大きく折り返して見せる。
+ * 要点のある出来事は、カードの形（見出しだけを大きく／見出し＋要点）を選べる。初めは見出しだけ（運営者の好み）
  */
 export function BreakingForm({
   action,
@@ -28,12 +29,14 @@ export function BreakingForm({
 }) {
   const [state, run, pending] = useActionState(action, undefined);
   const [text, setText] = useState(headline.join("\n"));
+  const [layout, setLayout] = useState<"headline" | "points">("headline");
+  const big = headlineOnly || layout === "headline";
   const [shown, setShown] = useState(text);
   useEffect(() => {
     const t = setTimeout(() => setShown(text), PREVIEW_DELAY_MS);
     return () => clearTimeout(t);
   }, [text]);
-  const src = previewSrc ? `${previewSrc}${previewSrc.includes("?") ? "&" : "?"}headline=${encodeURIComponent(shown)}` : null;
+  const src = previewSrc ? `${previewSrc}${previewSrc.includes("?") ? "&" : "?"}headline=${encodeURIComponent(shown)}${big ? "&layout=headline" : ""}` : null;
   return (
     <form
       action={run}
@@ -43,11 +46,32 @@ export function BreakingForm({
         if (!window.confirm(`「${value}」を${kind}として X に投稿します。よろしいですか？（取り消しはできません）`)) e.preventDefault();
       }}
     >
+      {!headlineOnly && (
+        <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <legend className="mb-1 font-bold">カードの形</legend>
+          {(
+            [
+              ["headline", "見出しを大きく"],
+              ["points", "見出し＋要点"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="flex min-h-11 items-center gap-1.5">
+              <input type="radio" name="layout" value={value} checked={layout === value} onChange={() => setLayout(value)} />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {headlineOnly && <input type="hidden" name="layout" value="headline" />}
       <label className="block text-sm font-bold">
-        {headlineOnly ? "見出し（要点のない出来事なので、見出しだけのカードになります。全部で48字まで、大きな字で折り返します）" : "見出し（1〜2行、各12字まで。カードでは改行の位置で折り返します）"}
+        {headlineOnly
+          ? "見出し（要点のない出来事なので、見出しだけのカードになります。全部で48字まで、大きな字で折り返します）"
+          : big
+            ? "見出し（全部で48字まで。大きな字で折り返します）"
+            : "見出し（1〜2行、各12字まで。カードでは改行の位置で折り返します）"}
         <textarea
           name="headline"
-          rows={headlineOnly ? 3 : 2}
+          rows={big ? 3 : 2}
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-base"
