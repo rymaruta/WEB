@@ -112,3 +112,23 @@ export function firstReporter(articles: CoverageArticle[], minPublishers = 3): s
 export function withinDays(at: Date, days: number, now = new Date()): boolean {
   return now.getTime() - at.getTime() <= days * 86_400_000;
 }
+
+export type SpreadPoint = { minutes: number; count: number; publisher: string };
+
+/**
+ * 報道の広がり。独立した媒体（転載を除く）が最初に報じた時刻を並べ、最初の報道からの経過（分）と、その時点までに報じた媒体の数。
+ * 3媒体未満なら空（広がりと言えないため）
+ */
+export function spreadCurve(articles: CoverageArticle[]): SpreadPoint[] {
+  const seen = new Set<string>();
+  const firsts = originalReports(articles).filter((a) => (seen.has(a.publisher) ? false : (seen.add(a.publisher), true)));
+  if (firsts.length < 3) return [];
+  const t0 = firsts[0].publishedAt.getTime();
+  return firsts.map((a, i) => ({ minutes: Math.max(0, Math.round((a.publishedAt.getTime() - t0) / 60_000)), count: i + 1, publisher: a.publisher }));
+}
+
+/** 最初の報道から within 分までに報じた媒体の数 */
+export const reportsWithin = (points: SpreadPoint[], within: number) => points.filter((p) => p.minutes <= within).length;
+
+/** n 媒体目が報じるまでにかかった時間（分）。届かなければ null */
+export const minutesToReach = (points: SpreadPoint[], n: number) => points[n - 1]?.minutes ?? null;

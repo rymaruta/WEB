@@ -9,6 +9,7 @@ const GROUPS: { title: string; links: { href: string; label: string; external?: 
       { href: "/feature", label: "特集" },
       { href: "/calendar", label: "ぜんぶカレンダー" },
       { href: "/weekly", label: "今週の10大ニュース" },
+      { href: "/data", label: "今週の報道データ" },
       { href: "/daily", label: "日付別ニュース" },
       { href: "/archive", label: "月間まとめ" },
       { href: "/prices", label: "値上げ・値下げデータベース" },
