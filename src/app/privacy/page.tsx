@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClearLocalData } from "@/components/clear-local-data";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 /** 制定日・改定日。内容を変えたら更新する */
-const UPDATED_AT = "2026年10月3日";
+const UPDATED_AT = "2026年10月4日";
 
 export default function PrivacyPage() {
   return (
@@ -95,6 +96,11 @@ export default function PrivacyPage() {
         <p className="mt-2">
           前回の訪問のあとに出たニュースに「NEW」の印を付けるため、最後に訪問した日時を利用者の端末（ブラウザーの保存領域）にだけ保存しています。記事の「役に立った／分かりにくい」の評価は、記事ごとの件数だけを記録し、誰が押したかは保存しません（同じ記事で重ねて数えないよう、押したことを利用者の端末に記録します）。「あとで読む」で保存した記事の一覧と、読んだ記事の見出しを薄く表示するための既読の記録も、同じく利用者の端末にだけ保存しています。これらの情報は当サイトのサーバーには送信されません。
         </p>
+        <p className="mt-2">
+          「フォロー」した企業・チーム・国・キーワードの一覧も利用者の端末に保存しています。フォロー中のページを開いたときだけ、その一覧をページのアドレスに含めて当サイトに送り、該当するニュースを表示します。送られた一覧は表示に使うだけで、保存しません。
+        </p>
+        <p className="mt-2">端末に保存したこれらの記録は、次のボタンでいつでもまとめて消せます（ブラウザーのサイトデータの削除でも消えます）。</p>
+        <ClearLocalData />
         <p className="mt-2">
           YouTube 新着動画のページでは、再生ボタンを押したときにだけ、YouTube（Google）の埋め込みプレーヤー（プライバシー強化モード）を読み込みます。押す前は YouTube との通信は発生しません。再生中の情報の扱いは
           Google のプライバシーポリシーに従います。

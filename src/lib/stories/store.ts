@@ -18,7 +18,8 @@ const FOLLOWUP_HOURS = 36;
 
 async function topicArticles(topicId: number): Promise<ArticleRef[]> {
   const rows = await prisma.article.findMany({
-    where: { topicId },
+    // 収集を止めた媒体の、止める前の記事は材料にしない（src/lib/ai/store.ts の loadTopicSources と同じ）
+    where: { topicId, source: { active: true } },
     orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
     select: { id: true, publisher: true, publishedAt: true, source: { select: { kind: true } } },
   });
@@ -39,6 +40,9 @@ export async function enqueueCandidates(limit: number, now = Date.now()): Promis
     where: {
       lastSeenAt: { gte: new Date(now - CANDIDATE_HOURS * 3_600_000) },
       publisherCount: { gte: MIN_PUBLISHERS },
+      // ほかの話題にまとめた話題と、ニュースではない告知は配信の候補にしない
+      mergedIntoId: null,
+      aiNotNews: false,
       stories: { none: {} },
     },
     orderBy: { score: "desc" },

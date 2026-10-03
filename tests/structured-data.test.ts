@@ -25,6 +25,11 @@ describe("構造化データ", () => {
     expect(d.url).toMatch(/\/topic\/12$/);
     expect(d.isBasedOn[0]).toMatchObject({ url: "https://example.com/a", publisher: { name: "A新聞" } });
   });
+  it("公開日は最初に書いた日時、更新日は最後に書き直した日時", () => {
+    const d = newsArticleJsonLd(12, { ...article, history: [{ at: new Date("2026-09-20T00:00:00Z"), sources: 2 }] }, []);
+    expect(d.datePublished).toBe("2026-09-20T00:00:00.000Z");
+    expect(d.dateModified).toBe("2026-10-01T00:00:00.000Z");
+  });
   it("</script> で HTML が壊れないように < を逃がす", () => {
     expect(serializeJsonLd({ t: "</script><b>" })).toBe('{"t":"\\u003c/script>\\u003cb>"}');
   });

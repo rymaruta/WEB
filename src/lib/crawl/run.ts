@@ -192,7 +192,9 @@ export async function runCrawl(options: { force?: boolean; sourceIds?: number[] 
 
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000);
   const { count: pruned } = await prisma.article.deleteMany({ where: { publishedAt: { lt: cutoff } } });
-  if (pruned > 0) await prisma.topic.deleteMany({ where: { articles: { none: {} } } });
+  // 記事のなくなった話題を消す。ほかの話題にまとめた話題（記事を移したので記事がない）は、
+  // まとめた先へ転送するページとして残し、最後に動きがあってから保存期間を過ぎたら消す
+  if (pruned > 0) await prisma.topic.deleteMany({ where: { articles: { none: {} }, OR: [{ mergedIntoId: null }, { lastSeenAt: { lt: cutoff } }] } });
 
   // 残り時間でまとめ記事を作成する（関数の実行時間上限 300 秒に余裕を残す）
   const ai = await summarizeTopics(started + AI_DEADLINE_MS);

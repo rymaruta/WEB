@@ -23,7 +23,8 @@ export function newsArticleJsonLd(topicId: number, article: AiArticle, sources: 
     headline: article.title,
     description: article.lead || undefined,
     image: [`${url}/opengraph-image`],
-    datePublished: article.generatedAt.toISOString(),
+    // 公開日は最初に書いた日時（書き直しのたびに変えない）。更新日は最後に書き直した日時
+    datePublished: (article.history[0]?.at ?? article.generatedAt).toISOString(),
     dateModified: article.generatedAt.toISOString(),
     inLanguage: "ja",
     author: { "@type": "Organization", name: siteConfig.name, url: siteConfig.url },
