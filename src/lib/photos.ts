@@ -119,3 +119,34 @@ export async function resolveTopicPhotos(limit = 60, now = new Date()) {
   }
   return { candidates: topics.length, checked, found, lookups: LOOKUP_BUDGET - budget };
 }
+
+/** 企業発表（PR TIMES）の代表画像。報道目的の利用が規約で認められている（src/lib/rights.ts）。RSS に画像がないため発表ページから読む */
+const PRESS_IMAGE_BUDGET = 20;
+
+/** 発表ページの og:image を、一覧の表示に合う大きさの画像の URL にする（PR TIMES の配信網が大きさを変えて返す） */
+export function pressImageUrl(html: string): string | null {
+  const m = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/);
+  if (!m) return null;
+  const url = m[1].replace(/&amp;/g, "&");
+  if (!/^https:\/\/prcdn\.freetls\.fastly\.net\/release_image\//.test(url)) return null;
+  return `${url.split("?")[0]}?format=jpeg&auto=webp&fit=bounds&width=800&height=450`;
+}
+
+/** 最近の企業発表の記事に代表画像を付ける。画像がない発表は空文字を入れ、読み直さない */
+export async function fillPressImages(now = new Date()) {
+  const articles = await prisma.article.findMany({
+    where: { imageUrl: null, publisher: "PR TIMES", publishedAt: { gte: new Date(now.getTime() - CHECK_WINDOW_HOURS * 3_600_000) }, topicId: { not: null } },
+    orderBy: { publishedAt: "desc" },
+    take: PRESS_IMAGE_BUDGET,
+    select: { id: true, url: true },
+  });
+  let found = 0;
+  for (const a of articles) {
+    const res = await fetch(a.url, { headers: UA, signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    if (!res || (!res.ok && res.status !== 404)) continue;
+    const image = res.ok ? pressImageUrl(await res.text()) : null;
+    await prisma.article.update({ where: { id: a.id }, data: { imageUrl: image ?? "" } });
+    if (image) found++;
+  }
+  return { checked: articles.length, found };
+}

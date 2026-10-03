@@ -74,3 +74,13 @@ describe("人物写真の問い合わせ", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("企業発表の代表画像", () => {
+  it("PR TIMES の og:image を、一覧向けの大きさの URL にする", async () => {
+    const { pressImageUrl } = await import("@/lib/photos");
+    const html = '<meta property="og:image" content="https://prcdn.freetls.fastly.net/release_image/135002/159/a-2722x1815.png?format=jpeg&amp;auto=webp&amp;width=2400&amp;height=1260"/>';
+    expect(pressImageUrl(html)).toBe("https://prcdn.freetls.fastly.net/release_image/135002/159/a-2722x1815.png?format=jpeg&auto=webp&fit=bounds&width=800&height=450");
+    expect(pressImageUrl('<meta property="og:image" content="https://example.com/x.png"/>')).toBeNull();
+    expect(pressImageUrl("<html></html>")).toBeNull();
+  });
+});

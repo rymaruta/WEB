@@ -16,13 +16,17 @@ type Props = {
   sizes?: string;
   /** 画像の出典（媒体名）。マウスを重ねたときに表示する */
   credit?: string;
+  /** 人物写真は顔が上寄りにあるため、上寄せで切り抜く */
+  portrait?: boolean;
+  /** 画像がないときに、代替表示に大きく出す語（話題の中心の人名・社名など） */
+  label?: string;
 };
 
 /**
  * 記事のサムネイル。媒体が RSS で配信する画像を、当サイトで保存・加工せず、そのまま媒体から表示する（出典を明記する）。
  * 画像がない・読み込めない場合はジャンル色とアイコンの代替表示にする。
  */
-export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
+export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8 w-8", priority = false, credit, portrait = false, label, sizes = "(max-width: 640px) 100vw, 360px" }: Props) {
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // サーバー描画された画像が、React の準備前に読み込みに失敗していた場合も代替表示にする
@@ -35,10 +39,18 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
     return (
       <div
         aria-hidden
-        className={`flex items-center justify-center text-white/85 ${className}`}
+        className={`@container flex items-center justify-center text-white/85 ${className}`}
         style={{ background: `linear-gradient(135deg, ${color}, color-mix(in oklab, ${color} 45%, #000))` }}
       >
-        <GenreIcon slug={genreSlug} className={iconClassName} />
+        {label ? (
+          // 写真がない話題は、話題の中心の語を大きく出す（アイコンだけの枠が並ばないように）
+          <span className="flex max-w-[90%] flex-col items-center gap-1 text-center">
+            <GenreIcon slug={genreSlug} className="h-5 w-5 opacity-80" />
+            <span className="line-clamp-2 text-[clamp(13px,4cqw,28px)] leading-tight font-black tracking-tight break-all drop-shadow">{label}</span>
+          </span>
+        ) : (
+          <GenreIcon slug={genreSlug} className={iconClassName} />
+        )}
       </div>
     );
   }
@@ -59,7 +71,7 @@ export function Thumbnail({ src, genreSlug, className = "", iconClassName = "h-8
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={`bg-surface-muted object-cover ${className}`}
+      className={`bg-surface-muted object-cover ${portrait ? "object-[50%_20%]" : ""} ${className}`}
     />
   );
 }
