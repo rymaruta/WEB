@@ -368,8 +368,16 @@ export async function notifyHotTopics(now = new Date()) {
   return picked.length;
 }
 
+/**
+ * カードの形。headline は見出しだけを大きく見せるカード（要点を出さない）、points は見出し＋要点のカード。
+ * 配信回の項目の上書き（override.layout）に残し、投稿のときのカードに使う
+ */
+export type CardLayout = "headline" | "points";
+const itemOverride = (edited: string[] | null, layout: CardLayout) =>
+  edited || layout === "headline" ? { override: { ...(edited ? { headline: edited } : {}), ...(layout === "headline" ? { layout } : {}) } } : {};
+
 /** 選んだ出来事で速報の回を作る（承認済み）。同じ出来事の速報が今日すでにあれば null */
-export async function createManualBreaking(storyId: string, now = new Date(), headline?: string[]) {
+export async function createManualBreaking(storyId: string, now = new Date(), headline?: string[], layout: CardLayout = "points") {
   const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
   // 解析待ちの出来事は見出しがまだないため、人が書いた見出しが必要
   if (!story || (!story.headline.length && !headline?.length)) return null;
@@ -388,7 +396,7 @@ export async function createManualBreaking(storyId: string, now = new Date(), he
         approvedAt: now,
         approvedBy: "admin",
         postText: breakingPostText(edited ?? story.headline, now),
-        items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...(edited ? { override: { headline: edited } } : {}) }] },
+        items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...itemOverride(edited, layout) }] },
       },
       select: { id: true },
     })
@@ -461,7 +469,7 @@ export async function listPickupCandidates(now = new Date(), take = 20) {
 }
 
 /** 選んだ出来事で注目のニュースの回を作る（承認済み）。同じ出来事の回が今日すでにあれば null */
-export async function createPickup(storyId: string, now = new Date(), headline?: string[]) {
+export async function createPickup(storyId: string, now = new Date(), headline?: string[], layout: CardLayout = "points") {
   const story = await prisma.story.findUnique({ where: { id: storyId }, select: { id: true, headline: true } });
   if (!story || (!story.headline.length && !headline?.length)) return null;
   const date = jstDate(now);
@@ -478,7 +486,7 @@ export async function createPickup(storyId: string, now = new Date(), headline?:
         approvedAt: now,
         approvedBy: "admin",
         postText: pickupPostText(edited ?? story.headline),
-        items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...(edited ? { override: { headline: edited } } : {}) }] },
+        items: { create: [{ position: 1, storyId: story.id, role: "MAIN", ...itemOverride(edited, layout) }] },
       },
       select: { id: true },
     })

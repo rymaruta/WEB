@@ -21,6 +21,8 @@ const Body = z.object({
   topicId: z.number().int().optional(),
   /** 投稿前に直す見出し（行ごと） */
   headline: z.array(z.string().min(1)).max(4).optional(),
+  /** カードの形（headline: 見出しだけを大きく、points: 見出し＋要点。省略時は points。要点のない出来事は headline になる） */
+  layout: z.enum(["headline", "points"]).optional(),
 });
 
 /**
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
   if (!hasCronSecret(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "bad request" }, { status: 400 });
-  const { storyId: sid, topicId, headline } = parsed.data;
+  const { storyId: sid, topicId, headline, layout } = parsed.data;
   const story = sid
     ? await prisma.story.findUnique({
         where: { id: sid },
@@ -45,7 +47,8 @@ export async function POST(request: Request) {
         })
       : null;
   if (!story) return Response.json({ error: "story not found" }, { status: 404 });
-  const problems = headline?.length ? checkSingleHeadline(headline, Array.isArray(story.points) && story.points.length > 0) : [];
+  const big = layout === "headline" || !(Array.isArray(story.points) && story.points.length > 0);
+  const problems = headline?.length ? checkSingleHeadline(headline, !big) : [];
   if (problems.length) return Response.json({ error: problems }, { status: 400 });
 
   // 失敗した速報の出し直しは、同じ回の続きとして投稿する（二重に投稿しない）
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
     select: { id: true, status: true },
   });
   if (existing?.status === "PUBLISHED") return Response.json({ error: "already published today" }, { status: 409 });
-  const editionId = existing?.id ?? (await createManualBreaking(story.id, new Date(), headline))?.id;
+  const editionId = existing?.id ?? (await createManualBreaking(story.id, new Date(), headline, big ? "headline" : "points"))?.id;
   if (!editionId)
     return Response.json(
       {

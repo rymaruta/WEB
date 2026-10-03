@@ -60,6 +60,8 @@ export async function loadForPublish(editionId: string): Promise<{ edition: { ke
   if (isSingleSlot(row.slot)) {
     const [entry] = await loadEntries(row.items);
     if (!entry) return { edition: row, cards: [], plan: [] };
+    // 見出しだけのカードを選んだ回は、要点を出さない
+    if ((row.items[0]?.override as { layout?: string } | null)?.layout === "headline") entry.points = [];
     return { edition: row, cards: [buildBreakingCard(entry, row.scheduledAt, null, row.slot)], plan: [{ position: 0, cards: [0], text: row.postText.join("\n") }] };
   }
   const found = await getEditionView(editionId);

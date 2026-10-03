@@ -32,6 +32,8 @@ export async function GET(request: Request, { params }: RouteContext<"/api/admin
     const story = await prisma.story.findUnique({ where: { id: storyId }, select: { topic: { select: { title: true, aiTitle: true } } } });
     if (story) entry.headline = draftHeadline(story.topic);
   }
+  // ?layout=headline は、見出しだけを大きく見せるカード（要点を出さない）
+  if (url.searchParams.get("layout") === "headline") entry.points = [];
   const kind = url.searchParams.get("kind") === "pickup" ? "PICKUP" : "BREAKING";
   const image = await renderCard(buildBreakingCard(entry, new Date(), null, kind));
   image.headers.set("cache-control", "private, no-store");
