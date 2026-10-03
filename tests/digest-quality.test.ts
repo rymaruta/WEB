@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { editionQualityProblems } from "@/lib/digest/check";
-import { independentOutlets, isPortal, outletKey } from "@/lib/digest/outlets";
+import { independentOutlets, independentOutletsOf, isPortal, outletKey } from "@/lib/digest/outlets";
 import { selectForEdition, type Candidate } from "@/lib/digest/select";
 import { SLOTS } from "@/lib/digest/slots";
 
@@ -88,5 +88,16 @@ describe("投稿前の品質チェック", () => {
 
   it("分野が分かれていれば問題なし", () => {
     expect(editionQualityProblems([item("SOCIETY"), item("ECONOMY"), item("SPORTS")])).toEqual({ blocking: [], warnings: [] });
+  });
+});
+
+describe("独立した媒体の数（見出しも見る）", () => {
+  it("同じ見出しの記事は、媒体が違っても転載として1つに数える", () => {
+    const t = "38歳レヴァンドフスキがハット達成！ ポーランド、ルーマニアに6発で大勝";
+    expect(independentOutletsOf([{ publisher: "サッカーキング", title: t }, { publisher: "マイナビニュース", title: t }])).toBe(1);
+  });
+  it("ポータルと同じ見出しでも、元の媒体は数える", () => {
+    const t = "広島、4選手と来季契約結ばず";
+    expect(independentOutletsOf([{ publisher: "ライブドアニュース", title: t }, { publisher: "Full-Count", title: t }, { publisher: "時事ドットコム", title: "広島が4選手に通告" }])).toBe(2);
   });
 });

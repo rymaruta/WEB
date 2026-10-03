@@ -1,4 +1,4 @@
-import { AGGREGATORS } from "@/lib/coverage";
+import { AGGREGATORS, syndicationKey } from "@/lib/coverage";
 
 /**
  * 報じた媒体の「独立した数」。配信の点数（信頼性・話題性）に使う。
@@ -25,4 +25,21 @@ export const isPortal = (publisher: string) => AGGREGATORS.has(publisher) || POR
 export function independentOutlets(publishers: string[]): number {
   const keys = new Set(publishers.filter((p) => p && !isPortal(p)).map(outletKey));
   return Math.max(1, keys.size);
+}
+
+/**
+ * 独立した媒体の数を、記事の見出しも見て数える。
+ * 同じ見出しの記事は、提携先の記事をそのまま載せた転載として1つに数える（サッカーキングの記事をマイナビニュースが載せるなど）。
+ * 転載元が分かるように、ポータルでない媒体の記事を先に見る
+ */
+export function independentOutletsOf(rows: { publisher: string; title: string }[]): number {
+  const seen = new Set<string>();
+  const publishers: string[] = [];
+  for (const r of [...rows].sort((a, b) => Number(isPortal(a.publisher)) - Number(isPortal(b.publisher)))) {
+    const key = syndicationKey(r.title, r.publisher);
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    publishers.push(r.publisher);
+  }
+  return independentOutlets(publishers);
 }

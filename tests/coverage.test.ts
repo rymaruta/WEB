@@ -8,8 +8,8 @@ describe("coverageTimes", () => {
   it("報道機関ごとの最初の記事に、最初の報道からの経過を付ける（企業の発表・SNS は除く）", () => {
     const t = coverageTimes([
       a(1, "PR TIMES", "09:00", "発表", "PRESS"),
-      a(2, "A新聞", "09:10", "見出し"),
-      a(3, "B通信", "09:25", "見出し"),
+      a(2, "A新聞", "09:10", "市が新庁舎の建設を発表"),
+      a(3, "B通信", "09:25", "新庁舎、2030年に完成へ"),
       a(4, "A新聞", "09:40", "続報"),
     ]);
     expect(t.get(2)).toEqual({ minutes: 0, first: true });
@@ -19,6 +19,36 @@ describe("coverageTimes", () => {
   });
   it("1社だけなら比べない", () => {
     expect(coverageTimes([a(1, "A新聞", "09:00", "x")]).size).toBe(0);
+  });
+});
+
+describe("転載の扱い", () => {
+  it("先に出た記事と同じ見出しの記事は、別の媒体でも転載として比べない", () => {
+    const t = coverageTimes([
+      a(1, "サッカーキング", "07:31", "38歳レヴァンドフスキがハット達成！ ポーランド、ルーマニアに6発で大勝"),
+      a(2, "マイナビニュース", "07:31", "38歳レヴァンドフスキがハット達成！ ポーランド、ルーマニアに6発で大勝"),
+    ]);
+    // 独立した報道は1つだけなので、比べない
+    expect(t.size).toBe(0);
+  });
+  it("転載を配信する媒体（ライブドアニュース）は、媒体名で除く", () => {
+    const t = coverageTimes([
+      a(1, "ライブドアニュース", "06:00", "見出しA"),
+      a(2, "A新聞", "06:10", "見出しB"),
+      a(3, "B通信", "06:20", "見出しC"),
+    ]);
+    expect(t.has(1)).toBe(false);
+    expect(t.get(2)).toEqual({ minutes: 0, first: true });
+  });
+  it("最初に報じた媒体は、転載と同じ見出しの記事を除いて数える", () => {
+    const arts = [
+      a(1, "マイナビニュース", "08:00", "共同通信の記事"),
+      a(2, "共同通信", "08:00", "共同通信の記事"),
+      a(3, "A新聞", "08:30", "A新聞の記事"),
+    ];
+    // 同じ見出しは1つの報道。独立した報道は2つなので、3媒体以上の条件を満たさない
+    expect(firstReporter(arts)).toBeNull();
+    expect(firstReporter([...arts, a(4, "B通信", "08:40", "B通信の記事")])).toBe("マイナビニュース");
   });
 });
 
@@ -55,7 +85,7 @@ describe("numberDiffs", () => {
 
 describe("firstReporter", () => {
   it("3媒体以上が報じた出来事で、最初に報じた報道機関", () => {
-    const list = [a(1, "B通信", "09:10", "x"), a(2, "A新聞", "09:00", "x"), a(3, "C放送", "09:20", "x")];
+    const list = [a(1, "B通信", "09:10", "見出しB"), a(2, "A新聞", "09:00", "見出しA"), a(3, "C放送", "09:20", "見出しC")];
     expect(firstReporter(list)).toBe("A新聞");
     expect(firstReporter(list.slice(0, 2))).toBeNull();
   });
@@ -65,10 +95,10 @@ describe("転載する媒体", () => {
   it("速さの比較と速報ランキングから除く", () => {
     const at = (m: number) => new Date(Date.UTC(2026, 9, 1, 0, m));
     const arts = [
-      { id: 1, publisher: "news.livedoor.com", publishedAt: at(0), title: "x", kind: "NEWS" },
-      { id: 2, publisher: "a.jp", publishedAt: at(5), title: "x", kind: "NEWS" },
-      { id: 3, publisher: "b.jp", publishedAt: at(9), title: "x", kind: "NEWS" },
-      { id: 4, publisher: "c.jp", publishedAt: at(12), title: "x", kind: "NEWS" },
+      { id: 1, publisher: "news.livedoor.com", publishedAt: at(0), title: "見出し1", kind: "NEWS" },
+      { id: 2, publisher: "a.jp", publishedAt: at(5), title: "見出し2", kind: "NEWS" },
+      { id: 3, publisher: "b.jp", publishedAt: at(9), title: "見出し3", kind: "NEWS" },
+      { id: 4, publisher: "c.jp", publishedAt: at(12), title: "見出し4", kind: "NEWS" },
     ];
     expect(firstReporter(arts)).toBe("a.jp");
     expect(coverageTimes(arts).get(2)).toEqual({ minutes: 0, first: true });
