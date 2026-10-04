@@ -1,15 +1,33 @@
-import { AGGREGATORS } from "@/lib/coverage";
+import { syndicationKey } from "@/lib/coverage";
+import { publisherLabel } from "@/lib/publisher";
 
 /**
  * まとめ記事の要点ごとの確認状況。要点に付いた出典番号（資料の番号）から機械的に分ける。
  * 真偽の判定ではなく、「何を根拠に書いたか」の種類を示す（AI に判断させない）。
  * - official: 官公庁・企業の発表（当事者の一次資料）が根拠に含まれる。当事者の発表なので「正しい」とは限らず、「発表が出典」と示す
- * - multi: 独立した報道機関の2媒体以上が根拠
+ * - multi: 2媒体以上の報道が根拠（同じ見出しの転載・再配信は1つと数える）
  * - single: 1媒体の報道だけが根拠
+ * 報道には、SNS 経由で集めた報道機関の記事（はてなブックマーク経由の NHK など）も含める（媒体名はドメインから読む）
  */
 export type PointStatus = "official" | "multi" | "single";
 
-export type CitedSource = { id: number; publisher: string; kind: string };
+export type CitedSource = { id: number; publisher: string; kind: string; title?: string };
+
+/** 報道の記事（企業・官公庁の発表以外）を、媒体ごと・見出しごとに1つにまとめる。同じ見出しは転載・再配信として1つと数える */
+function distinctReports(list: CitedSource[]): string[] {
+  const seenTitle = new Set<string>();
+  const publishers: string[] = [];
+  for (const s of list) {
+    if (s.kind === "PRESS") continue;
+    const label = publisherLabel(s.publisher);
+    if (publishers.includes(label)) continue;
+    const key = s.title ? syndicationKey(s.title, s.publisher) : "";
+    if (key && seenTitle.has(key)) continue;
+    if (key) seenTitle.add(key);
+    publishers.push(label);
+  }
+  return publishers;
+}
 
 export const POINT_STATUS_LABEL: Record<PointStatus, string> = {
   official: "公式発表が出典",
@@ -29,12 +47,11 @@ function cited(numbers: number[], sourceIds: number[], sources: CitedSource[]): 
 export function pointStatus(numbers: number[], sourceIds: number[], sources: CitedSource[]): { status: PointStatus; publishers: string[] } | null {
   const list = cited(numbers, sourceIds, sources);
   if (list.length === 0) return null;
-  // 転載を配信する媒体は、元の報道と同じ内容なので独立した報道に数えない
-  const news = [...new Set(list.filter((s) => s.kind === "NEWS" && !AGGREGATORS.has(s.publisher)).map((s) => s.publisher))];
-  const publishers = [...new Set(list.map((s) => s.publisher))];
+  const reports = distinctReports(list);
+  const publishers = [...new Set(list.map((s) => publisherLabel(s.publisher)))];
   if (list.some((s) => s.kind === "PRESS")) return { status: "official", publishers };
-  if (news.length >= 2) return { status: "multi", publishers };
-  return { status: "single", publishers };
+  if (reports.length >= 2) return { status: "multi", publishers: reports };
+  return { status: "single", publishers: reports.length ? reports : publishers };
 }
 
 /**
@@ -60,8 +77,5 @@ export function splitPoints(points: { text: string; sources: number[] }[], sourc
 /** まとめ記事の材料にした独立した報道の媒体数と、公式発表を含むか（「N媒体の報道をもとに作成」の表示用） */
 export function citedCounts(sourceIds: number[], sources: CitedSource[]) {
   const list = sourceIds.flatMap((id) => sources.filter((s) => s.id === id));
-  return {
-    news: new Set(list.filter((s) => s.kind !== "PRESS" && s.kind !== "SOCIAL").map((s) => s.publisher)).size,
-    official: list.some((s) => s.kind === "PRESS"),
-  };
+  return { news: new Set(list.filter((s) => s.kind !== "PRESS").map((s) => publisherLabel(s.publisher))).size, official: list.some((s) => s.kind === "PRESS") };
 }

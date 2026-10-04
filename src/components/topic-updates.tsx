@@ -116,7 +116,7 @@ export function TopicUpdates({
       <p className="mb-3 text-xs text-fg-subtle">
         {first && (
           <>
-            第一報 {formatDateTime(first.at)}（{publisherLabel(first.publisher)}）
+            第一報 {formatDateTime(first.at)}（{publisherLabel(first.publisher)}。配信の時刻を確認できた媒体のうち）
           </>
         )}
         {lag && (

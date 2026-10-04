@@ -5,6 +5,7 @@ import { GameSchema, verifyGame } from "@/lib/game";
 import { MARKET_EVENT_KEYS, verifyMarketEvent } from "@/lib/market-event";
 import { BANNED_WORDS, extractFacts, extractNames, factInSources } from "@/lib/stories/verify";
 import { aiSummary } from "@/lib/rights";
+import { META_SENTENCE, stripMetaSentences } from "@/lib/ai/article";
 
 /** まとめ記事の出力形式・指示文・検証。DB や API に依存しない部分 */
 
@@ -96,6 +97,8 @@ export const SYSTEM = `あなたはニュースまとめサイトの編集者で
 
 厳守すること:
 - 資料に書かれている事実だけを使う。資料にない数字・人名・経緯・背景知識を補わない。推測や意見を書かない。
+- 記事の中で「資料」という言葉を使わない。「資料には◯◯が書かれていない」のように、何が分からないかを書かない（読者には資料が見えないため）。お悔やみなど編集側の感想も書かない。
+- 資料の中で新しい報道ほど、出来事の今の状況を表す。古い報道と新しい報道で状況が変わっていれば、新しい報道の内容を見出しとリードに書く。
 - 媒体間で内容が食い違う場合は、どの媒体がどう報じているかを分けて書く。
 - リード・要点・本文で同じ事実を繰り返さない。読者が同じ文を何度も読まずに済むよう、本文は要点を補う内容だけにする。
 - 噂・リーク・関係者情報は、公式の発表と区別し「〜と報じられている」「〜というリークがある」のように書き、事実として断定しない。
@@ -179,11 +182,12 @@ export function checkArticleFacts(a: GeneratedArticle, sources: FactSource[]): F
     for (const m of missingIn(p.text, cited)) missing.add(m);
   }
   const visible = [a.title, a.lead, ...a.points.map((p) => p.text)].join("\n");
-  const banned = BANNED_WORDS.filter((w) => visible.includes(w));
+  // 生成の過程についての文（「資料には…書かれていない」）が見出し・リード・要点にあれば採用しない
+  const banned = [...BANNED_WORDS.filter((w) => visible.includes(w)), ...(META_SENTENCE.test(visible) ? ["（資料についての文）"] : [])];
   if (missing.size > 0 || banned.length > 0) return { article: null, missing: [...missing], banned, missingNames };
 
   const bodyMissing: string[] = [];
-  const body = a.body.filter((para) => {
+  const body = a.body.map(stripMetaSentences).filter(Boolean).filter((para) => {
     const m = missingIn(para, all);
     bodyMissing.push(...m);
     return m.length === 0;

@@ -1,3 +1,4 @@
+import { syndicationKey } from "@/lib/coverage";
 import { INDEX_MIN_PUBLISHERS } from "@/lib/indexing";
 import { submitIndexNow } from "@/lib/indexnow";
 import { Prisma } from "@/generated/prisma/client";
@@ -15,6 +16,8 @@ const RETRY_AFTER_MS = 6 * 3_600_000;
 const UPGRADE_WINDOW_HOURS = 48;
 /** 作り直す場合も、前回からこの時間は空ける */
 const REGENERATE_AFTER_MS = 2 * 3_600_000;
+/** 記事を書いた後に、この時間より後の報道が届いていたら書き直す（続報で状況が変わっていることがあるため） */
+export const STALE_AFTER_MS = 6 * 3_600_000;
 
 export type TopicSource = {
   id: number;
@@ -38,7 +41,7 @@ export async function findDueTopics(limit: number, now = Date.now()) {
     },
     orderBy: { score: "desc" },
     take: limit * 4,
-    select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true },
+    select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true, lastSeenAt: true },
   });
   const due = candidates
     .filter((t) => {
@@ -46,8 +49,9 @@ export async function findDueTopics(limit: number, now = Date.now()) {
         // 未作成。前回失敗・見送りなら一定時間あける
         return !t.aiAttemptedAt || now - t.aiAttemptedAt.getTime() > RETRY_AFTER_MS;
       }
-      // 作成済み。報じる媒体が増えたときだけ作り直す
-      return t.publisherCount > t.aiSourceCount;
+      // 作成済み。報じる媒体が増えたとき、または記事を書いた後に新しい報道（続報）が届いたときに作り直す
+      // （同じ媒体の続報だけでは媒体数が増えず、古い内容のまま残っていた）
+      return t.publisherCount > t.aiSourceCount || t.lastSeenAt.getTime() - t.aiGeneratedAt.getTime() > STALE_AFTER_MS;
     })
     .slice(0, limit);
   if (due.length >= limit) return due;
@@ -131,11 +135,41 @@ export async function loadTopicSources(topicId: number): Promise<TopicSource[]> 
     orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
     select: { id: true, publisher: true, publishedAt: true, title: true, summary: true, source: { select: { kind: true } } },
   });
-  const seen = new Set<string>();
-  return articles
-    .filter((a) => (seen.has(a.publisher) ? false : (seen.add(a.publisher), true)))
-    .slice(0, MAX_SOURCES)
-    .map(({ source, ...a }) => ({ ...a, kind: source.kind }));
+  return pickSources(articles.map(({ source, ...a }) => ({ ...a, kind: source.kind })));
+}
+
+/** 材料のうち、新しい報道に回す数（続報で状況が変わったときに、最新の内容が材料から漏れないように） */
+const LATEST_SOURCES = 5;
+
+/**
+ * 材料にする記事を選ぶ（古い順に並べて返す）。
+ * - 新しい報道を LATEST_SOURCES 本（同じ見出しの転載は1本と数える）。続報で状況が変わった話題でも、最新の内容を材料に入れる
+ * - 残りは、媒体ごとの最初の記事を古い順に（第一報と、各社の報じ方の違いを残す）
+ * 以前は「媒体ごとの最初の記事を古い順に12本」だったため、長く続く話題では最新の報道が材料に入らず、古い内容のまま書かれていた
+ */
+export function pickSources<T extends { id: number; publisher: string; publishedAt: Date; title: string }>(articles: T[], max = MAX_SOURCES): T[] {
+  const asc = [...articles].sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id - b.id);
+  const key = (a: T) => syndicationKey(a.title, a.publisher);
+  const picked = new Map<number, T>();
+  const keys = new Set<string>();
+  const take = (a: T) => {
+    if (picked.size >= max || picked.has(a.id) || keys.has(key(a))) return;
+    picked.set(a.id, a);
+    keys.add(key(a));
+  };
+  // 第一報は必ず入れる
+  if (asc[0]) take(asc[0]);
+  for (const a of [...asc].reverse()) {
+    if (picked.size >= Math.min(LATEST_SOURCES + 1, max)) break;
+    take(a);
+  }
+  const seenPublisher = new Set([...picked.values()].map((a) => a.publisher));
+  for (const a of asc) {
+    if (seenPublisher.has(a.publisher)) continue;
+    seenPublisher.add(a.publisher);
+    take(a);
+  }
+  return asc.filter((a) => picked.has(a.id));
 }
 
 export function markAttempted(topicId: number) {

@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -73,6 +74,8 @@ export async function WorkPage({ kind, raw }: { kind: WorkKind; raw: string }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {/* 広告は、検索エンジンに登録する（内容のある）作品のページだけ */}
+      {w.indexable && <AdsenseScript />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
