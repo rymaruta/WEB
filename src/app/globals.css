@@ -82,6 +82,14 @@ html[data-font="large"] {
   font-size: 112.5%;
 }
 
+/* 話題ページの読む長さ（src/components/reading-depth.tsx）。短いほど、長い読み方向けの部分を隠す。
+   切り替えを出したページの中（data-depth-scope）だけに効かせる（まとめ記事のない話題や、ほかのページでは何も隠さない） */
+html[data-depth="30s"] [data-depth-scope] [data-min-depth="3m"],
+html[data-depth="30s"] [data-depth-scope] [data-min-depth="10m"],
+html[data-depth="3m"] [data-depth-scope] [data-min-depth="10m"] {
+  display: none !important;
+}
+
 body {
   background: var(--bg);
   color: var(--fg);

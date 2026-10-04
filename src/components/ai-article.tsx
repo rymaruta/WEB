@@ -119,8 +119,9 @@ export function AiArticleView({
         ))}
       </ul>
 
+      {/* 読む長さ（src/components/reading-depth.tsx）: 各社の報じ方は10分、経緯・本文・企業は3分から */}
       {article.angles.length > 0 && (
-        <>
+        <div data-min-depth="10m">
           <h3 className="mt-4 mb-1.5 text-sm font-bold text-fg-muted">各社の報じ方</h3>
           <ul className="space-y-1.5 rounded-lg border border-border bg-surface/70 p-3">
             {article.angles.map((p, i) => (
@@ -132,11 +133,11 @@ export function AiArticleView({
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
 
       {article.background.length > 0 && (
-        <>
+        <div data-min-depth="3m">
           <h3 className="mt-4 mb-1.5 text-sm font-bold text-fg-muted">これまでの経緯</h3>
           <ol className="space-y-1.5 border-l-2 border-accent/40 pl-3">
             {article.background.map((b) => (
@@ -148,17 +149,17 @@ export function AiArticleView({
               </li>
             ))}
           </ol>
-        </>
+        </div>
       )}
 
-      <div className="mt-4 space-y-3 text-[15px] leading-relaxed">
+      <div data-min-depth="3m" className="mt-4 space-y-3 text-[15px] leading-relaxed">
         {bodyWithoutLead(article).map((para, i) => (
           <p key={i}>{para}</p>
         ))}
       </div>
 
       {article.companies.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <div data-min-depth="3m" className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs font-bold text-fg-muted">関連する企業</span>
           {article.companies.map((c) => (
             <Link

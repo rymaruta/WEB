@@ -18,7 +18,11 @@ export function TopicBrief({ brief, lastSeenAt, latest }: { brief: Brief; lastSe
         // 同じ出来事の別の話題がなくても、この話題のその後の動き（新たな報道・続報・公式の発表）があれば、その最新を出す
         <a href="#topic-updates" className="hover:text-accent">
           {latest.text}
-          <span className="ml-1.5 text-xs text-fg-subtle">（{relativeTime(latest.at)}・その後の動きを見る ↓）</span>
+          <span className="ml-1.5 text-xs text-fg-subtle">
+            （{relativeTime(latest.at)}
+            {/* 30秒の読み方では「その後の動き」を隠すため、そこへの案内も出さない（src/components/reading-depth.tsx） */}
+            <span data-min-depth="3m">・その後の動きを見る ↓</span>）
+          </span>
         </a>
       ) : (
         <span className="text-fg-muted">続報はまだありません（最新の報道 {relativeTime(lastSeenAt)}）</span>
