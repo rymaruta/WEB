@@ -31,6 +31,7 @@ import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
 import { buildUpdates, getTopicDeltas, latestUpdateText, officialLag } from "@/lib/topics/updates";
 import { TopicUpdates } from "@/components/topic-updates";
+import { ReadingDepth } from "@/components/reading-depth";
 import { originalReports } from "@/lib/coverage";
 import { splitPoints, POINT_STATUS_LABEL } from "@/lib/ai/point-status";
 import { outletIds, outletPath } from "@/lib/outlet";
@@ -174,7 +175,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
       {/* 広告は、検索エンジンに登録する独自の価値がある話題だけ（src/components/adsense-script.tsx） */}
       {topicIndexable(topic, ai) && <AdsenseScript />}
       <ReadingProgress />
-      <article className="card min-w-0 overflow-hidden">
+      {/* 読む長さの切り替えは、まとめ記事のある話題だけ（ない話題で短くすると、元の記事の一覧まで隠れてしまう） */}
+      <article className="card min-w-0 overflow-hidden" data-depth-scope={ai ? "" : undefined}>
         {ai && (
           <script
             type="application/ld+json"
@@ -209,9 +211,10 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
             <MarketEventBadge event={topic.aiMarketEvent} />
             {topic.aiGameKind === "rumor" && <RumorBadge />}
             {topic.publisherCount > 1 && (
-              <span className="flex items-center gap-2">
-                <PublisherAvatars names={[...new Set(topic.articles.map((a) => publisherLabel(a.publisher)))]} max={6} size="md" />
-                <span>
+              <span className="flex max-w-full min-w-0 items-center gap-2">
+                {/* 報じた媒体（報道機関だけ。官公庁・企業の発表と SNS は「報じた媒体」に入れない） */}
+                <PublisherAvatars names={[...new Set(topic.articles.filter((a) => a.source.kind === "NEWS").map((a) => publisherLabel(a.publisher)))]} max={6} size="md" />
+                <span className="shrink-0">
                   <strong className="text-lg font-black text-accent tabular-nums">{topic.publisherCount}</strong>媒体・
                   {topic.articleCount}本の記事
                 </span>
@@ -247,6 +250,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </figcaption>
             </figure>
           )}
+          {ai && <ReadingDepth />}
           {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} latest={latestUpdateText(updates, publisherLabel)} />}
           {ai && (
             <div className="mb-6">
@@ -266,8 +270,10 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               </div>
             </div>
           )}
-          <TopicUpdates topicId={topic.id} first={firstReport && { publisher: firstReport.publisher, at: firstReport.publishedAt }} lag={lag} updates={updates} />
-          <section aria-labelledby="compare-heading">
+          <div data-min-depth="3m">
+            <TopicUpdates topicId={topic.id} first={firstReport && { publisher: firstReport.publisher, at: firstReport.publishedAt }} lag={lag} updates={updates} />
+          </div>
+          <section aria-labelledby="compare-heading" data-min-depth="10m">
           <h2 id="compare-heading" className="mb-1 text-lg font-black">
             報道くらべ
           </h2>
@@ -334,7 +340,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           </details>
         )}
           </section>
-          <div className="mt-6">
+          <div className="mt-6" data-min-depth="10m">
             <EventTimeline entries={timeline} currentId={topic.id} />
           </div>
           {/* この話題に関わる特集・データのページ（発売日・放送日・値上げなど、日付のある話題だけ） */}

@@ -8,10 +8,11 @@ export function PublisherAvatars({ names, max = 5, size = "sm" }: Props) {
   const shown = names.slice(0, Math.min(max, 3));
   const rest = names.length - shown.length;
   return (
-    <span className={`min-w-0 truncate text-fg-muted ${size === "md" ? "text-sm" : "text-xs"}`} title={names.join("、")}>
+    // 媒体名が長いときは名前だけを省略し、「ほか○社」は必ず見せる
+    <span className={`flex min-w-0 text-fg-muted ${size === "md" ? "text-sm" : "text-xs"}`} title={names.join("、")}>
       <span className="sr-only">報じた媒体: </span>
-      {shown.join("・")}
-      {rest > 0 && <span className="ml-1 whitespace-nowrap">ほか{rest}社</span>}
+      <span className="min-w-0 truncate">{shown.join("・")}</span>
+      {rest > 0 && <span className="ml-1 shrink-0 whitespace-nowrap">ほか{rest}社</span>}
     </span>
   );
 }

@@ -3,6 +3,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { BackToTop } from "@/components/scroll-helpers";
 import { FONT_SIZE_SCRIPT } from "@/components/font-size-toggle";
+import { READING_DEPTH_SCRIPT } from "@/lib/reading-depth";
 import { ReadTracker } from "@/components/read-tracker";
 import { PageviewBeacon } from "@/components/pageview-beacon";
 import { SiteFooter } from "@/components/site-footer";
@@ -35,6 +36,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* 保存された文字サイズを、描画の前に反映する */}
         <script dangerouslySetInnerHTML={{ __html: FONT_SIZE_SCRIPT }} />
+        {/* 保存された読む長さ（話題ページ）を、描画の前に反映する */}
+        <script dangerouslySetInnerHTML={{ __html: READING_DEPTH_SCRIPT }} />
       </head>
       {/* スマホでは画面下メニューの高さ分だけ下に余白を取る */}
       <body className="flex min-h-full flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
