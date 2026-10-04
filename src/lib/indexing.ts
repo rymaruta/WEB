@@ -7,9 +7,23 @@
  * - これまでの経緯（このサイトの過去の記事）を添えた記事
  */
 export const INDEX_MIN_PUBLISHERS = 3;
+/** 要点がこれより少ない記事は、見出しの言い換えにとどまりやすいため登録しない（2026-10-04 の記事監査で要点2つ以下の4本が薄い内容だった） */
+export const INDEX_MIN_POINTS = 3;
 
-export function isIndexableArticle(t: { publisherCount: number; hasAi: boolean; angles: number; background: number }): boolean {
-  if (!t.hasAi) return false;
+export type IndexInput = {
+  publisherCount: number;
+  hasAi: boolean;
+  angles: number;
+  background: number;
+  /** 要点の数（分からなければ数えない） */
+  points?: number;
+  /** 編集部の点検で「検索から外す」とした記事（src/lib/review.ts） */
+  held?: boolean;
+};
+
+export function isIndexableArticle(t: IndexInput): boolean {
+  if (!t.hasAi || t.held) return false;
+  if (t.points !== undefined && t.points < INDEX_MIN_POINTS) return false;
   return t.publisherCount >= INDEX_MIN_PUBLISHERS || t.angles > 0 || t.background > 0;
 }
 

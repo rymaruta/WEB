@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { aiGeneratedAt: { not: null }, mergedIntoId: null, articles: { some: { source: { kind: "NEWS" } } } },
       orderBy: { aiGeneratedAt: "desc" },
       take: 8000,
-      select: { id: true, aiGeneratedAt: true, publisherCount: true, aiAngles: true, aiBackground: true },
+      select: { id: true, aiGeneratedAt: true, publisherCount: true, aiAngles: true, aiBackground: true, aiPoints: true, reviewStatus: true },
     }),
     // 定時配信の回（投稿済みのもの）
     prisma.edition.findMany({
@@ -75,7 +75,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...works.map((w) => ({ url: `${base}${workPath(w.kind, w.key)}`, changeFrequency: "daily" as const, priority: 0.6 })),
     ...genres.map((g) => ({ url: `${base}/genre/${g.slug}`, changeFrequency: "hourly" as const, priority: 0.8 })),
     ...topics
-      .filter((t) => isIndexableArticle({ publisherCount: t.publisherCount, hasAi: true, angles: jsonLength(t.aiAngles), background: jsonLength(t.aiBackground) }))
+      .filter((t) => isIndexableArticle({
+        publisherCount: t.publisherCount,
+        hasAi: true,
+        angles: jsonLength(t.aiAngles),
+        background: jsonLength(t.aiBackground),
+        points: jsonLength(t.aiPoints),
+        held: t.reviewStatus === "hold",
+      }))
       .slice(0, 5000)
       .map((t) => ({ url: `${base}/topic/${t.id}`, lastModified: t.aiGeneratedAt ?? undefined, priority: 0.6 })),
     { url: `${base}/sources`, changeFrequency: "daily", priority: 0.5 },

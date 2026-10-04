@@ -166,6 +166,12 @@ model Topic {
   aiAttemptedAt  DateTime?
   /// 生成時点の報道媒体数。媒体が増えたら作り直す
   aiSourceCount  Int       @default(0)
+  /// 編集部の点検（人が管理画面で確認した結果。src/lib/review.ts）。ok=確認済み、hold=検索から外す
+  reviewStatus   String?
+  /// 点検した日時（この日時より後に記事を書き直したら、点検は古くなる）
+  reviewedAt     DateTime?
+  /// 点検のメモ（直した点・外した理由）
+  reviewNote     String?
   articles       Article[]
   stories        Story[]
   createdAt      DateTime  @default(now())

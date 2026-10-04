@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { saveReview } from "@/lib/review";
 import { redirect } from "next/navigation";
 import { endSession, passwordMatches, requireAdmin, startSession } from "@/lib/admin/session";
 import { isLocked, recordFailure, recordSuccess } from "@/lib/admin/rate-limit";
@@ -396,4 +397,13 @@ export async function cancelAction(editionId: string): Promise<ActionState> {
   }
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/** 編集部の点検（/admin/review）。確認済み・検索から外す・書き直しを残す */
+export async function reviewAction(topicId: number, action: "ok" | "hold" | "rewrite", form: FormData) {
+  await requireAdmin();
+  const note = String(form.get("note") ?? "").trim().slice(0, 300) || null;
+  await saveReview(topicId, action, note);
+  revalidatePath("/admin/review");
+  revalidatePath(`/topic/${topicId}`);
 }

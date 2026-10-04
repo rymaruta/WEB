@@ -21,3 +21,15 @@ describe("jsonLength", () => {
     expect(jsonLength({ a: 1 })).toBe(0);
   });
 });
+
+describe("要点の数と編集部の点検", () => {
+  const base = { publisherCount: 5, hasAi: true, angles: 0, background: 0 };
+  it("要点が3つ未満の記事は登録しない（数が分からなければ従来どおり）", () => {
+    expect(isIndexableArticle({ ...base, points: 2 })).toBe(false);
+    expect(isIndexableArticle({ ...base, points: 3 })).toBe(true);
+    expect(isIndexableArticle(base)).toBe(true);
+  });
+  it("編集部が「検索から外す」とした記事は登録しない", () => {
+    expect(isIndexableArticle({ ...base, points: 4, held: true })).toBe(false);
+  });
+});

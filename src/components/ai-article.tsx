@@ -59,6 +59,7 @@ export function AiArticleView({
   showTitle = true,
   hideLead = false,
   reportHref,
+  reviewedAt,
 }: {
   article: AiArticle;
   sources: Source[];
@@ -67,6 +68,8 @@ export function AiArticleView({
   hideLead?: boolean;
   /** 誤りの報告先（メールの宛先と件名入りのリンク） */
   reportHref?: string;
+  /** 編集部が人の目で確認した日時（確認の後に書き直していない場合だけ。src/lib/review.ts） */
+  reviewedAt?: Date | null;
 }) {
   const byNumber = (n: number) => {
     const id = article.sourceIds[n - 1];
@@ -92,6 +95,7 @@ export function AiArticleView({
         <p className="mt-1 text-xs text-fg-subtle">
           約{readingMinutes(article)}分で読めます・{formatDateTime(article.generatedAt)}
           {article.history.length > 1 ? "更新" : "作成"}
+          {reviewedAt && <span className="ml-1 font-bold text-fg-muted">・編集部が{formatDateTime(reviewedAt)}に出典と照らして確認</span>}
         </p>
       </div>
       <h2 id="ai-article" className={showTitle ? "text-lg leading-snug font-black sm:text-xl" : "sr-only"}>

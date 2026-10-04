@@ -1,6 +1,7 @@
 import { pressLabel } from "@/lib/government";
 import { AdsenseScript } from "@/components/adsense-script";
 import { isAdSensitive } from "@/lib/ad-eligibility";
+import { isReviewCurrent } from "@/lib/review";
 import type { Metadata } from "next";
 import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
@@ -81,9 +82,19 @@ export async function generateMetadata({ params }: PageProps<"/topic/[id]">): Pr
 }
 
 /** 検索エンジンに登録し、広告を出す話題か（報道機関の記事があり、独自の価値があるまとめ記事。src/lib/indexing.ts） */
-function topicIndexable(topic: { publisherCount: number; articles: { source: { kind: string } }[] }, ai: { angles: unknown[]; background: unknown[] } | null): boolean {
+function topicIndexable(
+  topic: { publisherCount: number; reviewStatus: string | null; articles: { source: { kind: string } }[] },
+  ai: { angles: unknown[]; background: unknown[]; points: unknown[] } | null,
+): boolean {
   if (!topic.articles.some((a) => a.source.kind === "NEWS")) return false;
-  return isIndexableArticle({ publisherCount: topic.publisherCount, hasAi: !!ai, angles: ai?.angles.length ?? 0, background: ai?.background.length ?? 0 });
+  return isIndexableArticle({
+    publisherCount: topic.publisherCount,
+    hasAi: !!ai,
+    angles: ai?.angles.length ?? 0,
+    background: ai?.background.length ?? 0,
+    points: ai?.points.length,
+    held: topic.reviewStatus === "hold",
+  });
 }
 
 /** 記事ページで最初から見せる元記事の数（残りは「ほか○件」で開く） */
@@ -261,6 +272,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
                 article={ai}
                 sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, kind: a.source.kind, title: a.title }))}
                 showTitle={false}
+                reviewedAt={isReviewCurrent(topic) ? topic.reviewedAt : null}
                 reportHref={`mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent(`【誤りの報告】${ai.title}`)}&body=${encodeURIComponent(`${siteConfig.url}/topic/${topic.id}\n\n誤っている箇所：\n正しい内容（分かれば出典も）：\n`)}`}
               />
               <div className="mt-4">

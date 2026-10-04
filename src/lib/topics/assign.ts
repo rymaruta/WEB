@@ -1,4 +1,5 @@
 import { centroid, cosine, IdfModel, sharedCount, topFeatures, type Vector } from "./similarity";
+import { titleConflict } from "./conflict";
 
 export type ClusterDoc = {
   id: number;
@@ -32,6 +33,8 @@ export type AssignOptions = {
    * 同一媒体どうしの結合は他媒体との結合より厳しく判定する。
    */
   samePublisherThreshold?: number;
+  /** 別の人・別の大会の見出しをまとめないか（既定は true。比べるための評価で false にする） */
+  conflictCheck?: boolean;
 };
 
 // 既定値は実データ（約1,600記事・48時間分）での評価により決定。README「トピック自動まとめ」参照
@@ -51,6 +54,7 @@ export function assignTopics(docs: ClusterDoc[], options: AssignOptions = {}): M
   const nFeatures = options.candidateFeatures ?? 8;
   const minShared = options.minShared ?? DEFAULT_MIN_SHARED;
   const samePublisherThreshold = options.samePublisherThreshold ?? DEFAULT_SAME_PUBLISHER_THRESHOLD;
+  const conflictCheck = options.conflictCheck ?? true;
 
   const idf = new IdfModel(
     docs.map((d) => ({ title: d.title, group: d.publisher })),
@@ -60,9 +64,11 @@ export function assignTopics(docs: ClusterDoc[], options: AssignOptions = {}): M
   const vectors = new Map<number, Vector>(docs.map((d) => [d.id, idf.vector(d.title)]));
 
   const members = new Map<TopicKey, Vector[]>();
+  const titles = new Map<TopicKey, string[]>();
   const publishers = new Map<TopicKey, Set<string | undefined>>();
   const addMember = (key: TopicKey, doc: ClusterDoc) => {
     members.set(key, [...(members.get(key) ?? []), vectors.get(doc.id)!]);
+    titles.set(key, [...(titles.get(key) ?? []), doc.title]);
     publishers.set(key, (publishers.get(key) ?? new Set()).add(doc.publisher));
   };
   for (const d of docs) {
@@ -103,7 +109,8 @@ export function assignTopics(docs: ClusterDoc[], options: AssignOptions = {}): M
       const pubs = publishers.get(key)!;
       const onlySamePublisher = doc.publisher !== undefined && pubs.size === 1 && pubs.has(doc.publisher);
       const required = onlySamePublisher ? Math.max(threshold, samePublisherThreshold) : threshold;
-      if (score >= required && score > bestScore && sharedCount(v, c) >= minShared) {
+      // 似ていても、別の人・別の大会の見出しならまとめない（src/lib/topics/conflict.ts）
+      if (score >= required && score > bestScore && sharedCount(v, c) >= minShared && !(conflictCheck && titleConflict(doc.title, titles.get(key)!))) {
         best = key;
         bestScore = score;
       }
