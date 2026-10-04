@@ -1,3 +1,4 @@
+import { extractNames } from "@/lib/stories/verify";
 /**
  * 同じ話題にまとめてはいけない組み合わせ（見出しの言葉が似ていても、別の人・別の大会の出来事）。
  * 記事を話題に割り当てるとき（src/lib/topics/assign.ts）、似ている度合いが基準を超えても、ここで食い違えばまとめない。
@@ -11,7 +12,7 @@
 const NOT_PERSON_HEAD = /^(日本|国内|政府|東京|大阪|京都|北海|全国|米国|中国|韓国|英国|首相|大臣|代表|選手|監督|球団|会社|企業|社長|株価|日銀|自民|立憲|公明|維新|国民|共産|新型|最新|今年|今季|来季|今月|来月|前年|昨年|第一|第二|大会|試合|決勝|準決|開幕|地震|台風|大雨)/;
 const HAN4 = /(?<![\p{Script=Han}])[\p{Script=Han}]{4}(?![\p{Script=Han}])/gu;
 
-const fullNames = (title: string) => [...title.normalize("NFKC").matchAll(HAN4)].map((m) => m[0]).filter((w) => !NOT_PERSON_HEAD.test(w));
+export const fullNames = (title: string) => [...title.normalize("NFKC").matchAll(HAN4)].map((m) => m[0]).filter((w) => !NOT_PERSON_HEAD.test(w));
 
 const ageGroups = (title: string) => new Set([...title.normalize("NFKC").matchAll(/U-?(\d{2})/gi)].map((m) => m[1]));
 const isWomen = (t: string) => /なでしこ|女子|女性代表/.test(t);
@@ -43,4 +44,12 @@ export function titleConflict(title: string, members: string[]): boolean {
   const memberMen = members.some(isMen);
   if ((isWomen(t) && memberMen && !memberWomen) || (isMen(t) && memberWomen && !memberMen)) return true;
   return false;
+}
+
+/**
+ * 見出しの主役の人名（「◯◯選手」「◯◯さん」などの形と、4文字の姓名）。
+ * 配信で、直近に出した人のニュースを続けて出さないために使う（同じ出来事が別の話題に分かれていても見分ける）
+ */
+export function subjectNames(title: string): string[] {
+  return [...new Set([...extractNames(title), ...fullNames(title)])].filter((n) => n.length >= 3);
 }

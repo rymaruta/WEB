@@ -55,3 +55,18 @@ describe("日中の注目のニュースの自動投稿", () => {
     expect(pickAutoPickup([cand({ publisherCount: 1 })], null)).toBeNull();
   });
 });
+
+describe("出さない理由と、直近に出した人の重複", () => {
+  it("出さない理由を返す", async () => {
+    const { pickupReject } = await import("@/lib/digest/pickup-auto");
+    expect(pickupReject({ kind: "NEW", status: "PENDING", publisherCount: 2, confidence: 0.9, score: 99 } as never)).toBe("媒体が少ない");
+    expect(pickupReject({ kind: "NEW", status: "PENDING", publisherCount: 4, confidence: 0.5, score: 99 } as never)).toBe("確からしさが低い");
+  });
+  it("直近に配信した人の名前を含むニュースは続けて出さない", async () => {
+    const { repeatsPerson } = await import("@/lib/digest/build");
+    const { subjectNames } = await import("@/lib/topics/conflict");
+    const names = new Set(subjectNames("続報：久保建英選手の結婚、その後"));
+    expect(repeatsPerson("久保建英選手が福原遥さんと結婚", names)).toBe(true);
+    expect(repeatsPerson("日銀が利上げを決定", names)).toBe(false);
+  });
+});
