@@ -523,6 +523,8 @@ model GameListing {
   maker      String?
   /// 公式ストアのページ
   url        String
+  /// 最後に公式ストアで確かめた日時（取り込みのたびに更新）
+  checkedAt  DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -538,6 +540,10 @@ model MovieListing {
   release   String
   /// 製作国（最初に書かれた国）
   country   String?
+  /// 情報源（Wikipedia の一覧のページ）
+  sourceUrl String?
+  /// 最後に情報源で確かめた日時（取り込みのたびに更新）
+  checkedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -553,11 +559,32 @@ model AnimeListing {
   start     String
   /// 主な放送局（例: TOKYO MXほか）
   channel   String?
+  /// 情報源（Wikipedia の一覧のページ）
+  sourceUrl String?
+  /// 最後に情報源で確かめた日時（取り込みのたびに更新）
+  checkedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([title, start])
   @@index([start])
+}
+
+/// 予定の変更の記録（ゲーム・映画・アニメ）。取り込みのたびに前回と比べ、日付が変わった予定と、一覧から外れたこれからの予定を残す（src/lib/schedule-changes.ts）
+model ScheduleChange {
+  id         Int      @id @default(autoincrement())
+  /// game | movie | anime
+  kind       String
+  title      String
+  /// 前の日付（YYYY-MM-DD か YYYY-MM）
+  oldDate    String
+  /// 新しい日付。null は一覧から外れた（延期で日付未定・中止・掲載終了など。理由は情報源に書かれていない）
+  newDate    String?
+  /// 情報源のページ
+  sourceUrl  String?
+  detectedAt DateTime @default(now())
+
+  @@index([detectedAt])
 }
 
 /// YouTube の動画（決めたチャンネルの公式の新着情報 RSS から取り込む。src/lib/youtube.ts）。動画そのものは保存しない

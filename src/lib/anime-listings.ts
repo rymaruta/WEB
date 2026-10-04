@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { diffSchedule, recordScheduleChanges } from "@/lib/schedule-changes";
 
 /**
  * テレビアニメの放送開始予定。Wikipedia「日本のテレビアニメ作品一覧（2020年代 後半）」など（CC BY-SA）から、
@@ -73,15 +74,27 @@ export async function syncAnimeListings(now = new Date()) {
   if (items.length === 0) throw new Error("wikipedia: no anime");
   const seen = new Map<string, AnimeListingItem>();
   for (const a of items) seen.set(`${a.title}|${a.start}`, a);
+  // 取り込む前のこれからの予定と比べて、日付の変更・一覧から外れた予定を記録する
+  const before = await prisma.animeListing.findMany({ where: { start: { gte: today } }, select: { id: true, title: true, start: true } });
+  const changed = await recordScheduleChanges(
+    "anime",
+    diffSchedule(
+      before.map((a) => ({ key: a.title, title: a.title, date: a.start })),
+      [...seen.values()].map((a) => ({ key: a.title, title: a.title, date: a.start })),
+      today,
+    ),
+    animePageUrl(jst.getUTCFullYear()),
+    now,
+  );
   for (const a of seen.values()) {
+    const source = { sourceUrl: animePageUrl(Number(a.start.slice(0, 4))), checkedAt: now };
     await prisma.animeListing.upsert({
       where: { title_start: { title: a.title, start: a.start } },
-      create: a,
-      update: { channel: a.channel },
+      create: { ...a, ...source },
+      update: { channel: a.channel, ...source },
     });
   }
-  const upcoming = await prisma.animeListing.findMany({ where: { start: { gte: today } }, select: { id: true, title: true, start: true } });
-  const gone = upcoming.filter((a) => !seen.has(`${a.title}|${a.start}`)).map((a) => a.id);
+  const gone = before.filter((a) => !seen.has(`${a.title}|${a.start}`)).map((a) => a.id);
   if (gone.length > 0) await prisma.animeListing.deleteMany({ where: { id: { in: gone } } });
-  return { fetched: seen.size, removed: gone.length };
+  return { fetched: seen.size, removed: gone.length, changed };
 }

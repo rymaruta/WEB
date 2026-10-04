@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { diffSchedule, recordScheduleChanges } from "@/lib/schedule-changes";
 
 /**
  * 公式ストアの発売予定を取り込む（毎日1回）。記事から拾う発売日だけでは、話題になった作品しか載らないため、
@@ -209,6 +210,13 @@ async function fetchSteam(): Promise<Listing[]> {
 
 // ---- 取り込み ----
 
+/** 予定の変更の記録に残す情報源（ストアの発売予定の一覧） */
+const STORE_URLS: Record<string, string> = {
+  nintendo: "https://www.nintendo.com/jp/schedule/",
+  playstation: "https://store.playstation.com/ja-jp/pages/latest",
+  steam: "https://store.steampowered.com/search/?filter=popularcomingsoon",
+};
+
 /**
  * 公式ストアから取り込み、DB を最新にする。ストアから消えた発売前の作品（発売中止・延期で日付未定など）は消す。
  * 取得に失敗したストアは、前回の内容をそのまま残す
@@ -224,8 +232,21 @@ export async function syncGameListings(now = new Date()) {
     try {
       const listings = await fetcher();
       if (listings.length === 0) throw new Error("empty");
+      // 取り込む前のこれからの予定と比べて、発売日の変更を記録する（ストアの ID で見分ける）。
+      // ストアの一覧は件数に上限がある（人気順の上位など）ため、一覧から外れたことは中止・延期の印にならない。日付が変わったものだけを残す
+      const before = await prisma.gameListing.findMany({ where: { source, release: { gte: today.slice(0, 7) } }, select: { externalId: true, title: true, release: true } });
+      await recordScheduleChanges(
+        "game",
+        diffSchedule(
+          before.map((g) => ({ key: g.externalId, title: g.title, date: g.release })),
+          listings.map((l) => ({ key: l.externalId, title: l.title, date: l.release })),
+          today,
+        ).filter((d) => d.newDate !== null),
+        STORE_URLS[source],
+        now,
+      );
       for (const l of listings) {
-        const data = { title: l.title, release: l.release, platforms: l.platforms, maker: l.maker, url: l.url };
+        const data = { title: l.title, release: l.release, platforms: l.platforms, maker: l.maker, url: l.url, checkedAt: now };
         await prisma.gameListing.upsert({
           where: { source_externalId: { source, externalId: l.externalId } },
           create: { source, externalId: l.externalId, ...data },
