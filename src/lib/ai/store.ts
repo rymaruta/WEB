@@ -30,6 +30,13 @@ export type TopicSource = {
 
 /** まとめ記事を作成・更新すべきトピック（話題度の高い順） */
 export async function findDueTopics(limit: number, now = Date.now()) {
+  // 編集部の点検で書き直しを頼んだ記事（src/lib/review.ts の saveReview）。動きがなくなった話題でも書き直す
+  const requested = await prisma.topic.findMany({
+    where: { aiGeneratedAt: { not: null }, aiSourceCount: 0, aiAttemptedAt: null, mergedIntoId: null },
+    orderBy: { lastSeenAt: "desc" },
+    take: limit,
+    select: { id: true, title: true, publisherCount: true, aiGeneratedAt: true, aiAttemptedAt: true, aiSourceCount: true, lastSeenAt: true },
+  });
   const candidates = await prisma.topic.findMany({
     where: {
       lastSeenAt: { gte: new Date(now - 24 * 3_600_000) },
@@ -53,7 +60,9 @@ export async function findDueTopics(limit: number, now = Date.now()) {
       // （同じ媒体の続報だけでは媒体数が増えず、古い内容のまま残っていた）
       return t.publisherCount > t.aiSourceCount || t.lastSeenAt.getTime() - t.aiGeneratedAt.getTime() > STALE_AFTER_MS;
     })
-    .slice(0, limit);
+    .filter((t) => !requested.some((r) => r.id === t.id))
+    .slice(0, Math.max(0, limit - requested.length));
+  due.unshift(...requested);
   if (due.length >= limit) return due;
 
   // 枠が余ったら、さかのぼって書きそびれた話題（独立した報道3社以上で、まとめ記事がない）を書く
