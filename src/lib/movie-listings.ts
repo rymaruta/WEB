@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { diffSchedule, recordScheduleChanges } from "@/lib/schedule-changes";
 
 /**
  * 映画の公開予定。Wikipedia「◯年の日本公開映画」（CC BY-SA）から、作品名・公開日・製作国だけを毎日取り込む。
@@ -69,17 +70,29 @@ export async function syncMovieListings(now = new Date()) {
   if (items.length === 0) throw new Error("wikipedia: no movies");
   const seen = new Map<string, MovieItem>();
   for (const m of items) seen.set(`${m.title}|${m.release}`, m);
+  // 取り込む前のこれからの予定と比べて、日付の変更・一覧から外れた予定を記録する
+  const before = await prisma.movieListing.findMany({ where: { release: { gte: today } }, select: { id: true, title: true, release: true } });
+  const changed = await recordScheduleChanges(
+    "movie",
+    diffSchedule(
+      before.map((m) => ({ key: m.title, title: m.title, date: m.release })),
+      [...seen.values()].map((m) => ({ key: m.title, title: m.title, date: m.release })),
+      today,
+    ),
+    moviePageUrl(years[0]),
+    now,
+  );
   for (const m of seen.values()) {
+    const source = { sourceUrl: moviePageUrl(Number(m.release.slice(0, 4))), checkedAt: now };
     await prisma.movieListing.upsert({
       where: { title_release: { title: m.title, release: m.release } },
-      create: m,
-      update: { country: m.country },
+      create: { ...m, ...source },
+      update: { country: m.country, ...source },
     });
   }
-  const upcoming = await prisma.movieListing.findMany({ where: { release: { gte: today } }, select: { id: true, title: true, release: true } });
-  const gone = upcoming.filter((m) => !seen.has(`${m.title}|${m.release}`)).map((m) => m.id);
+  const gone = before.filter((m) => !seen.has(`${m.title}|${m.release}`)).map((m) => m.id);
   if (gone.length > 0) await prisma.movieListing.deleteMany({ where: { id: { in: gone } } });
-  return { fetched: seen.size, removed: gone.length };
+  return { fetched: seen.size, removed: gone.length, changed };
 }
 
 /** 指定した月（YYYY-MM の配列）に公開される映画（公開日順） */
