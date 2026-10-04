@@ -7,7 +7,9 @@ import { HeroCarousel } from "@/components/hero-carousel";
 import { HeroTopic, TopicList } from "@/components/topic-card";
 import { companyPath, readCompanyParam } from "@/lib/company";
 import { formatNumber } from "@/lib/format";
-import { getCompanyEvents, getCompanyTopics, getRelatedCompanies } from "@/lib/queries";
+import { getCompanyEvents, getCompanyTopics } from "@/lib/queries";
+import { getCompanyMap } from "@/lib/news-map";
+import { NewsMap } from "@/components/news-map";
 import { KindBadge } from "@/components/kind-badge";
 import { marketEventLabel } from "@/lib/market-event";
 import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/structured-data";
@@ -34,7 +36,8 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
     getCompanyTopics(name, (page - 1) * PER_PAGE, PER_PAGE),
     // 主な出来事・関連する企業は1ページ目だけに出す
     page === 1 ? getCompanyEvents(name) : [],
-    page === 1 ? getRelatedCompanies(name) : [],
+    // 相関図（同じニュースに出てきた企業・作品・国・チーム）。失敗してもページは出す
+    page === 1 ? getCompanyMap(name).catch(() => []) : [],
   ]);
   if (items.length === 0) notFound();
   const heroes = page === 1 ? items.filter((t) => t.publisherCount > 1).slice(0, 3) : [];
@@ -98,27 +101,8 @@ export default async function CompanyPage({ params, searchParams }: PageProps<"/
           </ol>
         </section>
       )}
-      {related.length > 0 && (
-        <section aria-labelledby="company-related" className="my-4">
-          <h2 id="company-related" className="mb-2 text-sm font-black">
-            よく一緒に報じられる企業
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {related.map((r) => (
-              <li key={r.name}>
-                <Link
-                  href={companyPath(r.name)}
-                  prefetch={false}
-                  className="inline-block rounded-full border border-border px-3 py-1 text-xs font-bold hover:border-accent hover:text-accent"
-                >
-                  {r.name}
-                  <span className="ml-1 font-normal text-fg-subtle">{r.together}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* 以前の「よく一緒に報じられる企業」を含む（企業に加えて作品・国・チームも、根拠のニュースつきで） */}
+      <NewsMap center={name} links={related} />
       <h2 className="mt-4 text-sm font-black">ニュース</h2>
       <TopicList topics={items.filter((t) => !heroIds.has(t.id))} />
       <Pagination
