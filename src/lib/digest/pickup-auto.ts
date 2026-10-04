@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db";
 import { logEvent } from "@/lib/events";
 import { famousSubject } from "@/lib/fame";
 import { createPickup } from "./breaking";
-import { loadCandidates } from "./build";
+import { loadCandidates, repeatsPerson } from "./build";
+import { subjectNames } from "@/lib/topics/conflict";
 import { publishEdition } from "./publish";
 import { frameOf, MIN_SCORE, scoreCandidate, type Candidate } from "./select";
 import { jstDate, jstTime } from "./slots";
@@ -40,14 +41,20 @@ const jstHour = (at: Date) => Number(jstTime(at).split(":")[0]);
 
 export type PickupCandidate = Candidate & { score: number };
 
+/** 自動で出さない理由（出してよければ null）。記録に残し、条件の見直しに使う */
+export function pickupReject(c: PickupCandidate): string | null {
+  if (c.kind !== "NEW") return "続報";
+  if (!(c.status === "PENDING" || c.status === "APPROVED" || (c.status === "REVIEW_REQUIRED" && c.autoOk))) return "要確認";
+  if (c.publisherCount < AUTO_PICKUP.minPublishers) return "媒体が少ない";
+  if ((c.confidence ?? 0) < AUTO_PICKUP.minConfidence) return "確からしさが低い";
+  if (c.assessment?.gossip || c.assessment?.promotional) return "ゴシップ・宣伝";
+  if (c.score < MIN_SCORE) return "点数不足";
+  return null;
+}
+
 /** 自動で出してよい候補か（純粋な判断。テスト用） */
 export function pickupOk(c: PickupCandidate): boolean {
-  if (c.kind !== "NEW") return false;
-  if (!(c.status === "PENDING" || c.status === "APPROVED" || (c.status === "REVIEW_REQUIRED" && c.autoOk))) return false;
-  if (c.publisherCount < AUTO_PICKUP.minPublishers) return false;
-  if ((c.confidence ?? 0) < AUTO_PICKUP.minConfidence) return false;
-  if (c.assessment?.gossip || c.assessment?.promotional) return false;
-  return c.score >= MIN_SCORE;
+  return pickupReject(c) === null;
 }
 
 /** 候補から1本を選ぶ（直前の枠と違う枠を優先し、その中で点数の高いもの）。なければ null */
@@ -80,7 +87,7 @@ export async function runAutoPickup(now = new Date()) {
     }),
     prisma.editionItem.findMany({
       where: { edition: { status: { in: ["APPROVED", "PUBLISHED", "FAILED"] }, scheduledAt: { gte: since } } },
-      select: { storyId: true, story: { select: { topicId: true, eventThreadId: true } } },
+      select: { storyId: true, story: { select: { topicId: true, eventThreadId: true, topic: { select: { title: true, aiTitle: true } } } } },
     }),
   ]);
   const closed = pickupWindow(now, last?.publishedAt ?? null, postedToday);
@@ -89,8 +96,9 @@ export async function runAutoPickup(now = new Date()) {
   const stories = new Set(recent.map((r) => r.storyId));
   const topics = new Set(recent.map((r) => r.story.topicId));
   const threads = new Set(recent.map((r) => r.story.eventThreadId).filter((t): t is string => !!t));
+  const names = new Set(recent.flatMap((r) => subjectNames(r.story.topic.aiTitle ?? r.story.topic.title)));
   const candidates = (await loadCandidates(new Date(now.getTime() - AUTO_PICKUP.maxAgeHours * 3_600_000), false))
-    .filter((c) => !stories.has(c.id) && !(c.topicId !== undefined && topics.has(c.topicId)) && !(c.threadId && threads.has(c.threadId)))
+    .filter((c) => !stories.has(c.id) && !(c.topicId !== undefined && topics.has(c.topicId)) && !(c.threadId && threads.has(c.threadId)) && !repeatsPerson(c.title, names))
     .map((c) => ({ ...c, score: scoreCandidate(c).score }));
   // ゲーム・アニメ・新商品は、世間の関心がある（よく知られた作品・会社）ものだけ候補に残す
   const kept: typeof candidates = [];
@@ -101,7 +109,16 @@ export async function runAutoPickup(now = new Date()) {
   }
   const lastFrame = last?.slot === "PICKUP" || last?.slot === "BREAKING" ? frameOf((last.items[0]?.story.category as Candidate["category"]) ?? null) : null;
   const pick = pickAutoPickup(kept, lastFrame);
-  if (!pick) return { result: "none" as const, candidates: candidates.length };
+  if (!pick) {
+    // 出さなかった理由を数える。記録は1時間に1回だけ（10分ごとに呼ばれるため）
+    const reasons: Record<string, number> = {};
+    for (const c of kept) {
+      const r = pickupReject(c) ?? "なし";
+      reasons[r] = (reasons[r] ?? 0) + 1;
+    }
+    if (now.getUTCMinutes() < 10) await logEvent("info", "pickup.auto", `注目のニュースの候補なし（${candidates.length}件を確認）`, undefined, { reasons });
+    return { result: "none" as const, candidates: candidates.length, reasons };
+  }
 
   const edition = await createPickup(pick.id, now, undefined, "headline", "auto-pickup");
   if (!edition) return { result: "duplicate" as const };
