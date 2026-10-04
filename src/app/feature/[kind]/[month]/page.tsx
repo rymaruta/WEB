@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -80,6 +81,8 @@ export default async function FeaturePage({ params }: PageProps<"/feature/[kind]
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {/* 広告は、検索エンジンに登録する（内容のある）ページだけ。移動用の一覧や中身の少ないページには出さない */}
+      {f.items.length > 0 && <AdsenseScript />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

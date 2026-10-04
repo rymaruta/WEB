@@ -80,24 +80,30 @@ describe("buildUpdates", () => {
 
 describe("要点の確認状況", () => {
   const sources = [
-    { id: 1, publisher: "A新聞", kind: "NEWS" },
-    { id: 2, publisher: "B通信", kind: "NEWS" },
-    { id: 3, publisher: "国土交通省", kind: "PRESS" },
-    { id: 4, publisher: "ライブドアニュース", kind: "NEWS" },
+    { id: 1, publisher: "A新聞", kind: "NEWS", title: "市が新庁舎の建設を発表" },
+    { id: 2, publisher: "B通信", kind: "NEWS", title: "新庁舎、2030年完成へ" },
+    { id: 3, publisher: "国土交通省", kind: "PRESS", title: "発表" },
+    // A新聞の記事をそのまま再配信したもの（同じ見出し）
+    { id: 4, publisher: "ライブドアニュース", kind: "NEWS", title: "市が新庁舎の建設を発表" },
+    // はてなブックマーク経由で集めた報道機関の記事（媒体名はドメイン）
+    { id: 5, publisher: "nhk.or.jp", kind: "SOCIAL", title: "新庁舎 2030年に完成予定" },
   ];
-  const ids = [1, 2, 3, 4];
-  it("公式発表・複数媒体・1媒体を出典から分ける（転載は独立した報道に数えない）", () => {
+  const ids = [1, 2, 3, 4, 5];
+  it("公式発表・複数媒体・1媒体を出典から分ける（同じ見出しの再配信は1つと数える）", () => {
     expect(pointStatus([1, 2], ids, sources)?.status).toBe("multi");
     expect(pointStatus([1, 3], ids, sources)?.status).toBe("official");
     expect(pointStatus([1, 4], ids, sources)?.status).toBe("single");
     expect(pointStatus([9], ids, sources)).toBeNull();
+  });
+  it("SNS 経由で集めた報道機関の記事も、報道として数える", () => {
+    expect(pointStatus([1, 5], ids, sources)).toEqual({ status: "multi", publishers: ["A新聞", "NHK"] });
   });
   it("共通の要点と、1媒体だけの要点を媒体ごとに分ける", () => {
     const s = splitPoints(
       [
         { text: "共通", sources: [1, 2] },
         { text: "A だけ1", sources: [1] },
-        { text: "A だけ2", sources: [1] },
+        { text: "A だけ2", sources: [1, 4] },
       ],
       ids,
       sources,
@@ -105,8 +111,17 @@ describe("要点の確認状況", () => {
     expect(s.common.map((c) => c.text)).toEqual(["共通"]);
     expect(s.only).toEqual([{ publisher: "A新聞", texts: ["A だけ1", "A だけ2"] }]);
   });
-  it("媒体数は報道機関だけで数え、公式発表は別に示す", () => {
-    expect(citedCounts(ids, sources)).toEqual({ news: 3, official: true });
+  it("「N媒体の報道」は発表以外の媒体を数え、公式発表は別に示す", () => {
+    expect(citedCounts(ids, sources)).toEqual({ news: 4, official: true });
+  });
+});
+
+describe("読者向けでない文を除く", () => {
+  it("資料についての文・お悔やみの文を落とし、ほかの文は残す", async () => {
+    const { stripMetaSentences } = await import("@/lib/ai/article");
+    expect(stripMetaSentences("北朝鮮が弾道ミサイルを発射した。資料には飛行距離は書かれていない。")).toBe("北朝鮮が弾道ミサイルを発射した。");
+    expect(stripMetaSentences("19歳で死去した。謹んでご冥福をお祈りします。")).toBe("19歳で死去した。");
+    expect(stripMetaSentences("価格は税込6,000円。")).toBe("価格は税込6,000円。");
   });
 });
 

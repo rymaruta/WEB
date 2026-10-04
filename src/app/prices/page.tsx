@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import { PriceTable } from "@/components/price-table";
 import { getPriceChanges } from "@/lib/changes";
@@ -13,6 +14,9 @@ export const metadata: Metadata = {
     "ニュースで報じられた値上げ・値下げを、始まる日・会社・変更前後の値段・上げ幅とともに一覧にしたデータベースです。会社名や品目で検索できます。",
   alternates: { canonical: "/prices" },
 };
+
+/** 広告を出す件数の下限（値上げ・値下げの件数） */
+const PRICES_MIN_FOR_ADS = 10;
 
 export default async function PricesPage() {
   const start = jstMonth(new Date(), -3);
@@ -31,6 +35,8 @@ export default async function PricesPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {/* 載っている件数が少ない間は、中身の少ないページとして広告を出さない */}
+      {items.length >= PRICES_MIN_FOR_ADS && <AdsenseScript />}
       <header className="card p-5 sm:p-6">
         <h1 className="text-2xl font-black">値上げ・値下げデータベース</h1>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">

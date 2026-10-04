@@ -1,5 +1,6 @@
 import { pressLabel } from "@/lib/government";
 import { AdsenseScript } from "@/components/adsense-script";
+import { isAdSensitive } from "@/lib/ad-eligibility";
 import type { Metadata } from "next";
 import { cleanTitle } from "@/lib/feed/text";
 import { publisherLabel } from "@/lib/publisher";
@@ -173,7 +174,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       {/* 広告は、検索エンジンに登録する独自の価値がある話題だけ（src/components/adsense-script.tsx） */}
-      {topicIndexable(topic, ai) && <AdsenseScript />}
+      {/* 死傷・事件・性的な内容の話題は、登録はしても広告は出さない（src/lib/ad-eligibility.ts） */}
+      {topicIndexable(topic, ai) && !isAdSensitive(topic.title, ai?.title, ai?.lead) && <AdsenseScript />}
       <ReadingProgress />
       {/* 読む長さの切り替えは、まとめ記事のある話題だけ（ない話題で短くすると、元の記事の一覧まで隠れてしまう） */}
       <article className="card min-w-0 overflow-hidden" data-depth-scope={ai ? "" : undefined}>
@@ -257,7 +259,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
               <AiArticleView
                 hideLead={!!brief}
                 article={ai}
-                sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, kind: a.source.kind }))}
+                sources={topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, kind: a.source.kind, title: a.title }))}
                 showTitle={false}
                 reportHref={`mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent(`【誤りの報告】${ai.title}`)}&body=${encodeURIComponent(`${siteConfig.url}/topic/${topic.id}\n\n誤っている箇所：\n正しい内容（分かれば出典も）：\n`)}`}
               />
@@ -282,35 +284,32 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
         <CoverageSpread points={spread} />
         {split && split.common.length + split.only.length > 0 && topic.publisherCount >= 2 && (
           <div className="my-3 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border p-3">
-              <h3 className="text-sm font-bold">共通して報じられていること</h3>
-              {split.common.length > 0 ? (
+            {/* 該当する要点があるときだけ出す（「まだありません」と出すと、実際には共通の事実があっても無いように読めるため） */}
+            {split.common.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <h3 className="text-sm font-bold">複数の媒体・公式発表で確認できること</h3>
                 <ul className="mt-1 space-y-1 text-[13px]">
                   {split.common.map((c, i) => (
                     <li key={i}>
                       {c.text}
-                      <span className="ml-1 text-[11px] text-fg-subtle">（{POINT_STATUS_LABEL[c.status]}：{c.publishers.map(publisherLabel).join("・")}）</span>
+                      <span className="ml-1 text-[11px] text-fg-subtle">（{POINT_STATUS_LABEL[c.status]}：{c.publishers.join("・")}）</span>
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="mt-1 text-[13px] text-fg-muted">複数の媒体が共通して報じた要点はまだありません。</p>
-              )}
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <h3 className="text-sm font-bold">一部の媒体だけが報じていること</h3>
-              {split.only.length > 0 ? (
+              </div>
+            )}
+            {split.only.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <h3 className="text-sm font-bold">1つの媒体だけが報じていること</h3>
                 <ul className="mt-1 space-y-1 text-[13px]">
                   {split.only.map((o) => (
                     <li key={o.publisher}>
-                      <span className="font-bold">{outletLink(o.publisher)}</span>：{o.texts.join(" ／ ")}
+                      <span className="font-bold">{o.publisher}</span>：{o.texts.join(" ／ ")}
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="mt-1 text-[13px] text-fg-muted">1媒体だけの要点はありません。</p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
         <h3 className="mt-2 mb-1 text-sm font-bold text-fg-muted">{ai ? "元の記事（古い順）" : "各媒体の報道（古い順）"}</h3>

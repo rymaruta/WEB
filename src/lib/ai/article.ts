@@ -41,6 +41,21 @@ type TopicAiFields = {
   aiGeneratedAt: Date | null;
 };
 
+/**
+ * 読者向けでない文（生成の過程についての文・編集側の感想）。例：「資料には飛行距離は書かれていない」「謹んでご冥福をお祈りします」。
+ * 記事は資料（各社の見出しと要約）だけから作るため、資料に何が書かれていないかは読者に伝える事実ではない。
+ * 生成時の照合（src/lib/ai/prompt.ts）で落とし、すでに保存された記事も表示のときに落とす
+ */
+export const META_SENTENCE = /資料(には|は|に|で|から|の中|によると)|(記載|言及|記述)(は|が)(ない|なかった|見当たらない)|書かれていない|ご冥福|お祈り(します|いたします|申し上げます)/;
+
+/** 文に分けて、読者向けでない文を除く（句点で区切る。残らなければ空文字） */
+export function stripMetaSentences(text: string): string {
+  if (!META_SENTENCE.test(text)) return text;
+  return (text.match(/[^。！？]+[。！？]?/g) ?? []).filter((s) => !META_SENTENCE.test(s)).join("").trim();
+}
+
+const cleanPoints = <T extends { text: string }>(items: T[]) => items.map((p) => ({ ...p, text: stripMetaSentences(p.text) })).filter((p) => p.text);
+
 /** トピックに保存されたまとめ記事を、表示用に検証して取り出す。未作成・不正な場合は null */
 export function readAiArticle(t: TopicAiFields): AiArticle | null {
   if (!t.aiTitle || !t.aiGeneratedAt || !t.aiBody) return null;
@@ -49,14 +64,18 @@ export function readAiArticle(t: TopicAiFields): AiArticle | null {
   if (!points.success || !sources.success) return null;
   return {
     title: t.aiTitle,
-    lead: t.aiLead ?? "",
-    body: t.aiBody.split(/\n{2,}/).filter(Boolean),
-    points: points.data,
-    why: PointsSchema.element.safeParse(t.aiWhy).data ?? null,
+    lead: stripMetaSentences(t.aiLead ?? ""),
+    body: t.aiBody.split(/\n{2,}/).map(stripMetaSentences).filter(Boolean),
+    points: cleanPoints(points.data),
+    why: (() => {
+      const w = PointsSchema.element.safeParse(t.aiWhy).data ?? null;
+      const text = w ? stripMetaSentences(w.text) : "";
+      return w && text ? { ...w, text } : null;
+    })(),
     companies: t.aiCompanies ?? [],
     background: BackgroundSchema.safeParse(t.aiBackground).data ?? [],
     history: (HistorySchema.safeParse(t.aiHistory).data ?? []).map((h) => ({ at: new Date(h.at), sources: h.sources })),
-    angles: (t.aiAngles == null ? null : PointsSchema.safeParse(t.aiAngles).data) ?? [],
+    angles: cleanPoints((t.aiAngles == null ? null : PointsSchema.safeParse(t.aiAngles).data) ?? []),
     sourceIds: sources.data,
     model: t.aiModel,
     generatedAt: t.aiGeneratedAt,

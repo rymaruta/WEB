@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import { publisherLabel } from "@/lib/publisher";
 import Link from "next/link";
@@ -36,6 +37,7 @@ export default async function DigestPageView({ params }: PageProps<"/digest/[dat
 
   return (
     <article className="mx-auto max-w-3xl space-y-5">
+      <AdsenseScript />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

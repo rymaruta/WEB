@@ -7,7 +7,7 @@ import { citedCounts, POINT_STATUS_LABEL, pointStatus, type PointStatus } from "
 import { OutboundLink } from "./outbound-link";
 
 /** kind（NEWS・PRESS・SOCIAL）があれば、要点ごとの確認状況と媒体数を報道機関だけで数える */
-type Source = { id: number; publisher: string; kind?: string };
+type Source = { id: number; publisher: string; kind?: string; title?: string };
 
 const STATUS_TONE: Record<PointStatus, string> = {
   official: "border-emerald-600/40 text-emerald-700 dark:text-emerald-400",
@@ -76,7 +76,7 @@ export function AiArticleView({
     .map((id, i) => ({ n: i + 1, source: sources.find((s) => s.id === id) }))
     .filter((c): c is { n: number; source: Source } => Boolean(c.source));
   // 確認状況は、資料の種類が分かるときだけ出す
-  const typed = sources.every((s) => s.kind) ? sources.map((s) => ({ id: s.id, publisher: s.publisher, kind: s.kind! })) : null;
+  const typed = sources.every((s) => s.kind) ? sources.map((s) => ({ id: s.id, publisher: s.publisher, kind: s.kind!, title: s.title })) : null;
   const counts = typed ? citedCounts(article.sourceIds, typed) : null;
 
   return (

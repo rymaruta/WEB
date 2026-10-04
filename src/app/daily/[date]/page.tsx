@@ -1,3 +1,4 @@
+import { AdsenseScript } from "@/components/adsense-script";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,6 +34,8 @@ export default async function DailyPage({ params }: PageProps<"/daily/[date]">) 
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {/* 広告は、検索エンジンに登録する（内容のある）ページだけ。移動用の一覧や中身の少ないページには出さない */}
+      {data.total >= MIN_INDEXABLE && <AdsenseScript />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

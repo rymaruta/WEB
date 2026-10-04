@@ -67,7 +67,7 @@ export function CoverageSpread({ points }: { points: SpreadPoint[] }) {
           </circle>
         ))}
       </svg>
-      <p className="mt-1 text-[11px] text-fg-subtle">縦軸は報じた媒体の数（転載・再配信を除く）、横軸は最初の報道からの経過。ぜんぶナビが各媒体の配信を確認した時刻に基づきます。</p>
+      <p className="mt-1 text-[11px] text-fg-subtle">縦軸は報じた媒体の数（転載・再配信を除く）、横軸は最初の報道からの経過。ぜんぶナビが各媒体の配信を直接確認した時刻に基づきます（はてなブックマーク経由で見つけた記事など、配信の時刻を確認できない記事は数えていないため、上の媒体数より少なくなることがあります）。</p>
     </figure>
   );
 }
