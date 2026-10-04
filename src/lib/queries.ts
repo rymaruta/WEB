@@ -282,18 +282,6 @@ export async function getCompanyTopics(name: string, skip: number, take: number)
   return { items, total };
 }
 
-/** よく一緒に報じられる企業（同じ話題に名前が出た回数の多い順。直近 days 日） */
-export const getRelatedCompanies = cache(async (name: string, take = 8, days = 180) => {
-  const rows = await prisma.$queryRaw<{ name: string; together: bigint }[]>`
-    SELECT c AS name, COUNT(*) AS together
-    FROM "Topic", unnest("aiCompanies") AS c
-    WHERE ${name} = ANY("aiCompanies") AND c <> ${name} AND "lastSeenAt" >= ${since(days * 24)} AND "mergedIntoId" IS NULL
-    GROUP BY c
-    ORDER BY together DESC, c ASC
-    LIMIT ${take}`;
-  return rows.map((r) => ({ name: r.name, together: Number(r.together) }));
-});
-
 /** 企業の主な出来事（決算・業績予想・M&A・株主還元・上場。新しい順） */
 export const getCompanyEvents = cache(async (name: string, take = 8) =>
   prisma.topic.findMany({
