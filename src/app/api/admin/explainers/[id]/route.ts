@@ -12,6 +12,8 @@ const BodySchema = z.object({
   explainer: ExplainerSchema.nullable(),
   /** 執筆者の記録用（例: "claude-code"） */
   model: z.string().max(60).optional(),
+  /** 書かなかったときの理由（記録用。例: 「私生活の話題」「確かな出典が見つからない」） */
+  reason: z.string().max(200).optional(),
 });
 
 /**
@@ -35,10 +37,12 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
     return Response.json({ error: "topic not found" }, { status: 404 });
   }
 
-  const { explainer } = parsed.data;
+  const { explainer, reason } = parsed.data;
   if (!explainer) {
     await saveExplainer(topicId, null);
-    return Response.json({ status: "skipped", reason: "not written" });
+    // 書かなかった理由を残す（調べても書けないのか、対象外として見送ったのかを後から見分けるため）
+    await logEvent("info", "explainer.skip", `topic ${topicId}: ${reason?.trim() || "理由の記載なし"}`);
+    return Response.json({ status: "skipped", reason: reason ?? "not written" });
   }
   // 同じページを何度も取りに行かない
   const cache = new Map<string, Promise<string | null>>();
