@@ -3,6 +3,7 @@ import { hasCronSecret } from "@/lib/auth";
 import { POST as postAnime } from "../anime/[id]/route";
 import { POST as postArticle } from "../articles/[id]/route";
 import { POST as postChange } from "../changes/[id]/route";
+import { POST as postExplainer } from "../explainers/[id]/route";
 import { POST as postGame } from "../games/[id]/route";
 import { POST as postProduct } from "../products/[id]/route";
 import { POST as postStory } from "../stories/[id]/route";
@@ -21,6 +22,7 @@ const HANDLERS: Record<string, Handler> = {
   changes: postChange as unknown as Handler,
   products: postProduct as unknown as Handler,
   anime: postAnime as unknown as Handler,
+  explainers: postExplainer as unknown as Handler,
   youtube: postYoutube as unknown as Handler,
 };
 
@@ -32,7 +34,7 @@ const Body = z.object({
     .array(
       z.object({
         /** 送り先。"stories/<id>" "articles/<話題のid>" など、1件ずつの窓口の /api/admin/ より後ろ */
-        path: z.string().regex(/^(stories|articles|games|changes|products|anime|youtube)\/[\w-]{1,40}$/),
+        path: z.string().regex(/^(stories|articles|games|changes|products|anime|youtube|explainers)\/[\w-]{1,40}$/),
         /** 1件ずつの窓口に送る内容（そのまま） */
         body: z.unknown(),
       }),

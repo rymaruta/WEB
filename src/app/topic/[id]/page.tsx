@@ -28,6 +28,8 @@ import { ShareButtons } from "@/components/share-buttons";
 import { siteConfig } from "@/config/site";
 import { MarketEventBadge, RumorBadge, TopicList } from "@/components/topic-card";
 import { readAiArticle } from "@/lib/ai/article";
+import { readExplainer } from "@/lib/ai/explainer";
+import { TopicExplainer } from "@/components/topic-explainer";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { getTopic, getTrendingTopics } from "@/lib/queries";
 import { getEventTimeline } from "@/lib/topics/timeline";
@@ -121,6 +123,8 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
   const inTimeline = new Set(timeline.map((e) => e.id));
   const similarNews = similar.filter((t) => !inTimeline.has(t.id));
   const ai = readAiArticle(topic);
+  // 「◯◯とは」（報道に書かれていない基本を、出典で調べた解説）。まとめ記事がある話題だけ
+  const explainer = ai ? readExplainer(topic.aiExplainer) : null;
   const coverage = topic.articles.map((a) => ({ id: a.id, publisher: a.publisher, publishedAt: a.publishedAt, title: a.title, kind: a.source.kind }));
   const times = coverageTimes(coverage);
   const diffs = numberDiffs(coverage, publisherLabel);
@@ -265,6 +269,7 @@ export default async function TopicPage({ params }: PageProps<"/topic/[id]">) {
           )}
           {ai && <ReadingDepth />}
           {brief && <TopicBrief brief={brief} lastSeenAt={topic.lastSeenAt} latest={latestUpdateText(updates, publisherLabel)} />}
+          {explainer && <TopicExplainer explainer={explainer} />}
           {ai && (
             <div className="mb-6">
               <AiArticleView
