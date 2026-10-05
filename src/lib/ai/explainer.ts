@@ -75,7 +75,8 @@ export const EXPLAINER_INSTRUCTIONS = `あなたはニュースサイト「ぜ�
 手順:
 1. 記事の見出し・リード・要点を読み、知らない人がいちばん分からない語・事柄を1つ決める（subject）。作品・シリーズの章、企業・団体、制度・法律、大会、技術、人物の経歴など。記事を読めば分かることの言い換えは不要。
 2. WebSearch / WebFetch で調べる。公式サイト・作品の公式ページ・企業や官公庁の発表・一次資料を優先する。報道しか見つからなければ報道でよい（どの媒体かが出典に残る）。Wikipedia などの百科事典は、そこに書かれた一次資料を開いてそちらを出典にする。
-3. 解説の文（items）を2〜5個書く。順番は「基本（何か・誰か）→ 経緯 → 今回の出来事の位置づけ」。1文160字以内。
+3. 解説の文（items）を2〜5個書く。1文目は必ず subject そのものの定義（subject の語を文に入れ、「それが何か」を書く）。そのあと「経緯 → 今回の出来事の位置づけ」。1文160字以内。
+   例：subject が「三天戦争編」なら、1文目は「三天戦争」そのもの（どのチーム同士の、何をめぐる争いか）。原作者・放送局などの周辺情報だけで終わらせない。
 
 厳守すること:
 - 開いて読んだページに書かれていることだけを書く。記憶や推測で補わない。ページによって内容が違うときは書かない。
@@ -264,6 +265,11 @@ export function checkExplainer(e: Explainer, pages: (string | null)[], article =
     kept.push({ text, refs });
   }
   if (kept.length < 2) return { explainer: null, problems: [...problems, "確かめられた文が2つ未満"] };
+  // 「◯◯とは」の見出しに対して、◯◯そのものを説明した文がなければ載せない（周辺情報だけの解説にしない）。定義の文を先頭にする
+  const subject = normalizeForMatch(e.subject);
+  const defining = kept.findIndex((k) => normalizeForMatch(k.text).includes(subject));
+  if (defining < 0) return { explainer: null, problems: [...problems, `「${e.subject}」そのものを説明した文がない`] };
+  kept.unshift(...kept.splice(defining, 1));
 
   // 使った出典だけを残し、番号を振り直す。同じページ（URL）からの複数の抜き書きは、出典欄では1つにまとめる
   const used = [...new Set(kept.flatMap((k) => k.refs))].sort((a, b) => a - b);

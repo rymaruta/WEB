@@ -9,7 +9,7 @@ const page1 = htmlToText(`<html><head><script>var x="三天時代";</script><sty
 const page2 = "放送局：MBS、TBS、CBC、BS-TBS、AT-X　2026年10月2日（金）より放送開始";
 
 const base: Explainer = {
-  subject: "三天戦争編",
+  subject: "三天時代",
   items: [
     { text: "漫画『東京卍リベンジャーズ』が原作で、作者は和久井健さん。「週刊少年マガジン」で連載された。", refs: [1] },
     { text: "テレビアニメの第4期にあたり、3つのチームが覇権を争う「三天時代」を描く。", refs: [1] },
@@ -99,7 +99,7 @@ describe("checkExplainer", () => {
       items: [base.items[2], { text: "放送はMBS・TBSのほか、CBCやAT-Xでも行われる。", refs: [3] }],
       refs: [base.refs[0], { ...base.refs[0], url: "https://unused.example.jp/" }, base.refs[1]],
     };
-    const r = checkExplainer({ ...e, items: [{ ...base.items[2], refs: [3] }, e.items[1]] }, [page1, page1, page2]);
+    const r = checkExplainer({ ...e, subject: "MBS", items: [{ ...base.items[2], refs: [3] }, e.items[1]] }, [page1, page1, page2]);
     expect(r.explainer?.refs).toHaveLength(1);
     expect(r.explainer?.items.every((i) => i.refs.join() === "1")).toBe(true);
   });
@@ -132,8 +132,22 @@ describe("checkExplainer（同じページの複数の抜き書き）", () => {
   });
 
   it("記事の見出しにある語は抜き書きになくてよい", () => {
-    const e: Explainer = { ...base, items: [{ text: "「東京リベンジャーズ」のテレビアニメ第4期にあたる。", refs: [1] }, base.items[2]] };
+    const e: Explainer = { ...base, subject: "東京リベンジャーズ", items: [{ text: "「東京リベンジャーズ」のテレビアニメ第4期にあたる。", refs: [1] }, base.items[2]] };
     expect(checkExplainer(e, [page1, page2]).explainer).toBeNull();
     expect(checkExplainer(e, [page1, page2], "「東京リベンジャーズ 三天戦争編」放送開始").explainer?.items).toHaveLength(2);
+  });
+});
+
+describe("checkExplainer（定義の文）", () => {
+  it("subject そのものを説明した文がなければ載せない", () => {
+    const e: Explainer = { ...base, subject: "三天戦争", items: [base.items[2], { text: "放送はMBS・TBSなどで、毎週金曜に始まる。", refs: [2] }] };
+    const r = checkExplainer(e, [page1, page2]);
+    expect(r.explainer).toBeNull();
+    expect(r.problems).toContain("「三天戦争」そのものを説明した文がない");
+  });
+
+  it("定義の文を先頭にする", () => {
+    const e: Explainer = { ...base, subject: "三天時代", items: [base.items[2], base.items[1]] };
+    expect(checkExplainer(e, [page1, page2]).explainer?.items[0].text).toBe(base.items[1].text);
   });
 });
