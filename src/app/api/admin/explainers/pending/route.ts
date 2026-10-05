@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const body = {
     instructions: EXPLAINER_INSTRUCTIONS,
     outputSchema: z.toJSONSchema(z.object({ explainer: ExplainerSchema.nullable() })),
-    submit: `POST ${siteConfig.url}/api/admin/explainers/{id} に { "explainer": <outputSchema の explainer。書けなければ null> } を送る`,
+    submit: `POST ${siteConfig.url}/api/admin/explainers/{id} に { "explainer": <outputSchema の explainer>, "model": "claude-code" } を送る。書かないときは { "explainer": null, "reason": "<書かない理由を1文で>" }`,
     topics: topics.map((t) => {
       const points = Array.isArray(t.aiPoints) ? (t.aiPoints as { text?: string }[]).map((p) => p.text).filter(Boolean) : [];
       return {
