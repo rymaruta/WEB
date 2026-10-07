@@ -59,3 +59,12 @@ describe("気象庁の防災情報", () => {
     expect(items.every((i) => i.kind === "earthquake")).toBe(true);
   });
 });
+
+describe("気象庁の RSS（収集では直接作る）", async () => {
+  const { isJmaFeedUrl } = await import("@/lib/jma-feed");
+  it("このサイトの /feeds/jma.xml だけ", () => {
+    expect(isJmaFeedUrl("https://zenbu-navi.com/feeds/jma.xml")).toBe(true);
+    expect(isJmaFeedUrl("https://example.com/feeds/jma.xml")).toBe(false);
+    expect(isJmaFeedUrl("https://zenbu-navi.com/feed.xml")).toBe(false);
+  });
+});
