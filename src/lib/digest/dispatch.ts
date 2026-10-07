@@ -12,8 +12,9 @@ import { jstAt, jstDate, ACTIVE_SLOTS, SLOTS } from "./slots";
  * 一度起動したら、作業が終わるまで（最短の間隔）は起動しない。深夜は起動しない（朝にまとめて処理する）
  */
 export const DISPATCH_RULES: Record<Exclude<RoutineName, "breaking" | "tasks">, { minPending: number; minIntervalMinutes: number; staleMinutes: number }> = {
-  // 5件たまったら起動。1件でも2時間たてば起動する
-  articles: { minPending: 5, minIntervalMinutes: 50, staleMinutes: 120 },
+  // 10件たまったら起動。1件でも6時間たてば起動する。起動は3時間に1回まで（日中で1日6回ほど）。
+  // Claude の利用上限に達して全部の定期処理が止まったため、使う量を抑えた（2026-10-07。以前は5件・50分ごと）
+  articles: { minPending: 10, minIntervalMinutes: 180, staleMinutes: 360 },
   // 日中の注目のニュース（1本ずつ）は解析済みの出来事から選ぶため、早めに解析する（3件たまるか、1件でも1時間たてば）
   digest: { minPending: 3, minIntervalMinutes: 45, staleMinutes: 60 },
 };
