@@ -42,7 +42,7 @@ export function jmaHeadline(title: string): string[] {
 /** 速報の投稿文（出典の気象庁を明記する） */
 export function jmaPostText(title: string, at: Date): string[] {
   const time = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hour12: false }).format(at);
-  return [`⚡ 速報（${time}時点・気象庁発表）`, "", title];
+  return [`⚡ 速報（${time}時点・気象庁発表）`, "", title, "", "出典：気象庁ホームページ"];
 }
 
 /** 速報の確認のたびに呼ぶ。条件に合う気象庁の発表があれば、1本だけ投稿する */
