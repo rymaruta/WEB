@@ -16,7 +16,25 @@ const UA = { "User-Agent": `ZenbuNavi/1.0 (${siteConfig.url}/about)` };
 const cache = new Map<string, { at: number; fame: Fame | null }>();
 const TTL = 24 * 3_600_000;
 
-export type Fame = { term: string; title: string; views: number; sitelinks: number };
+export type Fame = { term: string; title: string; views: number; sitelinks: number; /** 人・会社や作品などか。地名や一般的な言葉（「女性」「中国」「犯罪」）は false */ subject: boolean };
+
+type Claims = Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]>;
+
+/**
+ * Wikidata の記述から、速報の主役になりうるもの（人・会社・団体・チーム・作品）かを判定する。
+ * 2026-10-07: 「女性」「中国」「山形県」「那覇市」「犯罪」のような一般的な言葉・地名まで「よく知られている」と判定し、
+ * 雑誌のコラムや調査の発表が速報の候補になっていた。
+ * - 人（P31 が Q5）
+ * - 設立日（P571）・発表日（P577）・本社（P159）・所属リーグ（P118）・業種（P452）・上場先（P414）のどれかがあり、位置の座標（P625）がない
+ *   （国・都道府県・市町村などの地名は座標を持つ。「女性」「犯罪」のような概念はこれらを持たない）
+ */
+export function isSubjectEntity(claims: Claims | undefined): boolean {
+  if (!claims) return false;
+  const p31 = (claims.P31 ?? []).map((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id);
+  if (p31.includes("Q5")) return true;
+  if (claims.P625?.length) return false;
+  return ["P571", "P577", "P159", "P118", "P452", "P414"].some((p) => (claims[p]?.length ?? 0) > 0);
+}
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -60,11 +78,15 @@ export async function lookupFame(terms: string[], fetchImpl: Fetch = fetch, now 
   const pages = new Map((q.pages ?? []).map((p) => [p.title, p]));
   const qids = [...new Set([...pages.values()].map((p) => p.pageprops?.wikibase_item).filter((x): x is string => !!x))];
   const sitelinks = new Map<string, number>();
+  const subjects = new Set<string>();
   if (qids.length) {
-    const wd = await fetchImpl(`https://www.wikidata.org/w/api.php?${new URLSearchParams({ action: "wbgetentities", format: "json", ids: qids.join("|"), props: "sitelinks" })}`, { headers: UA, signal: AbortSignal.timeout(10_000) });
+    const wd = await fetchImpl(`https://www.wikidata.org/w/api.php?${new URLSearchParams({ action: "wbgetentities", format: "json", ids: qids.join("|"), props: "sitelinks|claims" })}`, { headers: UA, signal: AbortSignal.timeout(10_000) });
     if (wd.ok) {
-      const j = (await wd.json()) as { entities?: Record<string, { sitelinks?: Record<string, unknown> }> };
-      for (const [id, e] of Object.entries(j.entities ?? {})) sitelinks.set(id, Object.keys(e.sitelinks ?? {}).filter((k) => k.endsWith("wiki")).length);
+      const j = (await wd.json()) as { entities?: Record<string, { sitelinks?: Record<string, unknown>; claims?: Claims }> };
+      for (const [id, e] of Object.entries(j.entities ?? {})) {
+        sitelinks.set(id, Object.keys(e.sitelinks ?? {}).filter((k) => k.endsWith("wiki")).length);
+        if (isSubjectEntity(e.claims)) subjects.add(id);
+      }
     }
   }
   for (const t of todo) {
@@ -72,7 +94,8 @@ export async function lookupFame(terms: string[], fetchImpl: Fetch = fetch, now 
     let fame: Fame | null = null;
     if (p && !p.missing && p.pageprops && p.pageprops.disambiguation === undefined) {
       const views = Object.values(p.pageviews ?? {}).reduce<number>((a, b) => a + (b ?? 0), 0);
-      fame = { term: t, title: p.title, views, sitelinks: sitelinks.get(p.pageprops.wikibase_item ?? "") ?? 0 };
+      const qid = p.pageprops.wikibase_item ?? "";
+      fame = { term: t, title: p.title, views, sitelinks: sitelinks.get(qid) ?? 0, subject: subjects.has(qid) };
     }
     cache.set(t, { at: now, fame });
     out.set(t, fame);
@@ -84,7 +107,8 @@ export async function lookupFame(terms: string[], fetchImpl: Fetch = fetch, now 
 export async function famousSubject(title: string, fetchImpl: Fetch = fetch, now = Date.now()): Promise<Fame | null> {
   const terms = fameTerms(title);
   if (terms.length === 0) return null;
-  const found = [...(await lookupFame(terms, fetchImpl, now)).values()].filter((f): f is Fame => !!f && isFamous(f));
+  // 地名・一般的な言葉は、閲覧数が多くても主役として数えない
+  const found = [...(await lookupFame(terms, fetchImpl, now)).values()].filter((f): f is Fame => !!f && f.subject && isFamous(f));
   return found.sort((a, b) => b.views - a.views || b.sitelinks - a.sitelinks)[0] ?? null;
 }
 
