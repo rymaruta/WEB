@@ -18,6 +18,16 @@ const BIG_WORDS =
 /** 言葉が入っていても、大きな出来事ではない言い方 */
 const NOT_BIG = /結婚式場|婚活|優勝候補|優勝争い|引退試合|地震対策|地震保険|防災|ランキング|特集|まとめ|PR|セール/;
 
+/**
+ * 出来事の報道ではない見出し（雑誌のコラム・調査やアンケートの発表・インタビュー・推測の記事）。
+ * 2026-10-07: 作家の生涯を振り返るコラム（「亡くなった」「離婚」を含む）や、女性1000名への調査の発表が速報の候補になり、
+ * 1日の候補の枠を埋めていた
+ */
+const NOT_EVENT = /…|\.\.\.|｢|なぜ|とは[?？]?$|秘密|真実|調査[」』]?を発表|調査結果|名に聞いた|人に聞いた|アンケート|インタビュー|が語る|語った|証言|明かす|振り返る|コラム|解説|徹底|か[」』]?$/;
+
+/** 出来事の報道でない見出しか（コラム・調査・インタビュー・推測） */
+export const isNotEventTitle = (title: string) => NOT_EVENT.test(title.normalize("NFKC").trim()) || /｢/.test(title);
+
 /** 自動の速報では出さない分野（事件・訃報・政治。src/lib/digest/breaking.ts の excludedRisks）を表す言葉 */
 const NOT_AUTO = /逮捕|書類送検|死去|急死|逝去|訃報|亡くなっ|辞任|辞職|退任|選挙/;
 /** 深夜でも自動で出す災害の言葉 */
@@ -48,6 +58,8 @@ export type HotInput = { title?: string | null; publisherCount: number; firstSee
 export function hotReason(t: HotInput, now = Date.now()): string | null {
   const age = now - t.firstSeenAt.getTime();
   if (age < 0 || age > HOT.withinHours * 3_600_000) return null;
+  // コラム・調査・インタビュー・推測の記事は、出来事の速報にしない（災害は除く）
+  if (t.title && isNotEventTitle(t.title) && !isDisasterTitle(t.title)) return null;
   const word = t.title ? bigWord(t.title) : null;
   if (word) return `「${word}」`;
   if (t.publisherCount >= HOT.wide.minPublishers) return `${t.publisherCount}媒体が報道`;

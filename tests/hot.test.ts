@@ -40,3 +40,18 @@ describe("worthApi", () => {
     expect(worthApi("震度6強の地震 津波注意報", { quiet: true })).toBe(true);
   });
 });
+
+describe("出来事の報道でない見出しは候補にしない（2026-10-07）", () => {
+  const t = (title: string) => hotReason({ title, publisherCount: 1, firstSeenAt: ago(30) }, now);
+  it("雑誌のコラム・調査・インタビュー・推測", () => {
+    expect(t("｢心配で死に切れん｣宇野千代の実母は1歳の娘を遺して亡くなった…千代が86歳で綴った一文")).toBeNull();
+    expect(t("20～50代の女性1000名に聞いた「離婚・再婚に関する調査」を発表")).toBeNull();
+    expect(t("福原遥〝突然の海外志向〟は久保建英との結婚見据えた「欧州リサーチ」か")).toBeNull();
+    expect(t("【体操】杉原愛子 世界選手権へ弾みつけた２つの金メダル…復帰後の「転機」を大野コーチが証言")).toBeNull();
+  });
+  it("出来事の報道は今までどおり候補", () => {
+    expect(t("DeNA松本隆之介投手が現役引退")).toBe("「引退」");
+    expect(t("阪神がセ・リーグ優勝")).toBe("「優勝」");
+  });
+  it("災害はコラム風の見出しでも候補", () => expect(t("震度6強の地震…各地の被害は")).toBe("「地震」"));
+});
