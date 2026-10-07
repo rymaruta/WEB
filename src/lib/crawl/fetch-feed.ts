@@ -17,6 +17,10 @@ function detectEncoding(contentType: string | null, head: Uint8Array): string {
 }
 
 export async function fetchFeed(url: string, cond: Conditional = {}): Promise<FetchResult> {
+  // このサイトが作る気象庁の RSS は、自分のサイトへ HTTP で取りに行かずに直接作る
+  // （サーバーから自分の公開 URL に届かず、取得エラーになっていた。2026-10-08）
+  const { isJmaFeedUrl, buildJmaRss } = await import("@/lib/jma-feed");
+  if (isJmaFeedUrl(url)) return { status: "ok", body: await buildJmaRss(), etag: null, lastModified: null };
   const headers: Record<string, string> = {
     "User-Agent": siteConfig.crawlerUserAgent,
     Accept: "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1",
