@@ -33,3 +33,16 @@ describe("要点の数と編集部の点検", () => {
     expect(isIndexableArticle({ ...base, points: 4, held: true })).toBe(false);
   });
 });
+
+describe("aiIndexCounts（サイトマップと話題ページで同じ数え方）", async () => {
+  const { aiIndexCounts } = await import("@/lib/ai/article");
+  it("表示で落ちる読者向けでない要点・報じ方は数えない", () => {
+    const pts = [
+      { text: "A社が新製品を発表した。", sources: [1] },
+      { text: "資料には価格は書かれていない。", sources: [1] },
+      { text: "B社も追随した。", sources: [2] },
+    ];
+    expect(aiIndexCounts({ aiPoints: pts, aiAngles: [{ text: "資料には違いはない。", sources: [1] }], aiBackground: null })).toEqual({ points: 2, angles: 0, background: 0 });
+  });
+  it("形の正しくない値は0", () => expect(aiIndexCounts({ aiPoints: "x", aiAngles: [{ bad: 1 }] })).toEqual({ points: 0, angles: 0, background: 0 }));
+});

@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
-import { FEATURE_KINDS, featurePath, jstMonth } from "@/lib/features";
+import { FEATURE_KINDS, featurePath, getFeature, jstMonth } from "@/lib/features";
 import { recentWeeks } from "@/lib/weekly";
-import { isIndexableArticle, jsonLength } from "@/lib/indexing";
+import { aiIndexCounts } from "@/lib/ai/article";
+import { isIndexableArticle } from "@/lib/indexing";
 import { siteConfig } from "@/config/site";
 import { companyPath } from "@/lib/company";
 import { prisma } from "@/lib/db";
@@ -45,6 +46,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const works = await listIndexableWorks();
   // 媒体ごとの報道データ（直近の記録が十分にある媒体だけ）
   const outlets = await listIndexableOutlets();
+  // 特集（今月・来月）は中身のある月だけ（中身のない月のページは noindex のため、載せると Search Console で「noindex で除外」になる）
+  const features = (
+    await Promise.all(
+      [jstMonth(), jstMonth(new Date(), 1)].flatMap((m) => FEATURE_KINDS.map(async (k) => ((await getFeature(k, m)).items.length > 0 ? [{ kind: k, month: m }] : []))),
+    )
+  ).flat();
   return [
     { url: base, changeFrequency: "always", priority: 1 },
     { url: `${base}/articles`, changeFrequency: "hourly", priority: 0.9 },
@@ -58,9 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...recentWeeks(8).map((w) => ({ url: `${base}/weekly/${w}`, changeFrequency: "daily" as const, priority: 0.7 })),
     ...recentWeeks(8).map((w) => ({ url: `${base}/data/${w}`, changeFrequency: "daily" as const, priority: 0.7 })),
     { url: `${base}/feature`, changeFrequency: "daily", priority: 0.7 },
-    ...[jstMonth(), jstMonth(new Date(), 1)].flatMap((m) =>
-      FEATURE_KINDS.map((k) => ({ url: `${base}${featurePath(k, m)}`, changeFrequency: "daily" as const, priority: 0.7 })),
-    ),
+    ...features.map((f) => ({ url: `${base}${featurePath(f.kind, f.month)}`, changeFrequency: "daily" as const, priority: 0.7 })),
     { url: `${base}/company`, changeFrequency: "daily", priority: 0.6 },
     ...companies.map((c) => ({ url: `${base}${companyPath(c.name)}`, changeFrequency: "daily" as const, priority: 0.5 })),
     ...tags.map((t) => ({ url: `${base}${tagPath(t)}`, changeFrequency: "daily" as const, priority: 0.5 })),
@@ -78,9 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((t) => isIndexableArticle({
         publisherCount: t.publisherCount,
         hasAi: true,
-        angles: jsonLength(t.aiAngles),
-        background: jsonLength(t.aiBackground),
-        points: jsonLength(t.aiPoints),
+        ...aiIndexCounts(t),
         held: t.reviewStatus === "hold",
       }))
       .slice(0, 5000)
