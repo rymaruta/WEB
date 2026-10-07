@@ -145,5 +145,11 @@ export const sources: SourceSeed[] = [
   { name: "財務省 新着", publisher: "財務省", siteUrl: "https://www.mof.go.jp/", feedUrl: "https://www.mof.go.jp/news.rss", genre: "business", kind: "PRESS" },
   { name: "総務省統計局 新着", publisher: "総務省統計局", siteUrl: "https://www.stat.go.jp/", feedUrl: "https://www.stat.go.jp/whatsnew/news.rdf", genre: "business", kind: "PRESS" },
   { name: "デジタル庁 新着", publisher: "デジタル庁", siteUrl: "https://www.digital.go.jp/", feedUrl: "https://www.digital.go.jp/rss/news.xml", genre: "tech", kind: "PRESS" },
+  // 気象庁の防災情報 XML（地震・津波・火山）。このサイトが大きな出来事だけを RSS にしたもの（src/lib/jma.ts、src/app/feeds/jma.xml）。
+  // 気象庁ホームページ利用規約（公共データ利用規約 PDL1.0。出典の表示が必要。2026-10-07 確認）。防災情報 XML の利用上の注意：
+  // 警報の種類や予報の値を変える加工はしない（見出しは電文の値をそのまま使う）。編集したものは、このサイトが作成したことを明示する
+  { name: "気象庁 防災情報", publisher: "気象庁", siteUrl: "https://www.jma.go.jp/bosai/", feedUrl: "https://zenbu-navi.com/feeds/jma.xml", genre: "domestic", kind: "PRESS" },
+  // 外務省 海外安全情報（危険情報・スポット情報など）。公共データ利用規約 PDL1.0。出典「外務省 海外安全ホームページ」を表示する（2026-10-07 確認）
+  { name: "外務省 海外安全情報", publisher: "外務省", siteUrl: "https://www.anzen.mofa.go.jp/", feedUrl: "https://www.anzen.mofa.go.jp/rss/news.xml", genre: "world", kind: "PRESS" },
   { name: "IPA 重要なセキュリティ情報", publisher: "IPA（情報処理推進機構）", siteUrl: "https://www.ipa.go.jp/", feedUrl: "https://www.ipa.go.jp/security/alert-rss.rdf", genre: "tech", kind: "PRESS" },
 ];
