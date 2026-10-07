@@ -30,6 +30,8 @@ export const isNotEventTitle = (title: string) => NOT_EVENT.test(title.normalize
 
 /** 自動の速報では出さない分野（事件・訃報・政治。src/lib/digest/breaking.ts の excludedRisks）を表す言葉 */
 const NOT_AUTO = /逮捕|書類送検|死去|急死|逝去|訃報|亡くなっ|辞任|辞職|退任|選挙/;
+/** 事件・訃報・政治の言葉があるか（速報では、報道の広がりと信頼できる媒体で厳しく確かめる） */
+export const isSensitiveTitle = (title: string) => NOT_AUTO.test(title);
 /** 深夜でも自動で出す災害の言葉 */
 const DISASTER = /地震|津波|噴火|緊急事態|台風|大雨|避難/;
 

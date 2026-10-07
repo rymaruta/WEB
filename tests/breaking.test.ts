@@ -5,7 +5,7 @@ vi.mock("@/lib/events", () => ({ logEvent: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notifyOwner: vi.fn() }));
 vi.mock("@/lib/digest/publish", () => ({ publishEdition: vi.fn() }));
 
-const { BREAKING_RULES, breakingPostText, HOT_RULES, skipReason, isJustBeforeSlot, isQuietHour, pickBreaking, pickHotTopics } = await import("@/lib/digest/breaking");
+const { BREAKING_RULES, breakingPostText, HOT_RULES, skipReason, isJustBeforeSlot, isQuietHour, onlySensitiveReview, pickBreaking, pickHotTopics } = await import("@/lib/digest/breaking");
 
 // 日本時間の時刻
 const jst = (hhmm: string) => new Date(`2026-10-02T${hhmm}:00+09:00`);
@@ -31,6 +31,7 @@ describe("pickBreaking", () => {
     expect(pickBreaking([{ ...base, assessment: { gossip: true } as never }], now, 0)).toBeNull();
   });
   it("事件・死亡・選挙・政治の分野は出さない", () => {
+    // 事件は、信頼できる媒体などの条件を満たさなければ出さない（条件は下の describe）
     expect(pickBreaking([{ ...base, riskFlags: ["CRIME"] }], now, 0)).toBeNull();
     expect(pickBreaking([{ ...base, riskFlags: ["MARKET"] }], now, 0)?.id).toBe("a");
   });
@@ -102,5 +103,30 @@ describe("pickHotTopics", () => {
 
   it("1日の上限を超えない", () => {
     expect(pickHotTopics([t(1, 9, 30), t(2, 8, 30)], new Set(), now, HOT_RULES.maxPerDay - 1).map((x) => x.id)).toEqual([1]);
+  });
+});
+
+describe("事件・政治・訃報の速報（条件付き。2026-10-07）", () => {
+  const now = jst("14:30");
+  const crime = { ...base, riskFlags: ["CRIME"], trusted: true, confidence: 0.9, namesInHeadline: false };
+  it("信頼できる媒体を含む3社以上・高い確度・個人名のない見出しなら出す", () => {
+    expect(pickBreaking([crime], now, 0)?.id).toBe("a");
+  });
+  it("どれか1つでも欠けたら出さない", () => {
+    expect(pickBreaking([{ ...crime, trusted: false }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...crime, publisherCount: 2, hot: true }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...crime, confidence: 0.82 }], now, 0)).toBeNull();
+    expect(pickBreaking([{ ...crime, namesInHeadline: true }], now, 0)).toBeNull();
+  });
+  it("深夜は出さない", () => {
+    expect(pickBreaking([{ ...crime, firstSeenAt: jst("23:10") }], jst("23:30"), 0)).toBeNull();
+  });
+  it("見送りの理由を書く", () => {
+    expect(skipReason({ ...crime, trusted: false })).toContain("信頼できる媒体");
+  });
+  it("要確認の理由が「慎重に扱う分野」だけなら候補に残す", () => {
+    expect(onlySensitiveReview("慎重に扱う分野: 事件、政治")).toBe(true);
+    expect(onlySensitiveReview("慎重に扱う分野: 事件\n確からしさが低い（0.50）")).toBe(false);
+    expect(onlySensitiveReview(null)).toBe(false);
   });
 });
