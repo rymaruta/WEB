@@ -1,4 +1,5 @@
-import { isIndexableArticle, jsonLength } from "@/lib/indexing";
+import { aiIndexCounts } from "@/lib/ai/article";
+import { isIndexableArticle } from "@/lib/indexing";
 import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/db";
 import { xml } from "@/lib/xml";
@@ -19,9 +20,7 @@ export async function GET() {
   const indexable = topics.filter((t) => isIndexableArticle({
         publisherCount: t.publisherCount,
         hasAi: true,
-        angles: jsonLength(t.aiAngles),
-        background: jsonLength(t.aiBackground),
-        points: jsonLength(t.aiPoints),
+        ...aiIndexCounts(t),
         held: t.reviewStatus === "hold",
       }));
   const body = indexable

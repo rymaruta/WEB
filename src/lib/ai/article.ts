@@ -56,6 +56,18 @@ export function stripMetaSentences(text: string): string {
 
 const cleanPoints = <T extends { text: string }>(items: T[]) => items.map((p) => ({ ...p, text: stripMetaSentences(p.text) })).filter((p) => p.text);
 
+/**
+ * 検索への登録の判定に使う、要点・報じ方の違い・経緯の数。表示（readAiArticle）と同じ検証・同じ読者向けでない文の除去をしてから数える
+ * （保存された配列の長さで数えると、表示で落ちる項目まで数えて、サイトマップと話題ページの判定が食い違うため）
+ */
+export function aiIndexCounts(t: { aiPoints: unknown; aiAngles?: unknown; aiBackground?: unknown }): { points: number; angles: number; background: number } {
+  return {
+    points: cleanPoints(PointsSchema.safeParse(t.aiPoints).data ?? []).length,
+    angles: cleanPoints((t.aiAngles == null ? null : PointsSchema.safeParse(t.aiAngles).data) ?? []).length,
+    background: (BackgroundSchema.safeParse(t.aiBackground).data ?? []).length,
+  };
+}
+
 /** トピックに保存されたまとめ記事を、表示用に検証して取り出す。未作成・不正な場合は null */
 export function readAiArticle(t: TopicAiFields): AiArticle | null {
   if (!t.aiTitle || !t.aiGeneratedAt || !t.aiBody) return null;
