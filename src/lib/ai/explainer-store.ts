@@ -7,12 +7,19 @@ import type { StoredExplainer } from "./explainer";
 const EXPLAIN_WITHIN_DAYS = 3;
 /** 報じた媒体がこの数以上の話題（多くの人が目にする話題から書く） */
 const EXPLAIN_MIN_PUBLISHERS = 2;
+/** 前回の解説の作業から、次の作業までの間隔。Claude の利用上限に達したため、1日2回ほどに抑える（2026-10-07） */
+const EXPLAIN_COOLDOWN_MS = 10 * 3_600_000;
+/** 1回に書く本数の上限 */
+export const EXPLAIN_MAX_PER_RUN = 3;
 
 /**
  * 「◯◯とは」を書くべき話題（話題度の高い順）。
  * まとめ記事があり、まだ解説を試みていない話題。事件・事故・訃報など（広告を出さない話題と同じ判定）は扱わない
  */
 export async function findExplainerTopics(limit: number, now = Date.now()) {
+  // 調べて書く作業は量を多く使うため、前回から一定の時間をあける（1日2回ほど）
+  const last = await prisma.topic.findFirst({ where: { aiExplainAttemptedAt: { not: null } }, orderBy: { aiExplainAttemptedAt: "desc" }, select: { aiExplainAttemptedAt: true } });
+  if (last?.aiExplainAttemptedAt && now - last.aiExplainAttemptedAt.getTime() < EXPLAIN_COOLDOWN_MS) return [];
   const rows = await prisma.topic.findMany({
     where: {
       aiGeneratedAt: { gte: new Date(now - EXPLAIN_WITHIN_DAYS * 86_400_000) },

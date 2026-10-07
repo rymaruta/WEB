@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { EXPLAINER_INSTRUCTIONS, ExplainerSchema } from "@/lib/ai/explainer";
-import { findExplainerTopics } from "@/lib/ai/explainer-store";
+import { EXPLAIN_MAX_PER_RUN, findExplainerTopics } from "@/lib/ai/explainer-store";
 import { compactPending } from "@/lib/admin/compact";
 import { hasCronSecret } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!hasCronSecret(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limit = Math.min(10, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || 5));
+  const limit = Math.min(EXPLAIN_MAX_PER_RUN, Math.max(1, Number(new URL(request.url).searchParams.get("limit")) || EXPLAIN_MAX_PER_RUN));
   const topics = await findExplainerTopics(limit);
   const body = {
     instructions: EXPLAINER_INSTRUCTIONS,
