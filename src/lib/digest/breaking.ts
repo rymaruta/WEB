@@ -242,6 +242,13 @@ export async function runBreakingCheck(now = new Date()) {
   // 自動の速報を止めていても、大きな出来事の知らせは出す（人が出すかどうかを決める）
   await notifyHotTopics(now).catch((e) => logEvent("error", "breaking.hot", "速報の候補の通知に失敗", undefined, String(e)));
   if (!breakingEnabled()) return { result: "disabled" as const };
+  // 大きな地震・津波警報・噴火速報は、気象庁の発表から直接出す（AI の解析を待たない。ふだんの上限とは別。src/lib/digest/jma-breaking.ts）
+  const { runJmaBreaking } = await import("./jma-breaking");
+  const jma = await runJmaBreaking(now).catch(async (e) => {
+    await logEvent("error", "breaking.jma", "気象庁の発表からの速報に失敗", undefined, String(e));
+    return { result: "error" as const };
+  });
+  if (jma.result === "published") return { result: "published-jma" as const, editionId: jma.editionId };
   const date = jstDate(now);
   const postedToday = await prisma.edition.count({ where: { slot: "BREAKING", date, status: { in: ["APPROVED", "PUBLISHED", "FAILED"] } } });
   if (postedToday >= BREAKING_RULES.maxPerDay) return { result: "limit" as const };

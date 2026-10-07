@@ -145,5 +145,8 @@ export const sources: SourceSeed[] = [
   { name: "財務省 新着", publisher: "財務省", siteUrl: "https://www.mof.go.jp/", feedUrl: "https://www.mof.go.jp/news.rss", genre: "business", kind: "PRESS" },
   { name: "総務省統計局 新着", publisher: "総務省統計局", siteUrl: "https://www.stat.go.jp/", feedUrl: "https://www.stat.go.jp/whatsnew/news.rdf", genre: "business", kind: "PRESS" },
   { name: "デジタル庁 新着", publisher: "デジタル庁", siteUrl: "https://www.digital.go.jp/", feedUrl: "https://www.digital.go.jp/rss/news.xml", genre: "tech", kind: "PRESS" },
+  // 気象庁の防災情報 XML（地震・津波・火山）。このサイトが大きな出来事だけを RSS にしたもの（src/lib/jma.ts、src/app/feeds/jma.xml）。
+  // 気象庁ホームページ利用規約（政府標準利用規約に準拠。出典を明記すれば営利でも利用できる）
+  { name: "気象庁 防災情報", publisher: "気象庁", siteUrl: "https://www.jma.go.jp/bosai/", feedUrl: "https://zenbu-navi.com/feeds/jma.xml", genre: "domestic", kind: "PRESS" },
   { name: "IPA 重要なセキュリティ情報", publisher: "IPA（情報処理推進機構）", siteUrl: "https://www.ipa.go.jp/", feedUrl: "https://www.ipa.go.jp/security/alert-rss.rdf", genre: "tech", kind: "PRESS" },
 ];
