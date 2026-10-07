@@ -3,7 +3,8 @@ import { logEvent } from "@/lib/events";
 import { notifyOwner } from "@/lib/notify";
 import { createActionToken } from "@/lib/admin/token";
 import { famousSubject } from "@/lib/fame";
-import { bigWord, HOT, hotReason, isDisasterTitle, isHot } from "@/lib/stories/hot";
+import { bigWord, HOT, hotReason, isDisasterTitle, isHot, isSensitiveTitle } from "@/lib/stories/hot";
+import { subjectNames } from "@/lib/topics/conflict";
 import type { Assessment } from "@/lib/stories/schema";
 import { publishEdition } from "./publish";
 import { isTrustedPublisher } from "./trusted";
@@ -16,7 +17,7 @@ import { editionKey, isSingleSlot, jstAt, jstDate, jstTime, ACTIVE_SLOTS, SLOTS 
  * - AI 解析で「速報（BREAKING）」と判定され、照合で問題がなかった（要確認でない）新しい出来事で、3媒体以上が報じている
  *   または、一斉に報じられた大きな出来事（src/lib/stories/hot.ts。結婚・引退・優勝など）で、2媒体以上が報じ、確度が特に高い
  * - 最初の報道から3時間以内
- * - 事件・死亡・選挙・政治の分野は出さない（誤りや配慮の問題が大きいため、定時の配信で扱う）
+ * - 事件・死亡・選挙・政治の分野は、信頼できる媒体を含む3社以上の報道・高い確度・個人名のない見出しのときだけ出す（BREAKING_RULES.sensitive）
  * - 1日3本まで。23時〜6時は出さない（大地震・津波など災害だけは例外）
  * - 定時の配信の直前（20分以内）は出さない（その回に載る）
  */
@@ -36,7 +37,14 @@ export const BREAKING_RULES = {
   quietFrom: 23,
   quietUntil: 6,
   beforeSlotMinutes: 20,
+  /** 慎重に扱う分野（事件・訃報・選挙・政治）。下の sensitive の条件をすべて満たすときだけ自動で出す */
   excludedRisks: ["CRIME", "DEATH", "ELECTION", "POLITICS"],
+  /**
+   * 慎重に扱う分野を自動で出す条件（運営者の方針。2026-10-07。以前は一切出さなかった）。
+   * 独立した媒体3社以上が報じ、通信社・NHK・全国紙などの信頼できる媒体を含み、確度が特に高い。
+   * 見出しに個人名（容疑者・被害者・故人など）を入れない。深夜は出さない
+   */
+  sensitive: { minPublishers: 3, minConfidence: 0.85 },
   /** 深夜でも出す分野 */
   nightAllowedRisks: ["DISASTER"],
 } as const;
@@ -77,12 +85,20 @@ export async function publicInterest(t: { title: string; publisherCount: number;
     }
   }
   if (t.publisherCount >= WIDE_ENOUGH) return `${t.publisherCount}媒体が報道`;
+  // 事件・政治・訃報などの社会の出来事は、主役の知名度ではなく報道の広がりで見る（投稿の可否は sensitiveAllowed で厳しく確かめる）
+  if (isSensitiveTitle(t.title) && t.publisherCount >= BREAKING_RULES.sensitive.minPublishers) return `社会の出来事・${t.publisherCount}媒体が報道`;
   try {
     const f = await famousSubject(t.title);
     return f ? `「${f.title}」` : null;
   } catch {
     return t.publisherCount >= HOT.wide.minPublishers ? `${t.publisherCount}媒体が報道` : null;
   }
+}
+
+/** 要確認の理由が「慎重に扱う分野」だけか（照合・確からしさ・食い違いの問題がない） */
+export function onlySensitiveReview(statusNote: string | null): boolean {
+  const reasons = (statusNote ?? "").split("\n").filter(Boolean);
+  return reasons.length > 0 && reasons.every((r) => r.startsWith("慎重に扱う分野"));
 }
 
 export type BreakingCandidate = {
@@ -101,7 +117,22 @@ export type BreakingCandidate = {
   trusted?: boolean;
   /** 人が「AI に確認させて投稿」を押した出来事か */
   requested?: boolean;
+  /** 見出しに個人名があるか（慎重に扱う分野では、個人名のある見出しは自動で出さない） */
+  namesInHeadline?: boolean;
 };
+
+/** 慎重に扱う分野（事件・訃報・選挙・政治）の出来事か */
+export const isSensitive = (c: Pick<BreakingCandidate, "riskFlags">) => c.riskFlags.some((r) => (BREAKING_RULES.excludedRisks as readonly string[]).includes(r));
+
+/** 慎重に扱う分野の出来事を、自動で出してよいか（BREAKING_RULES.sensitive） */
+export function sensitiveAllowed(c: Pick<BreakingCandidate, "publisherCount" | "trusted" | "confidence" | "namesInHeadline">): boolean {
+  return (
+    c.publisherCount >= BREAKING_RULES.sensitive.minPublishers &&
+    c.trusted === true &&
+    (c.confidence ?? 0) >= BREAKING_RULES.sensitive.minConfidence &&
+    c.namesInHeadline !== true
+  );
+}
 
 /** 「AI に確認させて投稿」の記録（EventLog の scope）。ref はストーリーの ID */
 export const REQUEST_SCOPE = "breaking.requested";
@@ -132,10 +163,10 @@ export async function autoBreakingWindow(now = new Date()) {
 }
 
 /** 見送りの理由（人が読む短い説明） */
-export function skipReason(c: Pick<BreakingCandidate, "confidence" | "assessment" | "riskFlags">): string {
+export function skipReason(c: Pick<BreakingCandidate, "confidence" | "assessment" | "riskFlags" | "publisherCount" | "trusted" | "namesInHeadline">): string {
   if (c.assessment?.gossip) return "噂・私生活の話題と判断したため";
   if (c.assessment?.promotional) return "宣伝の性格が強いと判断したため";
-  if (c.riskFlags.some((r) => (BREAKING_RULES.excludedRisks as readonly string[]).includes(r))) return "事件・訃報・選挙・政治の話題は自動では出さないため";
+  if (isSensitive(c) && !sensitiveAllowed(c)) return "事件・訃報・選挙・政治の話題で、信頼できる媒体を含む3社以上の報道・高い確度・個人名のない見出しの条件を満たさなかったため";
   if ((c.confidence ?? 0) < BREAKING_RULES.requested.minConfidence) return `資料から確かめきれなかったため（確からしさ ${Math.round((c.confidence ?? 0) * 100)}%）`;
   return "定時の配信の直前などの条件に当たったため";
 }
@@ -183,7 +214,8 @@ export function pickBreaking(candidates: BreakingCandidate[], now: Date, postedT
     if (now.getTime() - c.firstSeenAt.getTime() > BREAKING_RULES.maxAgeHours * 3_600_000) return false;
     if (c.confidence !== null && c.confidence < BREAKING_RULES.minConfidence) return false;
     if (c.assessment?.gossip || c.assessment?.promotional) return false;
-    if (c.riskFlags.some((r) => (BREAKING_RULES.excludedRisks as readonly string[]).includes(r))) return false;
+    // 事件・訃報・選挙・政治は、条件付きで出す（深夜は出さない）
+    if (isSensitive(c) && (!sensitiveAllowed(c) || quiet)) return false;
     if (quiet && !asRequested && !c.riskFlags.some((r) => (BREAKING_RULES.nightAllowedRisks as readonly string[]).includes(r))) return false;
     return true;
   });
@@ -227,7 +259,8 @@ export async function runBreakingCheck(now = new Date()) {
   });
   const stories = await prisma.story.findMany({
     where: {
-      status: "PENDING",
+      // 要確認（REVIEW_REQUIRED）は、理由が「慎重に扱う分野」だけのもの（事件・政治など）に限って下で残す
+      status: { in: ["PENDING", "REVIEW_REQUIRED"] },
       kind: "NEW",
       topic: { firstSeenAt: { gte: new Date(now.getTime() - BREAKING_RULES.maxAgeHours * 3_600_000) } },
       // 注目のニュースとして人が出した出来事は、速報で出し直さない
@@ -242,9 +275,11 @@ export async function runBreakingCheck(now = new Date()) {
       headline: true,
       cardType: true,
       category: true,
+      status: true,
+      statusNote: true,
       topic: { select: { id: true, title: true, aiTitle: true, publisherCount: true, firstSeenAt: true, lastSeenAt: true, articles: { select: { publisher: true }, take: 30 } } },
     },
-  });
+  }).then((rows) => rows.filter((r) => r.status === "PENDING" || onlySensitiveReview(r.statusNote)));
   // 世間の関心がある出来事だけ（人・自動で AI に確認を頼んだものは、頼む前に確かめ済み）。スポーツは1日の上限まで
   const interesting = new Set<string>();
   for (const st of stories) {
@@ -257,6 +292,7 @@ export async function runBreakingCheck(now = new Date()) {
       hot: isHot(s.topic, now.getTime()),
       trusted: s.topic.articles.some((a) => isTrustedPublisher(a.publisher)),
       requested: requested.has(s.id),
+      namesInHeadline: subjectNames(s.headline.join("")).length > 0,
       id: s.id,
       score: s.score,
       publisherCount: s.topic.publisherCount,
