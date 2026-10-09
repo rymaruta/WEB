@@ -55,3 +55,25 @@ describe("出来事の報道でない見出しは候補にしない（2026-10-07
   });
   it("災害はコラム風の見出しでも候補", () => expect(t("震度6強の地震…各地の被害は")).toBe("「地震」"));
 });
+
+describe("災害の速報の候補（2026-10-09）", async () => {
+  const { isDisasterTitle } = await import("@/lib/stories/hot");
+  it("会議の資料・防災の取り組みは災害の速報にしない", () => {
+    expect(isDisasterTitle("地震火山観測研究計画部会（第68回）配布資料")).toBe(false);
+    expect(isDisasterTitle("地震保険の保険料を改定")).toBe(false);
+    expect(isDisasterTitle("台風に備えた防災訓練を実施")).toBe(false);
+  });
+  it("地震は震度5弱以上だけ", () => {
+    expect(isDisasterTitle("千葉県北東部で最大震度4の地震（M4.8）　津波の心配なし")).toBe(false);
+    expect(isDisasterTitle("能登半島沖で最大震度5弱の地震")).toBe(true);
+    expect(isDisasterTitle("震度６強の地震　津波注意報")).toBe(true);
+  });
+  it("津波・噴火・大雨は今までどおり", () => {
+    expect(isDisasterTitle("津波警報を発表")).toBe(true);
+    expect(isDisasterTitle("桜島に噴火速報")).toBe(true);
+    expect(isDisasterTitle("大雨特別警報を発表")).toBe(true);
+  });
+  it("ファンの反応の記事は出来事の速報にしない", () => {
+    expect(hotReason({ title: "代表引退メッシ、まさかの“贈り物”にファン仰天", publisherCount: 1, firstSeenAt: ago(30) }, now)).toBeNull();
+  });
+});

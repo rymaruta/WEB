@@ -9,10 +9,10 @@ const { isSevereJmaTitle, jmaHeadline, jmaPostText } = await import("@/lib/diges
 const { checkSingleHeadline } = await import("@/lib/digest/check");
 
 describe("気象庁の発表からの速報", () => {
-  it("震度5強以上・津波警報・噴火速報だけを速報にする", () => {
+  it("震度5弱以上・津波警報・噴火速報だけを速報にする", () => {
     expect(isSevereJmaTitle("能登半島沖で最大震度6弱の地震（M6.5）")).toBe(true);
     expect(isSevereJmaTitle("茨城県南部で最大震度5強の地震（M5.4）　津波の心配なし")).toBe(true);
-    expect(isSevereJmaTitle("茨城県南部で最大震度5弱の地震（M5.0）")).toBe(false);
+    expect(isSevereJmaTitle("茨城県南部で最大震度5弱の地震（M5.0）")).toBe(true);
     expect(isSevereJmaTitle("千葉県東方沖で最大震度4の地震（M4.8）")).toBe(false);
     expect(isSevereJmaTitle("津波警報を発表")).toBe(true);
     expect(isSevereJmaTitle("大津波警報を発表")).toBe(true);

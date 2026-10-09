@@ -9,13 +9,13 @@ import { editionKey, jstDate } from "./slots";
  * 気象庁の防災情報（src/lib/jma.ts。収集で「気象庁」の記事として入る）から、直接速報を出す。
  * 大きな地震・津波警報・噴火速報は、気象庁の発表そのものが確かな一次情報なので、AI の解析や報道がそろうのを待たない
  * （2026-10-07。AI の定期処理が利用上限で止まっていても、災害の速報は出せるように）。
- * - 対象：最大震度5強以上の地震、大津波警報・津波警報の発表、噴火速報
+ * - 対象：最大震度5弱以上の地震（運営者の方針 2026-10-09）、大津波警報・津波警報の発表、噴火速報
  * - 気象庁が発表してから JMA_BREAKING.withinMinutes 分以内。深夜も出す。1日 JMA_BREAKING.maxPerDay 本まで（ふだんの速報の上限とは別）
  * - 同じ出来事（話題）の速報が今日すでにあれば出さない
  */
 export const JMA_BREAKING = { withinMinutes: 30, maxPerDay: 3, approvedBy: "jma-breaking" } as const;
 
-const SEVERE = /最大震度(5強|6弱|6強|7)の地震|(大津波警報|津波警報)を発表|噴火速報/;
+const SEVERE = /最大震度(5弱|5強|6弱|6強|7)の地震|(大津波警報|津波警報)を発表|噴火速報/;
 
 /** 速報にする大きな出来事か（気象庁の記事の見出しで判断） */
 export const isSevereJmaTitle = (title: string) => SEVERE.test(title);
