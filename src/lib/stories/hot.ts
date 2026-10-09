@@ -23,7 +23,7 @@ const NOT_BIG = /結婚式場|婚活|優勝候補|優勝争い|引退試合|地�
  * 2026-10-07: 作家の生涯を振り返るコラム（「亡くなった」「離婚」を含む）や、女性1000名への調査の発表が速報の候補になり、
  * 1日の候補の枠を埋めていた
  */
-const NOT_EVENT = /…|\.\.\.|｢|なぜ|とは[?？]?$|秘密|真実|調査[」』]?を発表|調査結果|名に聞いた|人に聞いた|アンケート|インタビュー|が語る|語った|証言|明かす|振り返る|コラム|解説|徹底|か[」』]?$/;
+const NOT_EVENT = /…|\.\.\.|｢|なぜ|とは[?？]?$|秘密|真実|調査[」』]?を発表|調査結果|名に聞いた|人に聞いた|アンケート|インタビュー|が語る|語った|証言|明かす|振り返る|コラム|解説|徹底|仰天|反響|騒然|ネットの声|SNSで話題|ファンが|ファン歓喜|喝采|エモい|か[」』]?$/;
 
 /** 出来事の報道でない見出しか（コラム・調査・インタビュー・推測） */
 export const isNotEventTitle = (title: string) => NOT_EVENT.test(title.normalize("NFKC").trim()) || /｢/.test(title);
@@ -42,12 +42,24 @@ const DISASTER = /地震|津波|噴火|緊急事態|台風|大雨|避難/;
  */
 export function worthApi(title: string, { quiet }: { quiet: boolean }): boolean {
   if (NOT_AUTO.test(title)) return false;
-  if (quiet) return DISASTER.test(title);
+  if (quiet) return isDisasterTitle(title);
   return true;
 }
 
 /** 災害の言葉があるか（誰にとっても関心のある出来事として、知名度を問わない） */
-export const isDisasterTitle = (title: string) => DISASTER.test(title);
+/**
+ * 災害の言葉はあるが、災害そのものの報道ではない見出し（会議の資料・防災の取り組み・保険など）。
+ * 2026-10-09: 文部科学省の「地震火山観測研究計画部会（第68回）配布資料」が災害の速報の候補になっていた
+ */
+const NOT_DISASTER_EVENT = /部会|審議会|検討会|委員会|会議|配布資料|議事|説明会|訓練|対策|防災|計画|保険|予防|啓発|シンポジウム|講演|募集|公募|入札|白書/;
+/** 震度4以下の地震（速報にしない。震度4はほぼ毎週起きるため。運営者の方針 2026-10-09：地震の速報は震度5弱以上） */
+const MINOR_QUAKE = (t: string) => /震度[1-4](?![0-9])/.test(t) && !/震度[5-7]/.test(t);
+
+/** 速報にする災害の見出しか（災害の言葉があり、会議資料などでなく、震度4以下の地震でない） */
+export const isDisasterTitle = (title: string) => {
+  const t = title.normalize("NFKC");
+  return DISASTER.test(t) && !NOT_DISASTER_EVENT.test(t) && !MINOR_QUAKE(t);
+};
 
 export function bigWord(title: string): string | null {
   if (NOT_BIG.test(title)) return null;
